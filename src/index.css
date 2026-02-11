@@ -1,0 +1,236 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global scroll (PWA): keep a single scroll container to avoid wheel/touch being blocked */
+html,
+body {
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+}
+
+#root {
+  height: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* BioTreiner Official Branding - Deep Black Theme */
+    --background: 156 15% 4%; /* #0A0D0C deep black */
+    --foreground: 0 0% 100%; /* #FFFFFF white */
+
+    --card: 150 10% 6%; /* #0F1211 slightly lighter dark */
+    --card-foreground: 0 0% 100%;
+
+    /* Superfícies especiais */
+    --carbon: 156 15% 5%;
+
+    /* Gradientes de plano */
+    --plan-pro-from: 48 96% 64%;
+    --plan-pro-to: 45 93% 49%;
+
+    --popover: 150 10% 6%;
+    --popover-foreground: 0 0% 100%;
+
+    /* Primary updated to #56FF02 (neon lime) */
+    --primary: 100 100% 50%; /* #56FF02 */
+    --primary-foreground: 0 0% 0%; /* texto preto nos botões verdes */
+
+    /* Remove purple from system */
+    --secondary: 0 0% 100%; /* white */
+    --secondary-foreground: 0 0% 0%;
+
+    --muted: 156 10% 8%;
+    --muted-foreground: 0 0% 76%; /* #C1C1C1 light gray */
+
+    /* Accent becomes primary (no purple accents anywhere) */
+    --accent: 100 100% 50%; /* #56FF02 */
+    --accent-foreground: 0 0% 0%;
+
+    /* Identidade (alta energia) */
+    --energy-lime: 100 100% 50%; /* #56FF02 */
+    --energy-purple: 0 0% 100%; /* white (purple removed) */
+
+    --hub-service-bg: 100 100% 50%;
+    --hub-service-foreground: 0 0% 0%;
+    --hub-service-border: 0 0% 100%;
+
+    /* Status */
+    --warning: 44 92% 55%;
+    --warning-foreground: 0 0% 10%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 100%; /* white borders */
+    --input: 156 15% 8%;
+    --ring: 100 100% 50%;
+
+    --radius: 0.9rem;
+
+    --sidebar-background: 156 15% 4%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 100 100% 50%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 100 100% 50%;
+    --sidebar-accent-foreground: 0 0% 0%;
+    --sidebar-border: 0 0% 100%;
+    --sidebar-ring: 100 100% 50%;
+  }
+
+  .dark {
+    /* BioTreiner Official Branding - Deep Black Theme */
+    --background: 156 15% 4%; /* #0A0D0C deep black */
+    --foreground: 0 0% 100%; /* #FFFFFF white */
+
+    --card: 150 10% 6%; /* #0F1211 slightly lighter dark */
+    --card-foreground: 0 0% 100%;
+
+    /* Superfícies especiais */
+    --carbon: 156 15% 5%;
+
+    /* Gradientes de plano */
+    --plan-pro-from: 48 96% 64%;
+    --plan-pro-to: 45 93% 49%;
+
+    --popover: 150 10% 6%;
+    --popover-foreground: 0 0% 100%;
+
+    /* Primary updated to #56FF02 (neon lime) */
+    --primary: 100 100% 50%; /* #56FF02 */
+    --primary-foreground: 0 0% 0%;
+
+    /* Remove purple from system */
+    --secondary: 0 0% 100%; /* white */
+    --secondary-foreground: 0 0% 0%;
+
+    --muted: 156 10% 8%;
+    --muted-foreground: 0 0% 76%; /* #C1C1C1 light gray */
+
+    /* Accent becomes primary (no purple accents anywhere) */
+    --accent: 100 100% 50%; /* #56FF02 */
+    --accent-foreground: 0 0% 0%;
+
+    /* Identidade (alta energia) */
+    --energy-lime: 100 100% 50%;
+    --energy-purple: 0 0% 100%; /* white (purple removed) */
+
+    --hub-service-bg: 100 100% 50%;
+    --hub-service-foreground: 0 0% 0%;
+    --hub-service-border: 0 0% 100%;
+
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 100%; /* white borders */
+    --input: 156 15% 8%;
+    --ring: 100 100% 50%;
+
+    --sidebar-background: 156 15% 4%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 100 100% 50%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 100 100% 50%;
+    --sidebar-accent-foreground: 0 0% 0%;
+    --sidebar-border: 0 0% 100%;
+    --sidebar-ring: 100 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    background-color: hsl(var(--background)) !important;
+    overflow: hidden;
+    /* Do not restrict wheel/touch scrolling globally */
+    overscroll-behavior: auto;
+    touch-action: auto;
+  }
+
+  html {
+    overflow-x: hidden;
+    overscroll-behavior: auto;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  input, textarea, select, button {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+  }
+}
+
+@layer components {
+  .btn-planos {
+    @apply inline-flex items-center justify-center font-semibold text-xs rounded-full px-6 py-2 shadow-lg transition-transform duration-200 hover:scale-105;
+    background-image: linear-gradient(
+      135deg,
+      hsl(12 88% 60%),
+      hsl(220 85% 55%),
+      hsl(315 85% 60%)
+    );
+    box-shadow: 0 18px 45px hsl(0 0% 0% / 0.65);
+  }
+
+  .page-title-gradient {
+    @apply bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent;
+  }
+
+  .hub-service-btn {
+    @apply flex w-full items-center justify-between rounded-xl border-2 px-4 py-3 text-left text-sm transition-transform duration-150 active:scale-[0.99];
+    background-color: hsl(var(--hub-service-bg));
+    border-color: hsl(var(--hub-service-border));
+    color: hsl(var(--hub-service-foreground));
+  }
+
+  .hub-service-btn:focus-visible {
+    outline: 2px solid hsl(var(--hub-service-border));
+    outline-offset: 2px;
+  }
+
+  .safe-bottom {
+    padding-bottom: constant(safe-area-inset-bottom);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-bottom-nav {
+    padding-bottom: calc(0.75rem + constant(safe-area-inset-bottom));
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  }
+
+  .safe-bottom-main {
+    padding-bottom: calc(7rem + constant(safe-area-inset-bottom));
+    padding-bottom: calc(7rem + env(safe-area-inset-bottom));
+  }
+
+  .safe-bottom-content {
+    padding-bottom: calc(6rem + constant(safe-area-inset-bottom));
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+  }
+
+  /* Safe bottom padding for pages with floating nav island */
+  .safe-bottom-floating-nav {
+    padding-bottom: calc(7rem + constant(safe-area-inset-bottom));
+    padding-bottom: calc(7rem + env(safe-area-inset-bottom));
+  }
+
+  .safe-bottom-banner {
+    bottom: calc(1rem + constant(safe-area-inset-bottom));
+    bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+}
