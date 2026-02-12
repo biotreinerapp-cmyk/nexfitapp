@@ -27,7 +27,7 @@ const badgeStyles: Record<BadgeVariant, { label: string; className: string }> = 
   },
   FREE: {
     label: "Plano Free",
-    className: "bg-muted",
+    className: "bg-gradient-to-b from-[hsl(100_60%_28%)] to-[hsl(100_40%_18%)]",
   },
 };
 

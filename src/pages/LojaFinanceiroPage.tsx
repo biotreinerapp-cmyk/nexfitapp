@@ -1,9 +1,12 @@
 import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { LojaFloatingNavIsland } from "@/components/navigation/LojaFloatingNavIsland";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, TrendingUp, CreditCard } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { DollarSign, TrendingUp, CreditCard, Sparkles } from "lucide-react";
 
 const LojaFinanceiroPage = () => {
+  const navigate = useNavigate();
   useEffect(() => {
     document.title = "Financeiro - Nexfit Lojista";
   }, []);
@@ -53,7 +56,27 @@ const LojaFinanceiroPage = () => {
         </Card>
       </div>
 
-      <p className="mt-6 text-center text-xs text-muted-foreground">
+      {/* Destaque CTA */}
+      <div className="mt-6 rounded-2xl border border-primary/30 bg-gradient-to-br from-card via-card to-primary/5 p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/20">
+            <Sparkles className="h-5 w-5 text-primary" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">Destaque sua loja</p>
+            <p className="text-[11px] text-muted-foreground">Apareça no banner do app e alcance mais clientes</p>
+          </div>
+        </div>
+        <Button
+          className="mt-3 w-full bg-primary text-primary-foreground hover:bg-primary/90"
+          size="sm"
+          onClick={() => navigate("/loja/destaque")}
+        >
+          Ver pacotes de divulgação
+        </Button>
+      </div>
+
+      <p className="mt-4 text-center text-xs text-muted-foreground">
         Dados financeiros detalhados serão exibidos aqui conforme os pedidos forem realizados.
       </p>
 

@@ -417,33 +417,149 @@ export type Database = {
         }
         Relationships: []
       }
+      equipment: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          slug: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          slug?: string
+        }
+        Relationships: []
+      }
+      exercise_media: {
+        Row: {
+          exercise_id: string
+          id: string
+          is_main: boolean | null
+          url: string
+        }
+        Insert: {
+          exercise_id: string
+          id?: string
+          is_main?: boolean | null
+          url: string
+        }
+        Update: {
+          exercise_id?: string
+          id?: string
+          is_main?: boolean | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercise_media_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exercises: {
         Row: {
           created_at: string
           difficulty: string | null
           equipment: string | null
+          equipment_id: string | null
           id: string
           muscle_image_url: string | null
           name: string
+          primary_muscle_id: string | null
+          slug: string | null
           target_muscle: string
         }
         Insert: {
           created_at?: string
           difficulty?: string | null
           equipment?: string | null
+          equipment_id?: string | null
           id?: string
           muscle_image_url?: string | null
           name: string
+          primary_muscle_id?: string | null
+          slug?: string | null
           target_muscle: string
         }
         Update: {
           created_at?: string
           difficulty?: string | null
           equipment?: string | null
+          equipment_id?: string | null
           id?: string
           muscle_image_url?: string | null
           name?: string
+          primary_muscle_id?: string | null
+          slug?: string | null
           target_muscle?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercises_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exercises_primary_muscle_id_fkey"
+            columns: ["primary_muscle_id"]
+            isOneToOne: false
+            referencedRelation: "muscles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      highlight_offers: {
+        Row: {
+          badge_label: string | null
+          created_at: string
+          description: string | null
+          duration_days: number
+          features: string[]
+          id: string
+          is_active: boolean
+          price_cents: number
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          badge_label?: string | null
+          created_at?: string
+          description?: string | null
+          duration_days?: number
+          features?: string[]
+          id?: string
+          is_active?: boolean
+          price_cents?: number
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          badge_label?: string | null
+          created_at?: string
+          description?: string | null
+          duration_days?: number
+          features?: string[]
+          id?: string
+          is_active?: boolean
+          price_cents?: number
+          sort_order?: number
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -764,6 +880,27 @@ export type Database = {
           status?: string
           store_type?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      muscles: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          slug: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          slug?: string
         }
         Relationships: []
       }

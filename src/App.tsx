@@ -22,6 +22,7 @@ import NutricionistaPage from "./pages/NutricionistaPage";
 import TelemedicinaPage from "./pages/TelemedicinaPage";
 import LojaDashboardPage from "./pages/LojaDashboard";
 import LojaFinanceiroPage from "./pages/LojaFinanceiroPage";
+import LojaDestaquePage from "./pages/LojaDestaquePage";
 import LojaProdutosPage from "./pages/LojaProdutosPage";
 import LojaEstoquePage from "./pages/LojaEstoquePage";
 import LojaPerfilPage from "./pages/LojaPerfilPage";
@@ -570,6 +571,14 @@ const AppRoutes = () => (
       element={
         <AlunoRoute>
           <LojaFinanceiroPage />
+        </AlunoRoute>
+      }
+    />
+    <Route
+      path="/loja/destaque"
+      element={
+        <AlunoRoute>
+          <LojaDestaquePage />
         </AlunoRoute>
       }
     />

@@ -95,6 +95,32 @@ const AlunoEditarPerfilPage = () => {
     void loadProfile();
   }, [user, form, toast]);
 
+  const convertToJpeg = (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { reject(new Error("Canvas not supported")); return; }
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob(
+          (blob) => {
+            URL.revokeObjectURL(url);
+            if (blob) resolve(blob);
+            else reject(new Error("Falha ao converter imagem"));
+          },
+          "image/jpeg",
+          0.85,
+        );
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Imagem inválida")); };
+      img.src = url;
+    });
+  };
+
   const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
       if (!user) return;
@@ -112,11 +138,22 @@ const AlunoEditarPerfilPage = () => {
 
       setUploading(true);
 
-      const fileExt = file.name.split(".").pop();
-      const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+      // Convert to JPEG to ensure browser compatibility (e.g. HEIF from iPhones)
+      let uploadFile: Blob | File = file;
+      const needsConversion = !file.type.startsWith("image/jpeg") && !file.type.startsWith("image/png") && !file.type.startsWith("image/webp");
+      if (needsConversion || file.type === "" || file.name.toLowerCase().endsWith(".heif") || file.name.toLowerCase().endsWith(".heic")) {
+        try {
+          uploadFile = await convertToJpeg(file);
+        } catch {
+          // fallback: try uploading as-is
+          uploadFile = file;
+        }
+      }
+
+      const filePath = `${user.id}/${Date.now()}.jpeg`;
 
       const { error: uploadError } = await withTimeout(
-        supabase.storage.from("avatars").upload(filePath, file, { upsert: true }),
+        supabase.storage.from("avatars").upload(filePath, uploadFile, { upsert: true, contentType: "image/jpeg" }),
         20000
       );
 

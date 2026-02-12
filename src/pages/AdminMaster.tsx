@@ -43,6 +43,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DashboardOutdoorAdminPanel } from "@/components/admin/DashboardOutdoorAdminPanel";
 import { NewsNotificationsAdminPanel } from "@/components/admin/NewsNotificationsAdminPanel";
+import { HighlightOffersAdminPanel } from "@/components/admin/HighlightOffersAdminPanel";
 import { GeneralSettingsPixPanel } from "@/components/admin/GeneralSettingsPixPanel";
 import {
   AlertDialog,
@@ -1818,6 +1819,7 @@ const AdminMasterContent = () => {
                         <TabsList className="w-full justify-start">
                           <TabsTrigger value="banner">Banner</TabsTrigger>
                           <TabsTrigger value="notificacoes">Notificações</TabsTrigger>
+                          <TabsTrigger value="ofertas">Ofertas Destaque</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="banner" className="mt-4 space-y-4">
@@ -1838,6 +1840,10 @@ const AdminMasterContent = () => {
 
                         <TabsContent value="notificacoes" className="mt-4 space-y-4">
                           <NewsNotificationsAdminPanel />
+                        </TabsContent>
+
+                        <TabsContent value="ofertas" className="mt-4 space-y-4">
+                          <HighlightOffersAdminPanel />
                         </TabsContent>
                       </Tabs>
                     </CardContent>
