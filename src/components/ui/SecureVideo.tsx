@@ -1,6 +1,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Play } from "lucide-react";
 import { getCachedVideoUrl } from "@/lib/videoCache";
 import defaultExerciseImage from "@/assets/default-exercise.png";
 
@@ -13,15 +14,24 @@ interface SecureVideoProps extends React.VideoHTMLAttributes<HTMLVideoElement> {
 export function SecureVideo({ src, apiKey, exerciseId, className, ...props }: SecureVideoProps) {
     const [videoSrc, setVideoSrc] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [loading, setLoading] = useState<boolean>(true);
+    const [loading, setLoading] = useState<boolean>(false);
+    const [shouldLoad, setShouldLoad] = useState<boolean>(false);
     const abortControllerRef = useRef<AbortController | null>(null);
 
     useEffect(() => {
         if (!src) return;
 
-        // Check if it's a blob url already
-        if (src.startsWith('blob:')) {
+        // Auto-load if it's already a blob OR not a protected RapidAPI URL
+        const isProtected = src.includes('rapidapi');
+
+        if (src.startsWith('blob:') || !isProtected) {
             setVideoSrc(src);
+            setLoading(false);
+            return;
+        }
+
+        // Only proceed for protected URLs if shouldLoad is true
+        if (!shouldLoad) {
             setLoading(false);
             return;
         }
@@ -94,7 +104,7 @@ export function SecureVideo({ src, apiKey, exerciseId, className, ...props }: Se
                 URL.revokeObjectURL(videoSrc);
             }
         };
-    }, [src, apiKey, exerciseId]);
+    }, [src, apiKey, exerciseId, shouldLoad]);
 
     if (error) {
         // Show placeholder image for any error (API quota, network, etc.)
@@ -116,10 +126,36 @@ export function SecureVideo({ src, apiKey, exerciseId, className, ...props }: Se
         return <Skeleton className={`animate-pulse ${className}`} />;
     }
 
+    if (!videoSrc) {
+        // Show placeholder with Play button to trigger loading
+        return (
+            <div
+                className={`relative cursor-pointer group ${className}`}
+                onClick={() => setShouldLoad(true)}
+            >
+                <img
+                    src={defaultExerciseImage}
+                    alt="Carregar vídeo"
+                    className="w-full h-full object-cover transition-opacity group-hover:opacity-80"
+                />
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="bg-primary/90 text-primary-foreground p-3 rounded-full shadow-lg transform transition-transform group-hover:scale-110">
+                        <Play className="w-6 h-6 fill-current" />
+                    </div>
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] p-1 text-center">
+                    Clique para ver execução
+                </div>
+            </div>
+        );
+    }
+
     return (
         <video
-            src={videoSrc!}
+            src={videoSrc}
             className={className}
+            autoPlay
+            controls
             {...props}
         />
     );
