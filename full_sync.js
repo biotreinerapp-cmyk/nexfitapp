@@ -2,11 +2,10 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Retrying with User Provided Key
-// Retrying with User Provided Key
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "https://afffyfsmcvphrhbtxrgt.supabase.co";
+const SUPABASE_URL = process.env.SUPABASE_URL || "https://afffyfsmcvphrhbtxrgt.supabase.co";
 const MUSCLEWIKI_HOST = "musclewiki-api.p.rapidapi.com";
-const RAPIDAPI_KEY = "7abffdb721mshe6edf9169775d83p1212ffjsn4c407842489b";
+const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false },

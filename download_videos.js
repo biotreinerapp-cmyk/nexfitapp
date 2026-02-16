@@ -7,9 +7,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Supabase configuration
-// Supabase configuration
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_URL = 'https://hhbzlqnqgzxqxbfqcqzd.supabase.co';
+const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoYnpscW5xZ3p4cXhiZnFjcXpkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNjE5Nzc2OSwiZXhwIjoyMDUxNzczNzY5fQ.Ey2pBPLHkgqEOoRZmYZqRQBnCGLdBNjEQbHEXwWJLGw';
 
 // RapidAPI configuration
 const RAPIDAPI_KEY = '7abffdb721mshe6edf9169775d83p1212ffjsn4c407842489b';

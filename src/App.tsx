@@ -65,6 +65,8 @@ import AlunoPreferenciasPage from "./pages/AlunoPreferenciasPage";
 import AlunoPlanoPage from "./pages/AlunoPlanoPage";
 import AlunoPlanosLP from "./pages/AlunoPlanosLP";
 import AlunoPlanosCheckout from "./pages/AlunoPlanosCheckout";
+import AlunoChatPage from "./pages/AlunoChatPage";
+import AlunoConsultasPage from "./pages/AlunoConsultasPage";
 import { UserPreferencesProvider } from "./hooks/useUserPreferences";
 import DeviceConnectivityPage from "./pages/DeviceConnectivityPage";
 import { ActivityProvider } from "./hooks/useActivityContext";
@@ -581,6 +583,26 @@ const AppRoutes = () => (
           <AlunoRoute>
             <RequireOnboarding>
               <AlunoHistoricoDetalhePage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/chat"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <AlunoChatPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/consultas"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <AlunoConsultasPage />
             </RequireOnboarding>
           </AlunoRoute>
         }
