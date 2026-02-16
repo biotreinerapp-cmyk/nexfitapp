@@ -45,6 +45,11 @@ import { DashboardOutdoorAdminPanel } from "@/components/admin/DashboardOutdoorA
 import { NewsNotificationsAdminPanel } from "@/components/admin/NewsNotificationsAdminPanel";
 import { HighlightOffersAdminPanel } from "@/components/admin/HighlightOffersAdminPanel";
 import { GeneralSettingsPixPanel } from "@/components/admin/GeneralSettingsPixPanel";
+import { PlanConfigEditor } from "@/components/admin/pricing/PlanConfigEditor";
+import { ProfessionalPricingConfig } from "@/components/admin/pricing/ProfessionalPricingConfig";
+import { HighlightOffersManager } from "@/components/admin/pricing/HighlightOffersManager";
+import { PixConfigManager } from "@/components/admin/pricing/PixConfigManager";
+import { WithdrawalRequestsManager } from "@/components/admin/pricing/WithdrawalRequestsManager";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -232,6 +237,8 @@ const AdminMasterContent = () => {
     ownerPassword: "",
     profileImageFile: null as File | null,
     bannerImageFile: null as File | null,
+    cnpj: "",
+    whatsapp: "",
   });
   const [showNewStoreForm, setShowNewStoreForm] = useState(false);
   const [isCreatingStore, setIsCreatingStore] = useState(false);
@@ -492,21 +499,6 @@ const AdminMasterContent = () => {
     void queryClient.invalidateQueries({ queryKey: ["users", "admin_list_users"] });
   };
 
-  const updateStoreStatus = async (storeId: string, status: "aprovado" | "reprovado") => {
-    const { error } = await supabase.from("marketplace_stores").update({ status }).eq("id", storeId);
-
-    if (error) {
-      toast({ title: "Erro ao atualizar loja", description: error.message, variant: "destructive" });
-      return;
-    }
-
-    setStores((prev) => prev.map((s) => (s.id === storeId ? { ...s, status } : s)));
-
-    toast({
-      title: status === "aprovado" ? "Loja aprovada" : "Loja reprovada",
-      description: "O status da loja foi atualizado.",
-    });
-  };
 
   const handleBanUser = async (profileId: string) => {
     const { error } = await supabase.functions.invoke("admin-user-management", {
@@ -649,8 +641,7 @@ const AdminMasterContent = () => {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
-          apikey:
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFmZmZ5ZnNtY3ZwaHJoYnR4cmd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcwNjU1NDYsImV4cCI6MjA4MjY0MTU0Nn0.cpLjvUADTJxzdr0MGIZFai_zYHPbnaU2P1I-EyDoqnw",
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
         body: JSON.stringify({
           messages: [{ role: "user", content: testPrompt.trim() }],
@@ -777,13 +768,29 @@ const AdminMasterContent = () => {
           storeDescription: newStore.description.trim() || undefined,
           profileImageUrl,
           bannerImageUrl,
+          cnpj: newStore.cnpj.trim() || undefined,
+          whatsapp: newStore.whatsapp.trim() || undefined,
         },
       });
 
       // On non-2xx, supabase-js sets error but data may still contain the parsed body
       const bodyError = (data as any)?.error;
       if (bodyError || error) {
-        const msg = bodyError || error?.message || "Erro desconhecido ao criar loja.";
+        let msg = bodyError || "Erro desconhecido ao criar loja.";
+        if (!bodyError && error) {
+          // Try to extract the JSON body from FunctionsHttpError
+          try {
+            const ctx = (error as any).context;
+            if (ctx && typeof ctx.json === "function") {
+              const parsed = await ctx.json();
+              msg = parsed?.error || error.message;
+            } else {
+              msg = error.message;
+            }
+          } catch {
+            msg = error.message;
+          }
+        }
         toast({ title: "Erro ao criar loja", description: msg, variant: "destructive" });
         return;
       }
@@ -797,6 +804,7 @@ const AdminMasterContent = () => {
         name: "", storeType: "suplementos", description: "",
         ownerEmail: "", ownerPassword: "",
         profileImageFile: null, bannerImageFile: null,
+        cnpj: "", whatsapp: "",
       });
       setShowNewStoreForm(false);
 
@@ -816,9 +824,9 @@ const AdminMasterContent = () => {
       toast({ title: "Preencha nome e slug do serviço", variant: "destructive" });
       return;
     }
- 
+
     const iconSlug = novoServico.icone || getIconForServiceName(novoServico.nome);
- 
+
     const { data, error } = await supabase
       .from("telemedicina_servicos")
       .insert({
@@ -829,37 +837,37 @@ const AdminMasterContent = () => {
       })
       .select()
       .maybeSingle();
- 
+
     if (error) {
       toast({ title: "Erro ao criar serviço", description: error.message, variant: "destructive" });
       return;
     }
- 
+
     let createdServico = data as TelemedServico;
- 
+
     if (novoServicoIconFile) {
       const file = novoServicoIconFile;
       const validTypes = ["image/png", "image/svg+xml"];
- 
+
       if (!validTypes.includes(file.type)) {
         toast({ title: "Formato inválido", description: "Envie um arquivo SVG ou PNG.", variant: "destructive" });
       } else {
         const fileExt = file.name.split(".").pop()?.toLowerCase() || "png";
         const filePath = `servico-${createdServico.id}-${Date.now()}.${fileExt}`;
- 
+
         const { error: uploadError } = await supabase.storage
           .from("telemedicina_icons")
           .upload(filePath, file, {
             upsert: true,
             contentType: file.type || undefined,
           });
- 
+
         if (uploadError) {
           toast({ title: "Erro ao enviar ícone", description: uploadError.message, variant: "destructive" });
         } else {
           const { data: publicData } = supabase.storage.from("telemedicina_icons").getPublicUrl(filePath);
           const publicUrl = publicData.publicUrl;
- 
+
           const { data: updated, error: updateError } = await supabase
             .from("telemedicina_servicos")
             .update({ icon_url: publicUrl } as any)
@@ -875,11 +883,11 @@ const AdminMasterContent = () => {
         }
       }
     }
- 
+
     if (createdServico) {
       setServicos((prev) => [...prev, createdServico]);
     }
- 
+
     setNovoServico({ nome: "", slug: "", icone: "" });
     setNovoServicoIconFile(null);
     toast({ title: "Serviço criado", description: "Novo serviço de telemedicina adicionado." });
@@ -960,51 +968,51 @@ const AdminMasterContent = () => {
 
   const handleSaveEditServico = async () => {
     if (!editingServicoId || !editingServico) return;
- 
+
     const { nome, slug, icone, ativo } = editingServico;
- 
+
     if (!nome.trim() || !slug.trim()) {
       toast({ title: "Preencha nome e slug do serviço", variant: "destructive" });
       return;
     }
- 
+
     const { data, error } = await supabase
       .from("telemedicina_servicos")
       .update({ nome, slug, icone, ativo })
       .eq("id", editingServicoId)
       .select()
       .maybeSingle();
- 
+
     if (error) {
       toast({ title: "Erro ao atualizar serviço", description: error.message, variant: "destructive" });
       return;
     }
- 
+
     let updatedServico = data as TelemedServico;
- 
+
     if (editingServicoIconFile) {
       const file = editingServicoIconFile;
       const validTypes = ["image/png", "image/svg+xml"];
- 
+
       if (!validTypes.includes(file.type)) {
         toast({ title: "Formato inválido", description: "Envie um arquivo SVG ou PNG.", variant: "destructive" });
       } else {
         const fileExt = file.name.split(".").pop()?.toLowerCase() || "png";
         const filePath = `servico-${editingServicoId}-${Date.now()}.${fileExt}`;
- 
+
         const { error: uploadError } = await supabase.storage
           .from("telemedicina_icons")
           .upload(filePath, file, {
             upsert: true,
             contentType: file.type || undefined,
           });
- 
+
         if (uploadError) {
           toast({ title: "Erro ao enviar ícone", description: uploadError.message, variant: "destructive" });
         } else {
           const { data: publicData } = supabase.storage.from("telemedicina_icons").getPublicUrl(filePath);
           const publicUrl = publicData.publicUrl;
- 
+
           const { data: updatedWithIcon, error: updateError } = await supabase
             .from("telemedicina_servicos")
             .update({ icon_url: publicUrl } as any)
@@ -1020,11 +1028,11 @@ const AdminMasterContent = () => {
         }
       }
     }
- 
+
     if (updatedServico) {
       setServicos((prev) => prev.map((s) => (s.id === editingServicoId ? updatedServico : s)));
     }
- 
+
     setEditingServicoId(null);
     setEditingServico(null);
     setEditingServicoIconFile(null);
@@ -1036,20 +1044,22 @@ const AdminMasterContent = () => {
     | "pagamentos"
     | "marketplace"
     | "telemedicina"
+    | "precificacao"
     | "dr-bio"
     | "noticias"
     | "configuracoes"
     | "ajustes" = (() => {
-    if (location.pathname.startsWith("/admin-master/usuarios")) return "usuarios";
+      if (location.pathname.startsWith("/admin-master/usuarios")) return "usuarios";
       if (location.pathname.startsWith("/admin-master/pagamentos")) return "pagamentos";
-    if (location.pathname.startsWith("/admin-master/marketplace")) return "marketplace";
-    if (location.pathname.startsWith("/admin-master/telemedicina")) return "telemedicina";
-    if (location.pathname.startsWith("/admin-master/dr-bio")) return "dr-bio";
-    if (location.pathname.startsWith("/admin-master/noticias")) return "noticias";
-    if (location.pathname.startsWith("/admin-master/configuracoes")) return "configuracoes";
-    if (location.pathname.startsWith("/admin-master/ajustes")) return "ajustes";
-    return "dashboard";
-  })();
+      if (location.pathname.startsWith("/admin-master/marketplace")) return "marketplace";
+      if (location.pathname.startsWith("/admin-master/telemedicina")) return "telemedicina";
+      if (location.pathname.startsWith("/admin-master/precificacao")) return "precificacao";
+      if (location.pathname.startsWith("/admin-master/dr-bio")) return "dr-bio";
+      if (location.pathname.startsWith("/admin-master/noticias")) return "noticias";
+      if (location.pathname.startsWith("/admin-master/configuracoes")) return "configuracoes";
+      if (location.pathname.startsWith("/admin-master/ajustes")) return "ajustes";
+      return "dashboard";
+    })();
 
   const handleNavigate = (path: string) => {
     if (location.pathname === path) return;
@@ -1105,17 +1115,19 @@ const AdminMasterContent = () => {
           : "Gestão de Usuários"
         : currentSection === "pagamentos"
           ? "Pagamentos"
-        : currentSection === "marketplace"
-          ? "Marketplace"
-          : currentSection === "telemedicina"
-            ? "Telemedicina"
-            : currentSection === "dr-bio"
-              ? "Conteúdo Dr. Bio"
-              : currentSection === "noticias"
-                ? "Notícias / Outdoor"
-                : currentSection === "ajustes"
-                  ? "Ajustes Gerais"
-                  : "Configurações Gerais";
+          : currentSection === "marketplace"
+            ? "Marketplace"
+            : currentSection === "telemedicina"
+              ? "Telemedicina"
+              : currentSection === "precificacao"
+                ? "Precificação"
+                : currentSection === "dr-bio"
+                  ? "Conteúdo Dr. Bio"
+                  : currentSection === "noticias"
+                    ? "Notícias / Outdoor"
+                    : currentSection === "ajustes"
+                      ? "Ajustes Gerais"
+                      : "Configurações Gerais";
 
   type PaymentStatusFilter = "all" | "pending" | "approved" | "rejected";
   const [paymentFilter, setPaymentFilter] = useState<PaymentStatusFilter>(
@@ -1615,6 +1627,15 @@ const AdminMasterContent = () => {
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton
+                      isActive={currentSection === "precificacao"}
+                      onClick={() => handleNavigate("/admin-master/precificacao")}
+                    >
+                      <CreditCard className="mr-2" />
+                      {!collapsed && <span>Precificação</span>}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
                       isActive={currentSection === "dr-bio"}
                       onClick={() => handleNavigate("/admin-master/dr-bio")}
                     >
@@ -1805,262 +1826,573 @@ const AdminMasterContent = () => {
                     </>
                   )}
 
-              {currentSection === "noticias" && (
-                <section className="space-y-4">
-                  <Card className="border border-border/70 bg-card/80">
-                    <CardHeader>
-                      <CardTitle className="text-sm font-medium">Notícias</CardTitle>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Gerencie o Outdoor (banners no Dashboard do Aluno) e, em breve, notificações.
-                      </p>
-                    </CardHeader>
-                    <CardContent>
-                      <Tabs defaultValue="banner" className="w-full">
-                        <TabsList className="w-full justify-start">
-                          <TabsTrigger value="banner">Banner</TabsTrigger>
-                          <TabsTrigger value="notificacoes">Notificações</TabsTrigger>
-                          <TabsTrigger value="ofertas">Ofertas Destaque</TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="banner" className="mt-4 space-y-4">
-                          <Card className="border border-border/70 bg-card/80">
-                            <CardHeader>
-                              <CardTitle className="text-sm font-medium">Outdoor do Dashboard</CardTitle>
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                Publique comunicados em formato de imagem que aparecem no Dashboard do Aluno.
-                              </p>
-                            </CardHeader>
-                            <CardContent className="text-xs text-muted-foreground">
-                              Dica: use imagens 360×120 (proporção 3:1). O link é opcional.
-                            </CardContent>
-                          </Card>
-
-                          <DashboardOutdoorAdminPanel />
-                        </TabsContent>
-
-                        <TabsContent value="notificacoes" className="mt-4 space-y-4">
-                          <NewsNotificationsAdminPanel />
-                        </TabsContent>
-
-                        <TabsContent value="ofertas" className="mt-4 space-y-4">
-                          <HighlightOffersAdminPanel />
-                        </TabsContent>
-                      </Tabs>
-                    </CardContent>
-                  </Card>
-                </section>
-              )}
-
-              {currentSection === "configuracoes" && (
-                <section className="space-y-4">
-                  <Card className="border border-border/70 bg-card/80">
-                    <CardHeader>
-                      <CardTitle className="text-sm font-medium">Configurações gerais</CardTitle>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Gerencie a chave da API da ExerciseDB utilizada para sincronizar a biblioteca de exercícios.
-                      </p>
-                    </CardHeader>
-                    <CardContent className="space-y-3 text-sm">
-                      <div className="space-y-1">
-                        <Label htmlFor="exercisedb-api-key" className="text-xs font-medium text-muted-foreground">
-                          API Key ExerciseDB (RapidAPI)
-                        </Label>
-                        <div className="relative">
-                          <Input
-                            id="exercisedb-api-key"
-                            type={showExerciseApiKey ? "text" : "password"}
-                            autoComplete="off"
-                            value={exerciseApiKey}
-                            onChange={(e) => setExerciseApiKey(e.target.value)}
-                            disabled={loadingConfig}
-                            className="bg-background/60 pr-10 text-sm"
-                            placeholder="Cole aqui a chave secreta da ExerciseDB"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowExerciseApiKey((prev) => !prev)}
-                            className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
-                            aria-label={showExerciseApiKey ? "Ocultar chave" : "Mostrar chave"}
-                          >
-                            {showExerciseApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </button>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground">
-                          Esta chave fica protegida no banco de dados e só é acessível pelo Admin Master / admins.
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-3 pt-2">
-                        <Badge
-                          variant="outline"
-                          className={`h-6 text-[10px] font-semibold uppercase tracking-wide ${hasExerciseApiKey ? "border-primary/60 bg-primary/10 text-primary" : "border-destructive/60 bg-destructive/10 text-destructive"}`}
-                        >
-                          {hasExerciseApiKey ? "API configurada" : "API não configurada"}
-                        </Badge>
-                        {exerciseApiKeyUpdatedAt && (
-                          <p className="text-[11px] text-muted-foreground">
-                            Última atualização da chave:{" "}
-                            {new Date(exerciseApiKeyUpdatedAt).toLocaleString("pt-BR")}.
-                          </p>
-                        )}
-                        <div className="flex flex-wrap items-center gap-3 pt-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            disabled={loadingConfig || !exerciseApiKey.trim()}
-                            onClick={async () => {
-                              const { error } = await supabase.from("app_settings").upsert(
-                                {
-                                  key_name: "exercisedb_api_key",
-                                  key_value: exerciseApiKey.trim(),
-                                },
-                                { onConflict: "key_name" },
-                              );
-
-                              if (error) {
-                                toast({
-                                  title: "Erro ao salvar configuração",
-                                  description: error.message,
-                                  variant: "destructive",
-                                });
-                                return;
-                              }
-
-                              setHasExerciseApiKey(true);
-                              setExerciseApiKeyUpdatedAt(new Date().toISOString());
-
-                              toast({
-                                title: "Configuração salva",
-                                description: "API key da ExerciseDB atualizada com sucesso.",
-                              });
-                            }}
-                          >
-                            Salvar chave
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="bg-primary text-primary-foreground hover:bg-primary/90"
-                            onClick={handleSyncExercises}
-                            disabled={isSyncingExercises || loadingConfig}
-                          >
-                            {isSyncingExercises ? "Sincronizando biblioteca..." : "Sincronizar Biblioteca"}
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </section>
-              )}
-
-              {currentSection === "ajustes" && (
-                <section className="space-y-4">
-                  <Card className="border border-border/70 bg-card/80">
-                    <CardHeader>
-                      <CardTitle className="text-sm font-medium">Ajustes Gerais</CardTitle>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Gerencie meios de pagamento e planos/permissões.
-                      </p>
-                    </CardHeader>
-                    <CardContent>
-                      <Tabs defaultValue="pix" className="w-full">
-                        <TabsList className="w-full justify-start">
-                          <TabsTrigger value="pix">Meios de Pagamento</TabsTrigger>
-                          <TabsTrigger value="plans">Planos e Permissões</TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="pix" className="mt-4 space-y-4">
-                          <GeneralSettingsPixPanel />
-                        </TabsContent>
-
-                        <TabsContent value="plans" className="mt-4 space-y-4">
-                          <Card className="border border-border/70 bg-card/80">
-                            <CardHeader>
-                              <CardTitle className="text-sm font-medium">Planos e Permissões</CardTitle>
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                Os valores dos planos agora são gerenciados em <strong>Meios de Pagamento</strong>.
-                              </p>
-                            </CardHeader>
-                            <CardContent>
-                              <p className="text-sm text-muted-foreground">
-                                (Em breve) Ajustes de permissões por plano.
-                              </p>
-                            </CardContent>
-                          </Card>
-                        </TabsContent>
-                      </Tabs>
-                    </CardContent>
-                  </Card>
-                </section>
-              )}
-
-              {currentSection === "usuarios" && (
-                <section className="space-y-4">
-                  {isUpgradeRequestsPage ? (
-                    <>
-                      <div className="flex items-center justify-between">
-                        <Button type="button" variant="outline" size="sm" onClick={() => navigate("/admin-master/usuarios")}> 
-                          Voltar
-                        </Button>
-
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="relative"
-                          aria-label="Ir para solicitações de upgrade"
-                          onClick={() => navigate("/admin-master/usuarios/solicitacoes-upgrade")}
-                        >
-                          <Bell className="h-4 w-4" />
-                          {pendingUpgradeCount > 0 && (
-                            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
-                              {pendingUpgradeCount > 99 ? "99+" : pendingUpgradeCount}
-                            </span>
-                          )}
-                        </Button>
-                      </div>
-
+                  {currentSection === "noticias" && (
+                    <section className="space-y-4">
                       <Card className="border border-border/70 bg-card/80">
                         <CardHeader>
-                          <CardTitle className="text-sm font-medium">Solicitações de Upgrade</CardTitle>
-                          <p className="mt-1 text-xs text-muted-foreground">Pendências de upgrade via Pix aguardando aprovação.</p>
+                          <CardTitle className="text-sm font-medium">Notícias</CardTitle>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Gerencie o Outdoor (banners no Dashboard do Aluno) e, em breve, notificações.
+                          </p>
+                        </CardHeader>
+                        <CardContent>
+                          <Tabs defaultValue="banner" className="w-full">
+                            <TabsList className="w-full justify-start">
+                              <TabsTrigger value="banner">Banner</TabsTrigger>
+                              <TabsTrigger value="notificacoes">Notificações</TabsTrigger>
+                              <TabsTrigger value="ofertas">Ofertas Destaque</TabsTrigger>
+                            </TabsList>
+
+                            <TabsContent value="banner" className="mt-4 space-y-4">
+                              <Card className="border border-border/70 bg-card/80">
+                                <CardHeader>
+                                  <CardTitle className="text-sm font-medium">Outdoor do Dashboard</CardTitle>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    Publique comunicados em formato de imagem que aparecem no Dashboard do Aluno.
+                                  </p>
+                                </CardHeader>
+                                <CardContent className="text-xs text-muted-foreground">
+                                  Dica: use imagens 360×120 (proporção 3:1). O link é opcional.
+                                </CardContent>
+                              </Card>
+
+                              <DashboardOutdoorAdminPanel />
+                            </TabsContent>
+
+                            <TabsContent value="notificacoes" className="mt-4 space-y-4">
+                              <NewsNotificationsAdminPanel />
+                            </TabsContent>
+
+                            <TabsContent value="ofertas" className="mt-4 space-y-4">
+                              <HighlightOffersAdminPanel />
+                            </TabsContent>
+                          </Tabs>
+                        </CardContent>
+                      </Card>
+                    </section>
+                  )}
+
+                  {currentSection === "configuracoes" && (
+                    <section className="space-y-4">
+                      <Card className="border border-border/70 bg-card/80">
+                        <CardHeader>
+                          <CardTitle className="text-sm font-medium">Configurações gerais</CardTitle>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Esta seção foi movida para o novo painel administrativo.
+                          </p>
+                        </CardHeader>
+                        <CardContent>
+                          <a href="/admin/settings" className="text-blue-500 hover:underline">
+                            Ir para Configurações no Novo Admin
+                          </a>
+                        </CardContent>
+                      </Card>
+                    </section>
+                  )}
+
+                  {currentSection === "ajustes" && (
+                    <section className="space-y-4">
+                      <Card className="border border-border/70 bg-card/80">
+                        <CardHeader>
+                          <CardTitle className="text-sm font-medium">Ajustes Gerais</CardTitle>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Gerencie meios de pagamento e planos/permissões.
+                          </p>
+                        </CardHeader>
+                        <CardContent>
+                          <Tabs defaultValue="pix" className="w-full">
+                            <TabsList className="w-full justify-start">
+                              <TabsTrigger value="pix">Meios de Pagamento</TabsTrigger>
+                              <TabsTrigger value="plans">Planos e Permissões</TabsTrigger>
+                            </TabsList>
+
+                            <TabsContent value="pix" className="mt-4 space-y-4">
+                              <GeneralSettingsPixPanel />
+                            </TabsContent>
+
+                            <TabsContent value="plans" className="mt-4 space-y-4">
+                              <Card className="border border-border/70 bg-card/80">
+                                <CardHeader>
+                                  <CardTitle className="text-sm font-medium">Planos e Permissões</CardTitle>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    Os valores dos planos agora são gerenciados em <strong>Meios de Pagamento</strong>.
+                                  </p>
+                                </CardHeader>
+                                <CardContent>
+                                  <p className="text-sm text-muted-foreground">
+                                    (Em breve) Ajustes de permissões por plano.
+                                  </p>
+                                </CardContent>
+                              </Card>
+                            </TabsContent>
+                          </Tabs>
+                        </CardContent>
+                      </Card>
+                    </section>
+                  )}
+
+                  {currentSection === "usuarios" && (
+                    <section className="space-y-4">
+                      {isUpgradeRequestsPage ? (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <Button type="button" variant="outline" size="sm" onClick={() => navigate("/admin-master/usuarios")}>
+                              Voltar
+                            </Button>
+
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="relative"
+                              aria-label="Ir para solicitações de upgrade"
+                              onClick={() => navigate("/admin-master/usuarios/solicitacoes-upgrade")}
+                            >
+                              <Bell className="h-4 w-4" />
+                              {pendingUpgradeCount > 0 && (
+                                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+                                  {pendingUpgradeCount > 99 ? "99+" : pendingUpgradeCount}
+                                </span>
+                              )}
+                            </Button>
+                          </div>
+
+                          <Card className="border border-border/70 bg-card/80">
+                            <CardHeader>
+                              <CardTitle className="text-sm font-medium">Solicitações de Upgrade</CardTitle>
+                              <p className="mt-1 text-xs text-muted-foreground">Pendências de upgrade via Pix aguardando aprovação.</p>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="overflow-hidden rounded-lg border border-border/60">
+                                <Table>
+                                  <TableHeader className="bg-muted/40">
+                                    <TableRow>
+                                      <TableHead className="w-[240px]">Usuário</TableHead>
+                                      <TableHead>E-mail</TableHead>
+                                      <TableHead>Plano solicitado</TableHead>
+                                      <TableHead>Enviado em</TableHead>
+                                      <TableHead className="w-[280px] text-right">Ações</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {upgradeRequestsLoading && (
+                                      <TableRow>
+                                        <TableCell colSpan={5} className="py-8 text-center text-xs text-muted-foreground">
+                                          Carregando solicitações...
+                                        </TableCell>
+                                      </TableRow>
+                                    )}
+                                    {!upgradeRequestsLoading && upgradeRequests.length === 0 && (
+                                      <TableRow>
+                                        <TableCell colSpan={5} className="py-10 text-center text-xs text-muted-foreground">
+                                          Nenhuma solicitação pendente.
+                                        </TableCell>
+                                      </TableRow>
+                                    )}
+                                    {!upgradeRequestsLoading &&
+                                      upgradeRequests.map((p) => (
+                                        <TableRow key={p.id} className="hover:bg-muted/40">
+                                          <TableCell className="text-sm font-medium text-foreground">{p.user_name}</TableCell>
+                                          <TableCell className="text-xs text-muted-foreground">{p.user_email}</TableCell>
+                                          <TableCell className="text-sm font-semibold">{p.desired_plan}</TableCell>
+                                          <TableCell className="text-xs text-muted-foreground">
+                                            {new Date(p.requested_at).toLocaleString("pt-BR")}
+                                          </TableCell>
+                                          <TableCell className="space-x-2 text-right">
+                                            <Button
+                                              type="button"
+                                              variant="outline"
+                                              size="sm"
+                                              className="h-8"
+                                              onClick={() => handleOpenReceipt(p.receipt_path)}
+                                              disabled={processingPaymentId !== null && processingPaymentId !== p.id}
+                                            >
+                                              Ver comprovante
+                                            </Button>
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              className="h-8"
+                                              onClick={() => void handleApproveUpgradeRequest(p)}
+                                              disabled={processingPaymentId !== null}
+                                              loading={processingPaymentId === p.id}
+                                            >
+                                              Aprovar
+                                            </Button>
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              variant="destructive"
+                                              className="h-8"
+                                              onClick={() => {
+                                                setUpgradeRejectReason("");
+                                                setUpgradeRejectDialog({ open: true, payment: p });
+                                              }}
+                                              disabled={processingPaymentId !== null}
+                                            >
+                                              Rejeitar
+                                            </Button>
+                                          </TableCell>
+                                        </TableRow>
+                                      ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          <Dialog
+                            open={upgradeRejectDialog.open}
+                            onOpenChange={(open) => {
+                              setUpgradeRejectDialog((prev) => ({ ...prev, open }));
+                              if (!open) {
+                                setUpgradeRejectDialog({ open: false, payment: null });
+                                setUpgradeRejectReason("");
+                              }
+                            }}
+                          >
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Rejeitar solicitação</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-2">
+                                <Label htmlFor="upgrade-reject-reason">Motivo</Label>
+                                <Textarea
+                                  id="upgrade-reject-reason"
+                                  value={upgradeRejectReason}
+                                  onChange={(e) => setUpgradeRejectReason(e.target.value)}
+                                  placeholder="Explique rapidamente o motivo da rejeição..."
+                                />
+                              </div>
+                              <DialogFooter>
+                                <Button type="button" variant="outline" onClick={() => setUpgradeRejectDialog({ open: false, payment: null })}>
+                                  Cancelar
+                                </Button>
+                                <Button type="button" variant="destructive" onClick={() => void handleRejectUpgradeRequest()}>
+                                  Confirmar rejeição
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        </>
+                      ) : (
+                        <Card className="border border-border/70 bg-card/80">
+                          <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
+                            <div>
+                              <CardTitle className="text-sm font-medium">Usuários (profiles)</CardTitle>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                Busque por nome ou e-mail e altere rapidamente o plano entre FREE, ADVANCE e ELITE.
+                              </p>
+                            </div>
+                            <div className="flex w-full max-w-md items-center justify-end gap-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="relative"
+                                aria-label="Solicitações de upgrade"
+                                onClick={() => navigate("/admin-master/usuarios/solicitacoes-upgrade")}
+                              >
+                                <Bell className="h-4 w-4" />
+                                {pendingUpgradeCount > 0 && (
+                                  <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+                                    {pendingUpgradeCount > 99 ? "99+" : pendingUpgradeCount}
+                                  </span>
+                                )}
+                              </Button>
+
+                              <Button
+                                size="sm"
+                                className="h-8 whitespace-nowrap"
+                                type="button"
+                                onClick={handleNovoUsuarioClick}
+                              >
+                                Novo usuário
+                              </Button>
+                              <div className="w-full max-w-xs">
+                                <Label htmlFor="busca-usuarios" className="sr-only">
+                                  Buscar usuários
+                                </Label>
+                                <Input
+                                  id="busca-usuarios"
+                                  placeholder="Buscar por nome ou e-mail..."
+                                  value={profileSearch}
+                                  onChange={(e) => setProfileSearch(e.target.value)}
+                                  className="h-9 bg-background/60 text-sm placeholder:text-muted-foreground"
+                                />
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="overflow-hidden rounded-lg border border-border/60">
+                              <Table>
+                                <TableHeader className="bg-muted/40">
+                                  <TableRow>
+                                    <TableHead className="w-[220px]">Nome</TableHead>
+                                    <TableHead>E-mail</TableHead>
+                                    <TableHead className="hidden md:table-cell">Telefone</TableHead>
+                                    <TableHead className="w-[210px]">Plano</TableHead>
+                                    <TableHead className="hidden md:table-cell">Validade</TableHead>
+                                    <TableHead className="hidden md:table-cell">Criado em</TableHead>
+                                    <TableHead className="w-[150px] text-right">Ações</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {profilesLoading && (
+                                    <TableRow>
+                                      <TableCell colSpan={7} className="py-8 text-center text-xs text-muted-foreground">
+                                        Carregando usuários...
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
+                                  {!profilesLoading &&
+                                    filteredProfiles.map((profile) => (
+                                      <TableRow key={profile.id} className="hover:bg-muted/40">
+                                        <TableCell className="font-medium">
+                                          {profile.display_name ?? (profile.email ? profile.email.split("@")[0] : "—")}
+                                        </TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">
+                                          <span className="block max-w-[220px] truncate">{profile.email ?? "—"}</span>
+                                        </TableCell>
+                                        <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
+                                          <span className="block max-w-[160px] truncate">{profile.phone ?? "—"}</span>
+                                        </TableCell>
+                                        <TableCell>
+                                          <Select
+                                            value={profile.subscription_plan}
+                                            onValueChange={(value) => handleChangePlano(profile.id, value as SubscriptionPlan)}
+                                          >
+                                            <SelectTrigger className="h-8 w-[190px] bg-background/60 text-xs">
+                                              <SelectValue placeholder="Selecionar plano" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="FREE">{PLAN_LABEL.FREE}</SelectItem>
+                                              <SelectItem value="ADVANCE">{PLAN_LABEL.ADVANCE}</SelectItem>
+                                              <SelectItem value="ELITE">{PLAN_LABEL.ELITE}</SelectItem>
+                                            </SelectContent>
+                                          </Select>
+                                        </TableCell>
+                                        <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
+                                          {formatDateTimePtBr(profile.plan_expires_at)}
+                                        </TableCell>
+                                        <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
+                                          {formatDateTimePtBr(profile.created_at)}
+                                        </TableCell>
+                                        <TableCell className="space-x-1 text-right">
+                                          <Dialog
+                                            open={editUserOpen && editUserId === profile.id}
+                                            onOpenChange={(open) => {
+                                              setEditUserOpen(open);
+                                              if (!open) {
+                                                setEditUserId(null);
+                                              }
+                                            }}
+                                          >
+                                            <DialogTrigger asChild>
+                                              <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                type="button"
+                                                onClick={() => {
+                                                  setEditUserId(profile.id);
+                                                  setEditDisplayName(profile.display_name ?? "");
+                                                  setEditAtivo(Boolean(profile.ativo ?? true));
+                                                  setEditUserOpen(true);
+                                                }}
+                                              >
+                                                <Pencil className="h-4 w-4" />
+                                              </Button>
+                                            </DialogTrigger>
+                                            <DialogContent>
+                                              <DialogHeader>
+                                                <DialogTitle>Editar usuário</DialogTitle>
+                                              </DialogHeader>
+
+                                              <div className="space-y-3">
+                                                <div className="space-y-1">
+                                                  <Label htmlFor="edit-display-name">Nome exibido</Label>
+                                                  <Input
+                                                    id="edit-display-name"
+                                                    value={editDisplayName}
+                                                    onChange={(e) => setEditDisplayName(e.target.value)}
+                                                    placeholder="Nome que aparece no app"
+                                                  />
+                                                </div>
+
+                                                <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 bg-muted/20 px-3 py-2">
+                                                  <div className="space-y-0.5">
+                                                    <p className="text-sm font-medium">Usuário ativo</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                      Desativado = sem acesso ao sistema.
+                                                    </p>
+                                                  </div>
+                                                  <Switch checked={editAtivo} onCheckedChange={setEditAtivo} />
+                                                </div>
+                                              </div>
+
+                                              <DialogFooter>
+                                                <Button type="button" variant="outline" onClick={() => setEditUserOpen(false)}>
+                                                  Cancelar
+                                                </Button>
+                                                <Button type="button" onClick={handleUpdateUser}>
+                                                  Salvar
+                                                </Button>
+                                              </DialogFooter>
+                                            </DialogContent>
+                                          </Dialog>
+
+                                          <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                              <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                type="button"
+                                              >
+                                                <Trash2 className="h-4 w-4" />
+                                              </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                              <AlertDialogHeader>
+                                                <AlertDialogTitle>Excluir usuário</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                  Tem certeza que deseja excluir {profile.display_name ?? profile.email ?? "este usuário"}? Isso
+                                                  remove o usuário do Auth e do banco.
+                                                </AlertDialogDescription>
+                                              </AlertDialogHeader>
+                                              <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDeleteUser(profile.id)}>
+                                                  Confirmar exclusão
+                                                </AlertDialogAction>
+                                              </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                          </AlertDialog>
+
+                                          <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                              <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                type="button"
+                                              >
+                                                <UserX className="h-4 w-4" />
+                                              </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                              <AlertDialogHeader>
+                                                <AlertDialogTitle>Banir usuário</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                  Tem certeza que deseja banir {profile.display_name ?? profile.email ?? "este usuário"}? Essa
+                                                  ação desativa o acesso (ativo=false).
+                                                </AlertDialogDescription>
+                                              </AlertDialogHeader>
+                                              <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleBanUser(profile.id)}>
+                                                  Confirmar banimento
+                                                </AlertDialogAction>
+                                              </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                          </AlertDialog>
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                </TableBody>
+                                {filteredProfiles.length === 0 && (
+                                  <TableCaption className="py-6 text-xs text-muted-foreground">
+                                    Nenhum usuário encontrado para o termo pesquisado.
+                                  </TableCaption>
+                                )}
+                              </Table>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </section>
+                  )}
+
+                  {currentSection === "pagamentos" && (
+                    <section className="space-y-4">
+                      <Card className="border border-border/70 bg-card/80">
+                        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <CardTitle className="text-sm font-medium">Pagamentos (Pix)</CardTitle>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Analise solicitações de upgrade via Pix, visualize comprovantes e aprove/rejeite.
+                            </p>
+                          </div>
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <Label htmlFor="filter-pagamentos" className="sr-only">
+                              Filtro de status
+                            </Label>
+                            <Select value={paymentFilter} onValueChange={(v) => setPaymentFilter(v as PaymentStatusFilter)}>
+                              <SelectTrigger id="filter-pagamentos" className="h-9 w-[220px] bg-background/60 text-sm">
+                                <SelectValue placeholder="Filtrar" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">Todos</SelectItem>
+                                <SelectItem value="pending">Pendentes</SelectItem>
+                                <SelectItem value="approved">Aprovados</SelectItem>
+                                <SelectItem value="rejected">Rejeitados</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </CardHeader>
                         <CardContent>
                           <div className="overflow-hidden rounded-lg border border-border/60">
                             <Table>
                               <TableHeader className="bg-muted/40">
                                 <TableRow>
-                                  <TableHead className="w-[240px]">Usuário</TableHead>
-                                  <TableHead>E-mail</TableHead>
-                                  <TableHead>Plano solicitado</TableHead>
-                                  <TableHead>Enviado em</TableHead>
-                                  <TableHead className="w-[280px] text-right">Ações</TableHead>
+                                  <TableHead className="w-[260px]">Usuário</TableHead>
+                                  <TableHead>Plano desejado</TableHead>
+                                  <TableHead>Status</TableHead>
+                                  <TableHead>Solicitado em</TableHead>
+                                  <TableHead className="w-[220px]">Comprovante</TableHead>
+                                  <TableHead className="w-[220px] text-right">Ações</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {upgradeRequestsLoading && (
+                                {paymentsLoading && (
                                   <TableRow>
-                                    <TableCell colSpan={5} className="py-8 text-center text-xs text-muted-foreground">
-                                      Carregando solicitações...
+                                    <TableCell colSpan={6} className="py-8 text-center text-xs text-muted-foreground">
+                                      Carregando pagamentos...
                                     </TableCell>
                                   </TableRow>
                                 )}
-                                {!upgradeRequestsLoading && upgradeRequests.length === 0 && (
+
+                                {!paymentsLoading && payments.length === 0 && (
                                   <TableRow>
-                                    <TableCell colSpan={5} className="py-10 text-center text-xs text-muted-foreground">
-                                      Nenhuma solicitação pendente.
+                                    <TableCell colSpan={6} className="py-10 text-center text-xs text-muted-foreground">
+                                      Nenhum pagamento encontrado.
                                     </TableCell>
                                   </TableRow>
                                 )}
-                                {!upgradeRequestsLoading &&
-                                  upgradeRequests.map((p) => (
+
+                                {!paymentsLoading &&
+                                  payments.map((p) => (
                                     <TableRow key={p.id} className="hover:bg-muted/40">
-                                      <TableCell className="text-sm font-medium text-foreground">{p.user_name}</TableCell>
-                                      <TableCell className="text-xs text-muted-foreground">{p.user_email}</TableCell>
+                                      <TableCell>
+                                        <div className="space-y-0.5">
+                                          <p className="text-sm font-medium text-foreground">{p.user_name}</p>
+                                          <p className="text-xs text-muted-foreground">{p.user_email}</p>
+                                        </div>
+                                      </TableCell>
                                       <TableCell className="text-sm font-semibold">{p.desired_plan}</TableCell>
+                                      <TableCell>
+                                        <Badge variant={statusBadgeVariant(p.status)} className="text-[10px] uppercase tracking-wide">
+                                          {p.status}
+                                        </Badge>
+                                        {p.status === "rejected" && p.rejection_reason && (
+                                          <p className="mt-1 text-[11px] text-muted-foreground">Motivo: {p.rejection_reason}</p>
+                                        )}
+                                      </TableCell>
                                       <TableCell className="text-xs text-muted-foreground">
                                         {new Date(p.requested_at).toLocaleString("pt-BR")}
                                       </TableCell>
-                                      <TableCell className="space-x-2 text-right">
+                                      <TableCell>
                                         <Button
                                           type="button"
                                           variant="outline"
@@ -2069,14 +2401,31 @@ const AdminMasterContent = () => {
                                           onClick={() => handleOpenReceipt(p.receipt_path)}
                                           disabled={processingPaymentId !== null && processingPaymentId !== p.id}
                                         >
-                                          Ver comprovante
+                                          Ver / Baixar
                                         </Button>
+                                        {p.reviewed_receipt_path && (
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="ml-2 h-8"
+                                            onClick={() => handleOpenReceipt(p.reviewed_receipt_path as string)}
+                                            disabled={processingPaymentId !== null && processingPaymentId !== p.id}
+                                          >
+                                            Revisado
+                                          </Button>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="space-x-2 text-right">
                                         <Button
                                           type="button"
                                           size="sm"
                                           className="h-8"
-                                          onClick={() => void handleApproveUpgradeRequest(p)}
-                                          disabled={processingPaymentId !== null}
+                                          onClick={() => {
+                                            setReviewedReceiptFile(null);
+                                            setApproveDialog({ open: true, payment: p });
+                                          }}
+                                          disabled={p.status !== "pending" || processingPaymentId === p.id}
                                           loading={processingPaymentId === p.id}
                                         >
                                           Aprovar
@@ -2087,10 +2436,10 @@ const AdminMasterContent = () => {
                                           variant="destructive"
                                           className="h-8"
                                           onClick={() => {
-                                            setUpgradeRejectReason("");
-                                            setUpgradeRejectDialog({ open: true, payment: p });
+                                            setRejectReason("");
+                                            setRejectDialog({ open: true, paymentId: p.id });
                                           }}
-                                          disabled={processingPaymentId !== null}
+                                          disabled={p.status !== "pending" || processingPaymentId !== null}
                                         >
                                           Rejeitar
                                         </Button>
@@ -2103,1744 +2452,1336 @@ const AdminMasterContent = () => {
                         </CardContent>
                       </Card>
 
+                      <Card className="border border-border/70 bg-card/80">
+                        <CardHeader>
+                          <CardTitle className="text-sm font-medium">Auditoria (aprovações/rejeições)</CardTitle>
+                          <p className="mt-1 text-xs text-muted-foreground">Últimas ações administrativas registradas.</p>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="overflow-hidden rounded-lg border border-border/60">
+                            <Table>
+                              <TableHeader className="bg-muted/40">
+                                <TableRow>
+                                  <TableHead>Quando</TableHead>
+                                  <TableHead>Admin</TableHead>
+                                  <TableHead>Ação</TableHead>
+                                  <TableHead>Detalhes</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {auditLoading && (
+                                  <TableRow>
+                                    <TableCell colSpan={4} className="py-8 text-center text-xs text-muted-foreground">
+                                      Carregando auditoria...
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                                {!auditLoading && auditRows.length === 0 && (
+                                  <TableRow>
+                                    <TableCell colSpan={4} className="py-10 text-center text-xs text-muted-foreground">
+                                      Nenhuma ação registrada ainda.
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                                {!auditLoading &&
+                                  auditRows.map((row) => (
+                                    <TableRow key={row.id} className="hover:bg-muted/40">
+                                      <TableCell className="text-xs text-muted-foreground">
+                                        {new Date(row.created_at).toLocaleString("pt-BR")}
+                                      </TableCell>
+                                      <TableCell className="text-xs text-foreground">{row.actor_email}</TableCell>
+                                      <TableCell className="text-xs font-medium text-foreground">{row.action}</TableCell>
+                                      <TableCell className="text-xs text-muted-foreground">
+                                        {(row.details?.desired_plan && `plano=${row.details.desired_plan}`) || "—"}
+                                        {row.details?.rejection_reason ? ` | motivo=${row.details.rejection_reason}` : ""}
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </CardContent>
+                      </Card>
+
                       <Dialog
-                        open={upgradeRejectDialog.open}
+                        open={rejectDialog.open}
                         onOpenChange={(open) => {
-                          setUpgradeRejectDialog((prev) => ({ ...prev, open }));
+                          setRejectDialog({ open, paymentId: open ? rejectDialog.paymentId : null });
                           if (!open) {
-                            setUpgradeRejectDialog({ open: false, payment: null });
-                            setUpgradeRejectReason("");
+                            setRejectReason("");
+                            setRejectReviewedReceiptFile(null);
                           }
                         }}
                       >
                         <DialogContent>
                           <DialogHeader>
-                            <DialogTitle>Rejeitar solicitação</DialogTitle>
+                            <DialogTitle>Rejeitar pagamento</DialogTitle>
                           </DialogHeader>
                           <div className="space-y-2">
-                            <Label htmlFor="upgrade-reject-reason">Motivo</Label>
+                            <Label htmlFor="reject-reason">Motivo</Label>
                             <Textarea
-                              id="upgrade-reject-reason"
-                              value={upgradeRejectReason}
-                              onChange={(e) => setUpgradeRejectReason(e.target.value)}
-                              placeholder="Explique rapidamente o motivo da rejeição..."
+                              id="reject-reason"
+                              value={rejectReason}
+                              onChange={(e) => setRejectReason(e.target.value)}
+                              placeholder="Explique brevemente o motivo da rejeição (ex: comprovante ilegível)."
                             />
+                            <div className="space-y-1.5 pt-2">
+                              <Label htmlFor="reject-reviewed-receipt">Comprovante revisado (opcional)</Label>
+                              <Input
+                                id="reject-reviewed-receipt"
+                                type="file"
+                                accept="image/*,.pdf"
+                                onChange={(e) => setRejectReviewedReceiptFile(e.target.files?.[0] ?? null)}
+                                className="bg-background/60 text-sm"
+                              />
+                              <p className="text-[11px] text-muted-foreground">
+                                Se anexar, ele ficará disponível para admins como “Revisado”.
+                              </p>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              O motivo será mostrado ao aluno na tela “Meu plano”.
+                            </p>
                           </div>
                           <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setUpgradeRejectDialog({ open: false, payment: null })}>
+                            <Button type="button" variant="outline" onClick={() => setRejectDialog({ open: false, paymentId: null })}>
                               Cancelar
                             </Button>
-                            <Button type="button" variant="destructive" onClick={() => void handleRejectUpgradeRequest()}>
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              onClick={handleRejectPayment}
+                              loading={processingPaymentId === rejectDialog.paymentId}
+                            >
                               Confirmar rejeição
                             </Button>
                           </DialogFooter>
                         </DialogContent>
                       </Dialog>
-                    </>
-                  ) : (
-                    <Card className="border border-border/70 bg-card/80">
-                      <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
-                        <div>
-                          <CardTitle className="text-sm font-medium">Usuários (profiles)</CardTitle>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Busque por nome ou e-mail e altere rapidamente o plano entre FREE, ADVANCE e ELITE.
-                          </p>
-                        </div>
-                        <div className="flex w-full max-w-md items-center justify-end gap-2">
+
+                      <Dialog
+                        open={approveDialog.open}
+                        onOpenChange={(open) => {
+                          setApproveDialog({ open, payment: open ? approveDialog.payment : null });
+                          if (!open) setReviewedReceiptFile(null);
+                        }}
+                      >
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Aprovar pagamento</DialogTitle>
+                          </DialogHeader>
+
+                          <div className="space-y-3">
+                            <div className="rounded-md border border-border/60 bg-muted/30 p-3">
+                              <p className="text-xs text-muted-foreground">Usuário</p>
+                              <p className="text-sm font-medium text-foreground">{approveDialog.payment?.user_name ?? "—"}</p>
+                              <p className="mt-1 text-xs text-muted-foreground">Plano solicitado: {approveDialog.payment?.desired_plan ?? "—"}</p>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <Label htmlFor="approve-reviewed-receipt">Comprovante revisado (opcional)</Label>
+                              <Input
+                                id="approve-reviewed-receipt"
+                                type="file"
+                                accept="image/*,.pdf"
+                                onChange={(e) => setReviewedReceiptFile(e.target.files?.[0] ?? null)}
+                                className="bg-background/60 text-sm"
+                              />
+                              <p className="text-[11px] text-muted-foreground">
+                                Se anexar, ficará salvo e acessível no botão “Revisado”.
+                              </p>
+                            </div>
+                          </div>
+
+                          <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setApproveDialog({ open: false, payment: null })}>
+                              Cancelar
+                            </Button>
+                            <Button
+                              type="button"
+                              onClick={async () => {
+                                if (!approveDialog.payment) return;
+                                await handleApprovePayment(approveDialog.payment, reviewedReceiptFile);
+                                setApproveDialog({ open: false, payment: null });
+                                setReviewedReceiptFile(null);
+                              }}
+                              loading={processingPaymentId === approveDialog.payment?.id}
+                              disabled={!approveDialog.payment || (approveDialog.payment.status !== "pending")}
+                            >
+                              Confirmar aprovação
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </section>
+                  )}
+
+                  {currentSection === "marketplace" && (
+                    <section className="space-y-4">
+                      <Card className="border border-border/70 bg-card/80">
+                        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <CardTitle className="text-sm font-medium">Lojas (stores + store_users)</CardTitle>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Cadastre novas lojas e vincule um usuário dono com papel <code className="font-mono">store_owner</code>.
+                            </p>
+                          </div>
                           <Button
                             type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="relative"
-                            aria-label="Solicitações de upgrade"
-                            onClick={() => navigate("/admin-master/usuarios/solicitacoes-upgrade")}
-                          >
-                            <Bell className="h-4 w-4" />
-                            {pendingUpgradeCount > 0 && (
-                              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
-                                {pendingUpgradeCount > 99 ? "99+" : pendingUpgradeCount}
-                              </span>
-                            )}
-                          </Button>
-
-                          <Button
                             size="sm"
                             className="h-8 whitespace-nowrap"
-                            type="button"
-                            onClick={handleNovoUsuarioClick}
+                            onClick={() => setShowNewStoreForm((prev) => !prev)}
                           >
-                            Novo usuário
+                            {showNewStoreForm ? "Fechar cadastro" : "Cadastrar nova loja"}
                           </Button>
-                          <div className="w-full max-w-xs">
-                            <Label htmlFor="busca-usuarios" className="sr-only">
-                              Buscar usuários
-                            </Label>
-                            <Input
-                              id="busca-usuarios"
-                              placeholder="Buscar por nome ou e-mail..."
-                              value={profileSearch}
-                              onChange={(e) => setProfileSearch(e.target.value)}
-                              className="h-9 bg-background/60 text-sm placeholder:text-muted-foreground"
-                            />
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="overflow-hidden rounded-lg border border-border/60">
-                          <Table>
-                            <TableHeader className="bg-muted/40">
-                              <TableRow>
-                                <TableHead className="w-[220px]">Nome</TableHead>
-                                <TableHead>E-mail</TableHead>
-                                <TableHead className="hidden md:table-cell">Telefone</TableHead>
-                                <TableHead className="w-[210px]">Plano</TableHead>
-                                <TableHead className="hidden md:table-cell">Validade</TableHead>
-                                <TableHead className="hidden md:table-cell">Criado em</TableHead>
-                                <TableHead className="w-[150px] text-right">Ações</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {profilesLoading && (
+                        </CardHeader>
+                        {showNewStoreForm && (
+                          <CardContent className="border-t border-border/60 pt-4">
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <div className="space-y-1.5">
+                                <Label htmlFor="store-name">Nome da loja</Label>
+                                <Input
+                                  id="store-name"
+                                  value={newStore.name}
+                                  onChange={(e) => setNewStore((prev) => ({ ...prev, name: e.target.value }))}
+                                  className="bg-background/60 text-sm"
+                                  placeholder="Ex: Bio Suplementos Premium"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label htmlFor="store-type">Tipo de loja</Label>
+                                <Select
+                                  value={newStore.storeType}
+                                  onValueChange={(value) =>
+                                    setNewStore((prev) => ({ ...prev, storeType: value as typeof newStore.storeType }))
+                                  }
+                                >
+                                  <SelectTrigger id="store-type" className="bg-background/60 text-sm">
+                                    <SelectValue placeholder="Selecione o tipo" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="suplementos">Suplementos</SelectItem>
+                                    <SelectItem value="artigos_esportivos">Artigos esportivos</SelectItem>
+                                    <SelectItem value="roupas_fitness">Roupas fitness</SelectItem>
+                                    <SelectItem value="comidas_fitness">Comidas Fitness</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-1.5 md:col-span-2">
+                                <Label htmlFor="store-description">Descrição</Label>
+                                <Textarea
+                                  id="store-description"
+                                  value={newStore.description}
+                                  onChange={(e) => setNewStore((prev) => ({ ...prev, description: e.target.value }))}
+                                  className="min-h-[72px] bg-background/60 text-sm"
+                                  placeholder="Breve resumo da loja e principais produtos ou serviços."
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label htmlFor="store-owner-email">E-mail do lojista (novo cadastro)</Label>
+                                <Input
+                                  id="store-owner-email"
+                                  type="email"
+                                  value={newStore.ownerEmail}
+                                  onChange={(e) => setNewStore((prev) => ({ ...prev, ownerEmail: e.target.value }))}
+                                  className="bg-background/60 text-sm"
+                                  placeholder="email@lojista.com"
+                                />
+                                <p className="pt-1 text-[11px] text-muted-foreground">
+                                  O e-mail <strong>não pode</strong> ser de um aluno existente. Uma conta nova será criada exclusivamente para o lojista.
+                                </p>
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label htmlFor="store-owner-password">Senha do lojista</Label>
+                                <Input
+                                  id="store-owner-password"
+                                  type="password"
+                                  value={newStore.ownerPassword}
+                                  onChange={(e) => setNewStore((prev) => ({ ...prev, ownerPassword: e.target.value }))}
+                                  className="bg-background/60 text-sm"
+                                  placeholder="Mínimo de 6 caracteres"
+                                />
+                                <p className="pt-1 text-[11px] text-muted-foreground">
+                                  Defina a senha inicial. O lojista poderá alterá-la posteriormente.
+                                </p>
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label htmlFor="store-cnpj">CNPJ</Label>
+                                <Input
+                                  id="store-cnpj"
+                                  value={newStore.cnpj}
+                                  onChange={(e) => setNewStore((prev) => ({ ...prev, cnpj: e.target.value }))}
+                                  className="bg-background/60 text-sm"
+                                  placeholder="00.000.000/0001-00"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label htmlFor="store-whatsapp">WhatsApp</Label>
+                                <Input
+                                  id="store-whatsapp"
+                                  value={newStore.whatsapp}
+                                  onChange={(e) => setNewStore((prev) => ({ ...prev, whatsapp: e.target.value }))}
+                                  className="bg-background/60 text-sm"
+                                  placeholder="Ex: 11999999999"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label htmlFor="store-profile-image">Foto de perfil da loja</Label>
+                                <Input
+                                  id="store-profile-image"
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0] ?? null;
+                                    setNewStore((prev) => ({ ...prev, profileImageFile: file }));
+                                  }}
+                                  className="bg-background/60 text-sm"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label htmlFor="store-banner-image">Banner da loja</Label>
+                                <Input
+                                  id="store-banner-image"
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0] ?? null;
+                                    setNewStore((prev) => ({ ...prev, bannerImageFile: file }));
+                                  }}
+                                  className="bg-background/60 text-sm"
+                                />
+                                <p className="pt-1 text-[11px] text-muted-foreground">
+                                  Formato recomendado: 16:9 (ex: 1200×675px).
+                                </p>
+                              </div>
+                            </div>
+                            <div className="mt-4 flex justify-end gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-8"
+                                onClick={() => setShowNewStoreForm(false)}
+                              >
+                                Cancelar
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="h-8 bg-primary text-primary-foreground hover:bg-primary/90"
+                                onClick={handleCreateStoreWithOwner}
+                                disabled={isCreatingStore}
+                              >
+                                {isCreatingStore ? "Cadastrando..." : "Salvar loja"}
+                              </Button>
+                            </div>
+                          </CardContent>
+                        )}
+                      </Card>
+
+                      <Card className="border border-border/70 bg-card/80">
+                        <CardHeader>
+                          <CardTitle className="text-sm font-medium">Lojas internas (stores)</CardTitle>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Edite dados básicos, exclua e ative/desative o acesso de lojistas pela coluna <code className="font-mono">is_active</code>.
+                          </p>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="overflow-hidden rounded-lg border border-border/60">
+                            <Table>
+                              <TableHeader className="bg-muted/40">
                                 <TableRow>
-                                  <TableCell colSpan={7} className="py-8 text-center text-xs text-muted-foreground">
-                                    Carregando usuários...
-                                  </TableCell>
+                                  <TableHead>Nome</TableHead>
+                                  <TableHead>Tipo</TableHead>
+                                  <TableHead>Status</TableHead>
+                                  <TableHead>Criada em</TableHead>
+                                  <TableHead className="w-[260px] text-right">Ações</TableHead>
                                 </TableRow>
-                              )}
-                              {!profilesLoading &&
-                                filteredProfiles.map((profile) => (
-                                  <TableRow key={profile.id} className="hover:bg-muted/40">
-                                    <TableCell className="font-medium">
-                                      {profile.display_name ?? (profile.email ? profile.email.split("@")[0] : "—")}
+                              </TableHeader>
+                              <TableBody>
+                                {internalStores.map((store) => (
+                                  <TableRow key={store.id} className="hover:bg-muted/40">
+                                    <TableCell className="font-medium">{store.name}</TableCell>
+                                    <TableCell className="text-xs text-muted-foreground">{store.store_type}</TableCell>
+                                    <TableCell>
+                                      <Badge
+                                        variant="outline"
+                                        className={
+                                          store.is_active
+                                            ? "border-primary/30 bg-primary/5 text-[10px] font-semibold uppercase tracking-wide text-primary"
+                                            : "border-destructive/40 bg-destructive/5 text-[10px] font-semibold uppercase tracking-wide text-destructive"
+                                        }
+                                      >
+                                        {store.is_active ? "Ativa" : "Desativada"}
+                                      </Badge>
                                     </TableCell>
                                     <TableCell className="text-xs text-muted-foreground">
-                                      <span className="block max-w-[220px] truncate">{profile.email ?? "—"}</span>
+                                      {new Date(store.created_at).toLocaleDateString("pt-BR")}
                                     </TableCell>
-                                    <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
-                                      <span className="block max-w-[160px] truncate">{profile.phone ?? "—"}</span>
-                                    </TableCell>
-                                    <TableCell>
-                                      <Select
-                                        value={profile.subscription_plan}
-                                        onValueChange={(value) => handleChangePlano(profile.id, value as SubscriptionPlan)}
-                                      >
-                                        <SelectTrigger className="h-8 w-[190px] bg-background/60 text-xs">
-                                          <SelectValue placeholder="Selecionar plano" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="FREE">{PLAN_LABEL.FREE}</SelectItem>
-                                          <SelectItem value="ADVANCE">{PLAN_LABEL.ADVANCE}</SelectItem>
-                                          <SelectItem value="ELITE">{PLAN_LABEL.ELITE}</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </TableCell>
-                                    <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
-                                      {formatDateTimePtBr(profile.plan_expires_at)}
-                                    </TableCell>
-                                    <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
-                                      {formatDateTimePtBr(profile.created_at)}
-                                    </TableCell>
-                                    <TableCell className="space-x-1 text-right">
-                                      <Dialog
-                                        open={editUserOpen && editUserId === profile.id}
-                                        onOpenChange={(open) => {
-                                          setEditUserOpen(open);
-                                          if (!open) {
-                                            setEditUserId(null);
-                                          }
+                                    <TableCell className="space-x-2 text-right">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-8 border-border/60 bg-background/60 text-xs"
+                                        onClick={async () => {
+                                          setEditStoreForm({
+                                            name: store.name,
+                                            store_type: store.store_type,
+                                            description: store.description || "",
+                                          });
+                                          // Fetch marketplace store data for images
+                                          const { data: mkStore } = await supabase
+                                            .from("marketplace_stores")
+                                            .select("id, profile_image_url, banner_image_url")
+                                            .eq("nome", store.name)
+                                            .maybeSingle();
+                                          setEditStoreMarketplaceId(mkStore?.id ?? null);
+                                          setEditStoreProfileUrl(mkStore?.profile_image_url ?? null);
+                                          setEditStoreBannerUrl(mkStore?.banner_image_url ?? null);
+                                          setEditingStore(store);
                                         }}
                                       >
-                                        <DialogTrigger asChild>
-                                          <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                            type="button"
-                                            onClick={() => {
-                                              setEditUserId(profile.id);
-                                              setEditDisplayName(profile.display_name ?? "");
-                                              setEditAtivo(Boolean(profile.ativo ?? true));
-                                              setEditUserOpen(true);
-                                            }}
-                                          >
-                                            <Pencil className="h-4 w-4" />
-                                          </Button>
-                                        </DialogTrigger>
-                                        <DialogContent>
-                                          <DialogHeader>
-                                            <DialogTitle>Editar usuário</DialogTitle>
-                                          </DialogHeader>
-
-                                          <div className="space-y-3">
-                                            <div className="space-y-1">
-                                              <Label htmlFor="edit-display-name">Nome exibido</Label>
-                                              <Input
-                                                id="edit-display-name"
-                                                value={editDisplayName}
-                                                onChange={(e) => setEditDisplayName(e.target.value)}
-                                                placeholder="Nome que aparece no app"
-                                              />
-                                            </div>
-
-                                            <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 bg-muted/20 px-3 py-2">
-                                              <div className="space-y-0.5">
-                                                <p className="text-sm font-medium">Usuário ativo</p>
-                                                <p className="text-xs text-muted-foreground">
-                                                  Desativado = sem acesso ao sistema.
-                                                </p>
-                                              </div>
-                                              <Switch checked={editAtivo} onCheckedChange={setEditAtivo} />
-                                            </div>
-                                          </div>
-
-                                          <DialogFooter>
-                                            <Button type="button" variant="outline" onClick={() => setEditUserOpen(false)}>
-                                              Cancelar
-                                            </Button>
-                                            <Button type="button" onClick={handleUpdateUser}>
-                                              Salvar
-                                            </Button>
-                                          </DialogFooter>
-                                        </DialogContent>
-                                      </Dialog>
+                                        Editar
+                                      </Button>
 
                                       <AlertDialog>
                                         <AlertDialogTrigger asChild>
                                           <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-8 border-destructive/60 bg-destructive/10 text-xs font-semibold text-destructive hover:bg-destructive/20"
                                           >
-                                            <Trash2 className="h-4 w-4" />
+                                            Excluir
                                           </Button>
                                         </AlertDialogTrigger>
                                         <AlertDialogContent>
                                           <AlertDialogHeader>
-                                            <AlertDialogTitle>Excluir usuário</AlertDialogTitle>
+                                            <AlertDialogTitle>Excluir loja</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                              Tem certeza que deseja excluir {profile.display_name ?? profile.email ?? "este usuário"}? Isso
-                                              remove o usuário do Auth e do banco.
+                                              Esta ação é irreversível. A loja será removida da tabela <code className="font-mono">stores</code> e os vínculos
+                                              com usuários serão apagados.
                                             </AlertDialogDescription>
                                           </AlertDialogHeader>
                                           <AlertDialogFooter>
                                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDeleteUser(profile.id)}>
+                                            <AlertDialogAction
+                                              onClick={() => {
+                                                void (async () => {
+                                                  const { error } = await supabase.from("stores").delete().eq("id", store.id);
+
+                                                  if (error) {
+                                                    toast({
+                                                      title: "Erro ao excluir loja",
+                                                      description: error.message,
+                                                      variant: "destructive",
+                                                    });
+                                                    return;
+                                                  }
+
+                                                  setInternalStores((prev) => prev.filter((s) => s.id !== store.id));
+                                                  toast({
+                                                    title: "Loja excluída",
+                                                    description: "A loja foi removida com sucesso.",
+                                                  });
+                                                })();
+                                              }}
+                                            >
                                               Confirmar exclusão
                                             </AlertDialogAction>
                                           </AlertDialogFooter>
                                         </AlertDialogContent>
                                       </AlertDialog>
 
-                                      <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                            type="button"
-                                          >
-                                            <UserX className="h-4 w-4" />
-                                          </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>Banir usuário</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              Tem certeza que deseja banir {profile.display_name ?? profile.email ?? "este usuário"}? Essa
-                                              ação desativa o acesso (ativo=false).
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleBanUser(profile.id)}>
-                                              Confirmar banimento
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                            </TableBody>
-                            {filteredProfiles.length === 0 && (
-                              <TableCaption className="py-6 text-xs text-muted-foreground">
-                                Nenhum usuário encontrado para o termo pesquisado.
-                              </TableCaption>
-                            )}
-                          </Table>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-                </section>
-              )}
-
-              {currentSection === "pagamentos" && (
-                <section className="space-y-4">
-                  <Card className="border border-border/70 bg-card/80">
-                    <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <CardTitle className="text-sm font-medium">Pagamentos (Pix)</CardTitle>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Analise solicitações de upgrade via Pix, visualize comprovantes e aprove/rejeite.
-                        </p>
-                      </div>
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <Label htmlFor="filter-pagamentos" className="sr-only">
-                          Filtro de status
-                        </Label>
-                        <Select value={paymentFilter} onValueChange={(v) => setPaymentFilter(v as PaymentStatusFilter)}>
-                          <SelectTrigger id="filter-pagamentos" className="h-9 w-[220px] bg-background/60 text-sm">
-                            <SelectValue placeholder="Filtrar" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">Todos</SelectItem>
-                            <SelectItem value="pending">Pendentes</SelectItem>
-                            <SelectItem value="approved">Aprovados</SelectItem>
-                            <SelectItem value="rejected">Rejeitados</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="overflow-hidden rounded-lg border border-border/60">
-                        <Table>
-                          <TableHeader className="bg-muted/40">
-                            <TableRow>
-                              <TableHead className="w-[260px]">Usuário</TableHead>
-                              <TableHead>Plano desejado</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead>Solicitado em</TableHead>
-                              <TableHead className="w-[220px]">Comprovante</TableHead>
-                              <TableHead className="w-[220px] text-right">Ações</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {paymentsLoading && (
-                              <TableRow>
-                                <TableCell colSpan={6} className="py-8 text-center text-xs text-muted-foreground">
-                                  Carregando pagamentos...
-                                </TableCell>
-                              </TableRow>
-                            )}
-
-                            {!paymentsLoading && payments.length === 0 && (
-                              <TableRow>
-                                <TableCell colSpan={6} className="py-10 text-center text-xs text-muted-foreground">
-                                  Nenhum pagamento encontrado.
-                                </TableCell>
-                              </TableRow>
-                            )}
-
-                            {!paymentsLoading &&
-                              payments.map((p) => (
-                                <TableRow key={p.id} className="hover:bg-muted/40">
-                                  <TableCell>
-                                    <div className="space-y-0.5">
-                                      <p className="text-sm font-medium text-foreground">{p.user_name}</p>
-                                      <p className="text-xs text-muted-foreground">{p.user_email}</p>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="text-sm font-semibold">{p.desired_plan}</TableCell>
-                                  <TableCell>
-                                    <Badge variant={statusBadgeVariant(p.status)} className="text-[10px] uppercase tracking-wide">
-                                      {p.status}
-                                    </Badge>
-                                    {p.status === "rejected" && p.rejection_reason && (
-                                      <p className="mt-1 text-[11px] text-muted-foreground">Motivo: {p.rejection_reason}</p>
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="text-xs text-muted-foreground">
-                                    {new Date(p.requested_at).toLocaleString("pt-BR")}
-                                  </TableCell>
-                                  <TableCell>
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      className="h-8"
-                                      onClick={() => handleOpenReceipt(p.receipt_path)}
-                                      disabled={processingPaymentId !== null && processingPaymentId !== p.id}
-                                    >
-                                      Ver / Baixar
-                                    </Button>
-                                    {p.reviewed_receipt_path && (
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        className="ml-2 h-8"
-                                        onClick={() => handleOpenReceipt(p.reviewed_receipt_path as string)}
-                                        disabled={processingPaymentId !== null && processingPaymentId !== p.id}
-                                      >
-                                        Revisado
-                                      </Button>
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="space-x-2 text-right">
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      className="h-8"
-                                      onClick={() => {
-                                        setReviewedReceiptFile(null);
-                                        setApproveDialog({ open: true, payment: p });
-                                      }}
-                                      disabled={p.status !== "pending" || processingPaymentId === p.id}
-                                      loading={processingPaymentId === p.id}
-                                    >
-                                      Aprovar
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      variant="destructive"
-                                      className="h-8"
-                                      onClick={() => {
-                                        setRejectReason("");
-                                        setRejectDialog({ open: true, paymentId: p.id });
-                                      }}
-                                      disabled={p.status !== "pending" || processingPaymentId !== null}
-                                    >
-                                      Rejeitar
-                                    </Button>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border border-border/70 bg-card/80">
-                    <CardHeader>
-                      <CardTitle className="text-sm font-medium">Auditoria (aprovações/rejeições)</CardTitle>
-                      <p className="mt-1 text-xs text-muted-foreground">Últimas ações administrativas registradas.</p>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="overflow-hidden rounded-lg border border-border/60">
-                        <Table>
-                          <TableHeader className="bg-muted/40">
-                            <TableRow>
-                              <TableHead>Quando</TableHead>
-                              <TableHead>Admin</TableHead>
-                              <TableHead>Ação</TableHead>
-                              <TableHead>Detalhes</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {auditLoading && (
-                              <TableRow>
-                                <TableCell colSpan={4} className="py-8 text-center text-xs text-muted-foreground">
-                                  Carregando auditoria...
-                                </TableCell>
-                              </TableRow>
-                            )}
-                            {!auditLoading && auditRows.length === 0 && (
-                              <TableRow>
-                                <TableCell colSpan={4} className="py-10 text-center text-xs text-muted-foreground">
-                                  Nenhuma ação registrada ainda.
-                                </TableCell>
-                              </TableRow>
-                            )}
-                            {!auditLoading &&
-                              auditRows.map((row) => (
-                                <TableRow key={row.id} className="hover:bg-muted/40">
-                                  <TableCell className="text-xs text-muted-foreground">
-                                    {new Date(row.created_at).toLocaleString("pt-BR")}
-                                  </TableCell>
-                                  <TableCell className="text-xs text-foreground">{row.actor_email}</TableCell>
-                                  <TableCell className="text-xs font-medium text-foreground">{row.action}</TableCell>
-                                  <TableCell className="text-xs text-muted-foreground">
-                                    {(row.details?.desired_plan && `plano=${row.details.desired_plan}`) || "—"}
-                                    {row.details?.rejection_reason ? ` | motivo=${row.details.rejection_reason}` : ""}
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Dialog
-                    open={rejectDialog.open}
-                    onOpenChange={(open) => {
-                      setRejectDialog({ open, paymentId: open ? rejectDialog.paymentId : null });
-                      if (!open) {
-                        setRejectReason("");
-                        setRejectReviewedReceiptFile(null);
-                      }
-                    }}
-                  >
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Rejeitar pagamento</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-2">
-                        <Label htmlFor="reject-reason">Motivo</Label>
-                        <Textarea
-                          id="reject-reason"
-                          value={rejectReason}
-                          onChange={(e) => setRejectReason(e.target.value)}
-                          placeholder="Explique brevemente o motivo da rejeição (ex: comprovante ilegível)."
-                        />
-                        <div className="space-y-1.5 pt-2">
-                          <Label htmlFor="reject-reviewed-receipt">Comprovante revisado (opcional)</Label>
-                          <Input
-                            id="reject-reviewed-receipt"
-                            type="file"
-                            accept="image/*,.pdf"
-                            onChange={(e) => setRejectReviewedReceiptFile(e.target.files?.[0] ?? null)}
-                            className="bg-background/60 text-sm"
-                          />
-                          <p className="text-[11px] text-muted-foreground">
-                            Se anexar, ele ficará disponível para admins como “Revisado”.
-                          </p>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground">
-                          O motivo será mostrado ao aluno na tela “Meu plano”.
-                        </p>
-                      </div>
-                      <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setRejectDialog({ open: false, paymentId: null })}>
-                          Cancelar
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          onClick={handleRejectPayment}
-                          loading={processingPaymentId === rejectDialog.paymentId}
-                        >
-                          Confirmar rejeição
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-
-                  <Dialog
-                    open={approveDialog.open}
-                    onOpenChange={(open) => {
-                      setApproveDialog({ open, payment: open ? approveDialog.payment : null });
-                      if (!open) setReviewedReceiptFile(null);
-                    }}
-                  >
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Aprovar pagamento</DialogTitle>
-                      </DialogHeader>
-
-                      <div className="space-y-3">
-                        <div className="rounded-md border border-border/60 bg-muted/30 p-3">
-                          <p className="text-xs text-muted-foreground">Usuário</p>
-                          <p className="text-sm font-medium text-foreground">{approveDialog.payment?.user_name ?? "—"}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">Plano solicitado: {approveDialog.payment?.desired_plan ?? "—"}</p>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <Label htmlFor="approve-reviewed-receipt">Comprovante revisado (opcional)</Label>
-                          <Input
-                            id="approve-reviewed-receipt"
-                            type="file"
-                            accept="image/*,.pdf"
-                            onChange={(e) => setReviewedReceiptFile(e.target.files?.[0] ?? null)}
-                            className="bg-background/60 text-sm"
-                          />
-                          <p className="text-[11px] text-muted-foreground">
-                            Se anexar, ficará salvo e acessível no botão “Revisado”.
-                          </p>
-                        </div>
-                      </div>
-
-                      <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setApproveDialog({ open: false, payment: null })}>
-                          Cancelar
-                        </Button>
-                        <Button
-                          type="button"
-                          onClick={async () => {
-                            if (!approveDialog.payment) return;
-                            await handleApprovePayment(approveDialog.payment, reviewedReceiptFile);
-                            setApproveDialog({ open: false, payment: null });
-                            setReviewedReceiptFile(null);
-                          }}
-                          loading={processingPaymentId === approveDialog.payment?.id}
-                          disabled={!approveDialog.payment || (approveDialog.payment.status !== "pending")}
-                        >
-                          Confirmar aprovação
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </section>
-              )}
-
-              {currentSection === "marketplace" && (
-                <section className="space-y-4">
-                  <Card className="border border-border/70 bg-card/80">
-                    <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <CardTitle className="text-sm font-medium">Lojas (stores + store_users)</CardTitle>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Cadastre novas lojas e vincule um usuário dono com papel <code className="font-mono">store_owner</code>.
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="h-8 whitespace-nowrap"
-                        onClick={() => setShowNewStoreForm((prev) => !prev)}
-                      >
-                        {showNewStoreForm ? "Fechar cadastro" : "Cadastrar nova loja"}
-                      </Button>
-                    </CardHeader>
-                    {showNewStoreForm && (
-                      <CardContent className="border-t border-border/60 pt-4">
-                        <div className="grid gap-3 md:grid-cols-2">
-                          <div className="space-y-1.5">
-                            <Label htmlFor="store-name">Nome da loja</Label>
-                            <Input
-                              id="store-name"
-                              value={newStore.name}
-                              onChange={(e) => setNewStore((prev) => ({ ...prev, name: e.target.value }))}
-                              className="bg-background/60 text-sm"
-                              placeholder="Ex: Bio Suplementos Premium"
-                            />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label htmlFor="store-type">Tipo de loja</Label>
-                            <Select
-                              value={newStore.storeType}
-                              onValueChange={(value) =>
-                                setNewStore((prev) => ({ ...prev, storeType: value as typeof newStore.storeType }))
-                              }
-                            >
-                              <SelectTrigger id="store-type" className="bg-background/60 text-sm">
-                                <SelectValue placeholder="Selecione o tipo" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="suplementos">Suplementos</SelectItem>
-                                <SelectItem value="artigos_esportivos">Artigos esportivos</SelectItem>
-                                <SelectItem value="roupas_fitness">Roupas fitness</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-1.5 md:col-span-2">
-                            <Label htmlFor="store-description">Descrição</Label>
-                            <Textarea
-                              id="store-description"
-                              value={newStore.description}
-                              onChange={(e) => setNewStore((prev) => ({ ...prev, description: e.target.value }))}
-                              className="min-h-[72px] bg-background/60 text-sm"
-                              placeholder="Breve resumo da loja e principais produtos ou serviços."
-                            />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label htmlFor="store-owner-email">E-mail do lojista (novo cadastro)</Label>
-                            <Input
-                              id="store-owner-email"
-                              type="email"
-                              value={newStore.ownerEmail}
-                              onChange={(e) => setNewStore((prev) => ({ ...prev, ownerEmail: e.target.value }))}
-                              className="bg-background/60 text-sm"
-                              placeholder="email@lojista.com"
-                            />
-                            <p className="pt-1 text-[11px] text-muted-foreground">
-                              O e-mail <strong>não pode</strong> ser de um aluno existente. Uma conta nova será criada exclusivamente para o lojista.
-                            </p>
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label htmlFor="store-owner-password">Senha do lojista</Label>
-                            <Input
-                              id="store-owner-password"
-                              type="password"
-                              value={newStore.ownerPassword}
-                              onChange={(e) => setNewStore((prev) => ({ ...prev, ownerPassword: e.target.value }))}
-                              className="bg-background/60 text-sm"
-                              placeholder="Mínimo de 6 caracteres"
-                            />
-                            <p className="pt-1 text-[11px] text-muted-foreground">
-                              Defina a senha inicial. O lojista poderá alterá-la posteriormente.
-                            </p>
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label htmlFor="store-profile-image">Foto de perfil da loja</Label>
-                            <Input
-                              id="store-profile-image"
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0] ?? null;
-                                setNewStore((prev) => ({ ...prev, profileImageFile: file }));
-                              }}
-                              className="bg-background/60 text-sm"
-                            />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label htmlFor="store-banner-image">Banner da loja</Label>
-                            <Input
-                              id="store-banner-image"
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0] ?? null;
-                                setNewStore((prev) => ({ ...prev, bannerImageFile: file }));
-                              }}
-                              className="bg-background/60 text-sm"
-                            />
-                            <p className="pt-1 text-[11px] text-muted-foreground">
-                              Formato recomendado: 16:9 (ex: 1200×675px).
-                            </p>
-                          </div>
-                        </div>
-                        <div className="mt-4 flex justify-end gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-8"
-                            onClick={() => setShowNewStoreForm(false)}
-                          >
-                            Cancelar
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="h-8 bg-primary text-primary-foreground hover:bg-primary/90"
-                            onClick={handleCreateStoreWithOwner}
-                            disabled={isCreatingStore}
-                          >
-                            {isCreatingStore ? "Cadastrando..." : "Salvar loja"}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    )}
-                  </Card>
-
-                  <Card className="border border-border/70 bg-card/80">
-                    <CardHeader>
-                      <CardTitle className="text-sm font-medium">Lojas internas (stores)</CardTitle>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Edite dados básicos, exclua e ative/desative o acesso de lojistas pela coluna <code className="font-mono">is_active</code>.
-                      </p>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="overflow-hidden rounded-lg border border-border/60">
-                        <Table>
-                          <TableHeader className="bg-muted/40">
-                            <TableRow>
-                              <TableHead>Nome</TableHead>
-                              <TableHead>Tipo</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead>Criada em</TableHead>
-                              <TableHead className="w-[260px] text-right">Ações</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {internalStores.map((store) => (
-                              <TableRow key={store.id} className="hover:bg-muted/40">
-                                <TableCell className="font-medium">{store.name}</TableCell>
-                                <TableCell className="text-xs text-muted-foreground">{store.store_type}</TableCell>
-                                <TableCell>
-                                  <Badge
-                                    variant="outline"
-                                    className={
-                                      store.is_active
-                                        ? "border-primary/30 bg-primary/5 text-[10px] font-semibold uppercase tracking-wide text-primary"
-                                        : "border-destructive/40 bg-destructive/5 text-[10px] font-semibold uppercase tracking-wide text-destructive"
-                                    }
-                                  >
-                                    {store.is_active ? "Ativa" : "Desativada"}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-xs text-muted-foreground">
-                                  {new Date(store.created_at).toLocaleDateString("pt-BR")}
-                                </TableCell>
-                                <TableCell className="space-x-2 text-right">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-8 border-border/60 bg-background/60 text-xs"
-                                    onClick={async () => {
-                                      setEditStoreForm({
-                                        name: store.name,
-                                        store_type: store.store_type,
-                                        description: store.description || "",
-                                      });
-                                      // Fetch marketplace store data for images
-                                      const { data: mkStore } = await supabase
-                                        .from("marketplace_stores")
-                                        .select("id, profile_image_url, banner_image_url")
-                                        .eq("nome", store.name)
-                                        .maybeSingle();
-                                      setEditStoreMarketplaceId(mkStore?.id ?? null);
-                                      setEditStoreProfileUrl(mkStore?.profile_image_url ?? null);
-                                      setEditStoreBannerUrl(mkStore?.banner_image_url ?? null);
-                                      setEditingStore(store);
-                                    }}
-                                  >
-                                    Editar
-                                  </Button>
-
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-8 border-destructive/60 bg-destructive/10 text-xs font-semibold text-destructive hover:bg-destructive/20"
-                                      >
-                                        Excluir
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Excluir loja</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          Esta ação é irreversível. A loja será removida da tabela <code className="font-mono">stores</code> e os vínculos
-                                          com usuários serão apagados.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction
-                                          onClick={() => {
+                                      <div className="inline-flex items-center gap-2 align-middle">
+                                        <span className="text-[11px] text-muted-foreground">{store.is_active ? "Ativa" : "Banida"}</span>
+                                        <Switch
+                                          checked={store.is_active}
+                                          onCheckedChange={(checked) => {
                                             void (async () => {
-                                              const { error } = await supabase.from("stores").delete().eq("id", store.id);
+                                              const { error } = await supabase
+                                                .from("stores")
+                                                .update({ is_active: checked })
+                                                .eq("id", store.id);
 
                                               if (error) {
                                                 toast({
-                                                  title: "Erro ao excluir loja",
+                                                  title: "Erro ao atualizar status",
                                                   description: error.message,
                                                   variant: "destructive",
                                                 });
                                                 return;
                                               }
 
-                                              setInternalStores((prev) => prev.filter((s) => s.id !== store.id));
+                                              setInternalStores((prev) =>
+                                                prev.map((s) => (s.id === store.id ? { ...s, is_active: checked } : s)),
+                                              );
                                               toast({
-                                                title: "Loja excluída",
-                                                description: "A loja foi removida com sucesso.",
+                                                title: checked ? "Loja reativada" : "Loja desativada",
+                                                description: checked
+                                                  ? "O acesso do lojista foi reativado."
+                                                  : "O acesso do lojista foi desativado (banido).",
                                               });
                                             })();
                                           }}
-                                        >
-                                          Confirmar exclusão
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-
-                                  <div className="inline-flex items-center gap-2 align-middle">
-                                    <span className="text-[11px] text-muted-foreground">{store.is_active ? "Ativa" : "Banida"}</span>
-                                    <Switch
-                                      checked={store.is_active}
-                                      onCheckedChange={(checked) => {
-                                        void (async () => {
-                                          const { error } = await supabase
-                                            .from("stores")
-                                            .update({ is_active: checked })
-                                            .eq("id", store.id);
-
-                                          if (error) {
-                                            toast({
-                                              title: "Erro ao atualizar status",
-                                              description: error.message,
-                                              variant: "destructive",
-                                            });
-                                            return;
-                                          }
-
-                                          setInternalStores((prev) =>
-                                            prev.map((s) => (s.id === store.id ? { ...s, is_active: checked } : s)),
-                                          );
-                                          toast({
-                                            title: checked ? "Loja reativada" : "Loja desativada",
-                                            description: checked
-                                              ? "O acesso do lojista foi reativado."
-                                              : "O acesso do lojista foi desativado (banido).",
-                                          });
-                                        })();
-                                      }}
-                                    />
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                          {internalStores.length === 0 && (
-                            <TableCaption className="py-6 text-xs text-muted-foreground">
-                              Nenhuma loja interna cadastrada ainda.
-                            </TableCaption>
-                          )}
-                        </Table>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* ── Edit Store Dialog ── */}
-                  <Dialog open={!!editingStore} onOpenChange={(open) => { if (!open) setEditingStore(null); }}>
-                    <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle>Editar Loja</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4 py-2">
-                        {/* Images */}
-                        {editStoreMarketplaceId && (
-                          <StoreImageEditor
-                            storeId={editStoreMarketplaceId}
-                            currentProfileUrl={editStoreProfileUrl}
-                            currentBannerUrl={editStoreBannerUrl}
-                            onImagesUpdated={(p, b) => {
-                              setEditStoreProfileUrl(p);
-                              setEditStoreBannerUrl(b);
-                            }}
-                          />
-                        )}
-                        <div className="space-y-2">
-                          <Label>Nome da Loja</Label>
-                          <Input
-                            value={editStoreForm.name}
-                            onChange={(e) => setEditStoreForm((f) => ({ ...f, name: e.target.value }))}
-                            placeholder="Nome da loja"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Tipo da Loja</Label>
-                          <Select
-                            value={editStoreForm.store_type}
-                            onValueChange={(v) => setEditStoreForm((f) => ({ ...f, store_type: v }))}
-                          >
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="suplementos">Suplementos</SelectItem>
-                              <SelectItem value="artigos_esportivos">Artigos Esportivos</SelectItem>
-                              <SelectItem value="roupas_fitness">Roupas Fitness</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Descrição</Label>
-                          <Textarea
-                            value={editStoreForm.description}
-                            onChange={(e) => setEditStoreForm((f) => ({ ...f, description: e.target.value }))}
-                            placeholder="Descrição da loja (opcional)"
-                            rows={3}
-                          />
-                        </div>
-                      </div>
-                      <div className="flex justify-end gap-2 pt-2">
-                        <Button variant="outline" onClick={() => setEditingStore(null)} disabled={isSavingStore}>
-                          Cancelar
-                        </Button>
-                        <Button
-                          disabled={isSavingStore || !editStoreForm.name.trim()}
-                          onClick={() => {
-                            if (!editingStore) return;
-                            void (async () => {
-                              setIsSavingStore(true);
-                              try {
-                                const updates = {
-                                  name: editStoreForm.name.trim(),
-                                  store_type: editStoreForm.store_type,
-                                  description: editStoreForm.description.trim() || null,
-                                };
-
-                                const { error } = await supabase
-                                  .from("stores")
-                                  .update(updates)
-                                  .eq("id", editingStore.id);
-
-                                if (error) {
-                                  toast({ title: "Erro ao editar loja", description: error.message, variant: "destructive" });
-                                  return;
-                                }
-
-                                // Also update marketplace_stores if exists
-                                await supabase
-                                  .from("marketplace_stores")
-                                  .update({ nome: updates.name, store_type: updates.store_type, descricao: updates.description })
-                                  .eq("nome", editingStore.name);
-
-                                setInternalStores((prev) =>
-                                  prev.map((s) => (s.id === editingStore.id ? { ...s, ...updates } : s)),
-                                );
-                                setEditingStore(null);
-                                toast({ title: "Loja atualizada", description: "Dados da loja salvos com sucesso." });
-                              } finally {
-                                setIsSavingStore(false);
-                              }
-                            })();
-                          }}
-                        >
-                          {isSavingStore ? "Salvando…" : "Salvar"}
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-
-                  <Card className="border border-border/70 bg-card/80">
-                    <CardHeader>
-                      <CardTitle className="text-sm font-medium">Lojas (marketplace_stores)</CardTitle>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Aprove ou reprove rapidamente as solicitações de lojistas para o marketplace público.
-                      </p>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="overflow-hidden rounded-lg border border-border/60">
-                        <Table>
-                          <TableHeader className="bg-muted/40">
-                            <TableRow>
-                              <TableHead>Nome</TableHead>
-                              <TableHead>Tipo</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead>Dono (user_id)</TableHead>
-                              <TableHead className="w-[200px] text-right">Ações</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {stores.map((store) => (
-                              <TableRow key={store.id} className="hover:bg-muted/40">
-                                <TableCell className="font-medium">{store.nome}</TableCell>
-                                <TableCell className="text-xs text-muted-foreground">{store.store_type}</TableCell>
-                                <TableCell>
-                                  <Badge
-                                    variant="outline"
-                                    className="border-primary/30 bg-primary/5 text-[10px] font-semibold uppercase tracking-wide text-primary"
-                                  >
-                                    {store.status}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-xs text-muted-foreground">{store.owner_user_id}</TableCell>
-                                <TableCell className="space-x-2 text-right">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-8 border-primary/60 bg-primary/10 text-xs font-semibold text-primary hover:bg-primary/20"
-                                    onClick={() => updateStoreStatus(store.id, "aprovado")}
-                                  >
-                                    Aprovar
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-8 border-destructive/60 bg-destructive/10 text-xs font-semibold text-destructive hover:bg-destructive/20"
-                                    onClick={() => updateStoreStatus(store.id, "reprovado")}
-                                  >
-                                    Reprovar
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                          {stores.length === 0 && (
-                            <TableCaption className="py-6 text-xs text-muted-foreground">
-                              Nenhuma loja encontrada. Assim que houver solicitações, elas aparecerão aqui.
-                            </TableCaption>
-                          )}
-                        </Table>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </section>
-              )}
-
-
-              {currentSection === "telemedicina" && (
-                <section className="space-y-6">
-                  <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-                    <Card className="border border-border/70 bg-card/80">
-                      <CardHeader>
-                        <CardTitle className="text-sm font-medium">Novo serviço de telemedicina</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="servico-nome">Nome</Label>
-                          <Input
-                            id="servico-nome"
-                            value={novoServico.nome}
-                            onChange={(e) =>
-                              setNovoServico((prev) => ({
-                                ...prev,
-                                nome: e.target.value,
-                                icone: getIconForServiceName(e.target.value),
-                              }))
-                            }
-                            placeholder="Ex: Consulta com Nutricionista"
-                            className="bg-background/60 text-sm"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="servico-slug">Slug</Label>
-                          <Input
-                            id="servico-slug"
-                            value={novoServico.slug}
-                            onChange={(e) => setNovoServico((prev) => ({ ...prev, slug: e.target.value }))}
-                            placeholder="ex: consulta-nutricionista"
-                            className="bg-background/60 text-sm"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label>Ícone sugerido</Label>
-                          <div className="flex items-center justify-between rounded-md border border-border/60 bg-background/60 px-3 py-2">
-                            <div className="flex items-center gap-2">
-                              {novoServico.icone && TELEMED_ICON_COMPONENTS[novoServico.icone] && (
-                                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary">
-                                  {(() => {
-                                    const IconComp = TELEMED_ICON_COMPONENTS[novoServico.icone!];
-                                    return <IconComp className="h-4 w-4" aria-hidden="true" />;
-                                  })()}
-                                </span>
+                                        />
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                              {internalStores.length === 0 && (
+                                <TableCaption className="py-6 text-xs text-muted-foreground">
+                                  Nenhuma loja interna cadastrada ainda.
+                                </TableCaption>
                               )}
-                              <span className="text-[11px] text-muted-foreground">
-                                {novoServico.icone
-                                  ? novoServico.icone
-                                  : "Ícone será definido automaticamente a partir do nome."}
-                              </span>
+                            </Table>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* ── Edit Store Dialog ── */}
+                      <Dialog open={!!editingStore} onOpenChange={(open) => { if (!open) setEditingStore(null); }}>
+                        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Editar Loja</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4 py-2">
+                            {/* Images */}
+                            {editStoreMarketplaceId && (
+                              <StoreImageEditor
+                                storeId={editStoreMarketplaceId}
+                                currentProfileUrl={editStoreProfileUrl}
+                                currentBannerUrl={editStoreBannerUrl}
+                                onImagesUpdated={(p, b) => {
+                                  setEditStoreProfileUrl(p);
+                                  setEditStoreBannerUrl(b);
+                                }}
+                              />
+                            )}
+                            <div className="space-y-2">
+                              <Label>Nome da Loja</Label>
+                              <Input
+                                value={editStoreForm.name}
+                                onChange={(e) => setEditStoreForm((f) => ({ ...f, name: e.target.value }))}
+                                placeholder="Nome da loja"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Tipo da Loja</Label>
+                              <Select
+                                value={editStoreForm.store_type}
+                                onValueChange={(v) => setEditStoreForm((f) => ({ ...f, store_type: v }))}
+                              >
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="suplementos">Suplementos</SelectItem>
+                                  <SelectItem value="artigos_esportivos">Artigos Esportivos</SelectItem>
+                                  <SelectItem value="roupas_fitness">Roupas Fitness</SelectItem>
+                                  <SelectItem value="comidas_fitness">Comidas Fitness</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Descrição</Label>
+                              <Textarea
+                                value={editStoreForm.description}
+                                onChange={(e) => setEditStoreForm((f) => ({ ...f, description: e.target.value }))}
+                                placeholder="Descrição da loja (opcional)"
+                                rows={3}
+                              />
                             </div>
                           </div>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="servico-icone-arquivo">Ícone (SVG ou PNG)</Label>
-                          <Input
-                            id="servico-icone-arquivo"
-                            type="file"
-                            accept=".png,.svg,image/png,image/svg+xml"
-                            className="bg-background/60 text-xs"
-                            onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                              const file = e.target.files?.[0] ?? null;
-
-                              if (!file) {
-                                setNovoServicoIconFile(null);
-                                return;
-                              }
-
-                              const validTypes = ["image/png", "image/svg+xml"];
-
-                              if (!validTypes.includes(file.type)) {
-                                toast({
-                                  title: "Formato inválido",
-                                  description: "Envie um arquivo SVG ou PNG.",
-                                  variant: "destructive",
-                                });
-                                e.target.value = "";
-                                setNovoServicoIconFile(null);
-                                return;
-                              }
-
-                              setNovoServicoIconFile(file);
-                            }}
-                          />
-                          <p className="text-[10px] text-muted-foreground">
-                            Opcional. Se não enviar, um ícone padrão será usado no app do aluno.
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="border border-border/70 bg-card/80">
-                      <CardHeader>
-                        <CardTitle className="text-sm font-medium">Serviços cadastrados</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="overflow-hidden rounded-lg border border-border/60">
-                          <Table>
-                            <TableHeader className="bg-muted/40">
-                              <TableRow>
-                              <TableHead>Nome</TableHead>
-                              <TableHead>Slug</TableHead>
-                              <TableHead>Ícone</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead className="w-[200px] text-right">Ações</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {servicos.map((s) => {
-                              const isEditing = editingServicoId === s.id;
-                              const current =
-                                isEditing && editingServico
-                                  ? editingServico
-                                  : {
-                                      nome: s.nome,
-                                      slug: s.slug,
-                                      icone: s.icone,
-                                      icon_url: s.icon_url,
-                                      ativo: s.ativo ?? true,
+                          <div className="flex justify-end gap-2 pt-2">
+                            <Button variant="outline" onClick={() => setEditingStore(null)} disabled={isSavingStore}>
+                              Cancelar
+                            </Button>
+                            <Button
+                              disabled={isSavingStore || !editStoreForm.name.trim()}
+                              onClick={() => {
+                                if (!editingStore) return;
+                                void (async () => {
+                                  setIsSavingStore(true);
+                                  try {
+                                    const updates = {
+                                      name: editStoreForm.name.trim(),
+                                      store_type: editStoreForm.store_type,
+                                      description: editStoreForm.description.trim() || null,
                                     };
-                              const IconComp = current.icone ? TELEMED_ICON_COMPONENTS[current.icone] : null;
 
-                              return (
-                                <TableRow key={s.id} className="hover:bg-muted/40">
-                                  <TableCell>
-                                    {isEditing ? (
-                                      <Input
-                                        value={current.nome}
-                                        onChange={(e) =>
-                                          setEditingServico((prev) =>
-                                            prev
-                                              ? { ...prev, nome: e.target.value }
-                                              : {
-                                                  nome: e.target.value,
-                                                  slug: s.slug,
-                                                  icone: s.icone,
-                                                  ativo: s.ativo ?? true,
-                                                },
-                                          )
-                                        }
-                                        className="h-8 bg-background/60 text-xs"
-                                      />
-                                    ) : (
-                                      s.nome
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="text-xs text-muted-foreground">
-                                    {isEditing ? (
-                                      <Input
-                                        value={current.slug}
-                                        onChange={(e) =>
-                                          setEditingServico((prev) =>
-                                            prev
-                                              ? { ...prev, slug: e.target.value }
-                                              : {
-                                                  nome: s.nome,
-                                                  slug: e.target.value,
-                                                  icone: s.icone,
-                                                  ativo: s.ativo ?? true,
-                                                },
-                                          )
-                                        }
-                                        className="h-8 bg-background/60 text-xs"
-                                      />
-                                    ) : (
-                                      s.slug
-                                    )}
-                                  </TableCell>
-                                  <TableCell>
-                                    <div className="flex items-center gap-3">
-                                      {s.icon_url ? (
-                                        <img
-                                          src={s.icon_url}
-                                          alt={`Ícone do serviço ${s.nome}`}
-                                          className="h-8 w-8 rounded bg-background/60 object-contain"
-                                        />
-                                      ) : IconComp ? (
-                                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary">
-                                          <IconComp className="h-4 w-4" aria-hidden="true" />
-                                        </span>
-                                      ) : null}
-                                      {isEditing && (
-                                        <div className="flex flex-1 flex-col gap-1 text-[10px]">
-                                          <Input
-                                            type="file"
-                                            accept=".png,.svg,image/png,image/svg+xml"
-                                            className="h-8 bg-background/60 text-[10px]"
-                                            onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                                              const file = e.target.files?.[0] ?? null;
+                                    const { error } = await supabase
+                                      .from("stores")
+                                      .update(updates)
+                                      .eq("id", editingStore.id);
 
-                                              if (!file) {
-                                                setEditingServicoIconFile(null);
-                                                return;
+                                    if (error) {
+                                      toast({ title: "Erro ao editar loja", description: error.message, variant: "destructive" });
+                                      return;
+                                    }
+
+                                    // Also update marketplace_stores if exists
+                                    await supabase
+                                      .from("marketplace_stores")
+                                      .update({ nome: updates.name, store_type: updates.store_type, descricao: updates.description })
+                                      .eq("nome", editingStore.name);
+
+                                    setInternalStores((prev) =>
+                                      prev.map((s) => (s.id === editingStore.id ? { ...s, ...updates } : s)),
+                                    );
+                                    setEditingStore(null);
+                                    toast({ title: "Loja atualizada", description: "Dados da loja salvos com sucesso." });
+                                  } finally {
+                                    setIsSavingStore(false);
+                                  }
+                                })();
+                              }}
+                            >
+                              {isSavingStore ? "Salvando…" : "Salvar"}
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+
+                    </section>
+                  )}
+
+
+                  {currentSection === "telemedicina" && (
+                    <section className="space-y-6">
+                      <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+                        <Card className="border border-border/70 bg-card/80">
+                          <CardHeader>
+                            <CardTitle className="text-sm font-medium">Novo serviço de telemedicina</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <div className="space-y-1.5">
+                              <Label htmlFor="servico-nome">Nome</Label>
+                              <Input
+                                id="servico-nome"
+                                value={novoServico.nome}
+                                onChange={(e) =>
+                                  setNovoServico((prev) => ({
+                                    ...prev,
+                                    nome: e.target.value,
+                                    icone: getIconForServiceName(e.target.value),
+                                  }))
+                                }
+                                placeholder="Ex: Consulta com Nutricionista"
+                                className="bg-background/60 text-sm"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="servico-slug">Slug</Label>
+                              <Input
+                                id="servico-slug"
+                                value={novoServico.slug}
+                                onChange={(e) => setNovoServico((prev) => ({ ...prev, slug: e.target.value }))}
+                                placeholder="ex: consulta-nutricionista"
+                                className="bg-background/60 text-sm"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label>Ícone sugerido</Label>
+                              <div className="flex items-center justify-between rounded-md border border-border/60 bg-background/60 px-3 py-2">
+                                <div className="flex items-center gap-2">
+                                  {novoServico.icone && TELEMED_ICON_COMPONENTS[novoServico.icone] && (
+                                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary">
+                                      {(() => {
+                                        const IconComp = TELEMED_ICON_COMPONENTS[novoServico.icone!];
+                                        return <IconComp className="h-4 w-4" aria-hidden="true" />;
+                                      })()}
+                                    </span>
+                                  )}
+                                  <span className="text-[11px] text-muted-foreground">
+                                    {novoServico.icone
+                                      ? novoServico.icone
+                                      : "Ícone será definido automaticamente a partir do nome."}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="servico-icone-arquivo">Ícone (SVG ou PNG)</Label>
+                              <Input
+                                id="servico-icone-arquivo"
+                                type="file"
+                                accept=".png,.svg,image/png,image/svg+xml"
+                                className="bg-background/60 text-xs"
+                                onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                                  const file = e.target.files?.[0] ?? null;
+
+                                  if (!file) {
+                                    setNovoServicoIconFile(null);
+                                    return;
+                                  }
+
+                                  const validTypes = ["image/png", "image/svg+xml"];
+
+                                  if (!validTypes.includes(file.type)) {
+                                    toast({
+                                      title: "Formato inválido",
+                                      description: "Envie um arquivo SVG ou PNG.",
+                                      variant: "destructive",
+                                    });
+                                    e.target.value = "";
+                                    setNovoServicoIconFile(null);
+                                    return;
+                                  }
+
+                                  setNovoServicoIconFile(file);
+                                }}
+                              />
+                              <p className="text-[10px] text-muted-foreground">
+                                Opcional. Se não enviar, um ícone padrão será usado no app do aluno.
+                              </p>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <Card className="border border-border/70 bg-card/80">
+                          <CardHeader>
+                            <CardTitle className="text-sm font-medium">Serviços cadastrados</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="overflow-hidden rounded-lg border border-border/60">
+                              <Table>
+                                <TableHeader className="bg-muted/40">
+                                  <TableRow>
+                                    <TableHead>Nome</TableHead>
+                                    <TableHead>Slug</TableHead>
+                                    <TableHead>Ícone</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead className="w-[200px] text-right">Ações</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {servicos.map((s) => {
+                                    const isEditing = editingServicoId === s.id;
+                                    const current =
+                                      isEditing && editingServico
+                                        ? editingServico
+                                        : {
+                                          nome: s.nome,
+                                          slug: s.slug,
+                                          icone: s.icone,
+                                          icon_url: s.icon_url,
+                                          ativo: s.ativo ?? true,
+                                        };
+                                    const IconComp = current.icone ? TELEMED_ICON_COMPONENTS[current.icone] : null;
+
+                                    return (
+                                      <TableRow key={s.id} className="hover:bg-muted/40">
+                                        <TableCell>
+                                          {isEditing ? (
+                                            <Input
+                                              value={current.nome}
+                                              onChange={(e) =>
+                                                setEditingServico((prev) =>
+                                                  prev
+                                                    ? { ...prev, nome: e.target.value }
+                                                    : {
+                                                      nome: e.target.value,
+                                                      slug: s.slug,
+                                                      icone: s.icone,
+                                                      ativo: s.ativo ?? true,
+                                                    },
+                                                )
                                               }
-
-                                              const validTypes = ["image/png", "image/svg+xml"];
-
-                                              if (!validTypes.includes(file.type)) {
-                                                toast({
-                                                  title: "Formato inválido",
-                                                  description: "Envie um arquivo SVG ou PNG.",
-                                                  variant: "destructive",
-                                                });
-                                                e.target.value = "";
-                                                setEditingServicoIconFile(null);
-                                                return;
+                                              className="h-8 bg-background/60 text-xs"
+                                            />
+                                          ) : (
+                                            s.nome
+                                          )}
+                                        </TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">
+                                          {isEditing ? (
+                                            <Input
+                                              value={current.slug}
+                                              onChange={(e) =>
+                                                setEditingServico((prev) =>
+                                                  prev
+                                                    ? { ...prev, slug: e.target.value }
+                                                    : {
+                                                      nome: s.nome,
+                                                      slug: e.target.value,
+                                                      icone: s.icone,
+                                                      ativo: s.ativo ?? true,
+                                                    },
+                                                )
                                               }
+                                              className="h-8 bg-background/60 text-xs"
+                                            />
+                                          ) : (
+                                            s.slug
+                                          )}
+                                        </TableCell>
+                                        <TableCell>
+                                          <div className="flex items-center gap-3">
+                                            {s.icon_url ? (
+                                              <img
+                                                src={s.icon_url}
+                                                alt={`Ícone do serviço ${s.nome}`}
+                                                className="h-8 w-8 rounded bg-background/60 object-contain"
+                                              />
+                                            ) : IconComp ? (
+                                              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary">
+                                                <IconComp className="h-4 w-4" aria-hidden="true" />
+                                              </span>
+                                            ) : null}
+                                            {isEditing && (
+                                              <div className="flex flex-1 flex-col gap-1 text-[10px]">
+                                                <Input
+                                                  type="file"
+                                                  accept=".png,.svg,image/png,image/svg+xml"
+                                                  className="h-8 bg-background/60 text-[10px]"
+                                                  onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                                                    const file = e.target.files?.[0] ?? null;
 
-                                              setEditingServicoIconFile(file);
-                                            }}
-                                          />
-                                          <span className="text-muted-foreground">
-                                            Envie um novo ícone (SVG/PNG). Deixe em branco para manter o atual.
-                                          </span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>
-                                    <div className="flex items-center gap-2 text-xs">
-                                      <Switch
-                                        checked={current.ativo}
-                                        onCheckedChange={(checked) =>
-                                          setEditingServico((prev) =>
-                                            prev
-                                              ? { ...prev, ativo: checked }
-                                              : {
-                                                  nome: s.nome,
-                                                  slug: s.slug,
-                                                  icone: s.icone,
-                                                  ativo: checked,
-                                                },
-                                          )
-                                        }
-                                        disabled={!isEditing}
-                                      />
-                                      <span className={current.ativo ? "text-emerald-500" : "text-destructive"}>
-                                        {current.ativo ? "Ativo" : "Inativo"}
-                                      </span>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    <div className="flex items-center justify-end gap-2">
-                                      {isEditing ? (
-                                        <>
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="h-8 text-xs"
-                                            onClick={handleCancelEditServico}
-                                          >
-                                            Cancelar
-                                          </Button>
-                                          <Button
-                                            size="sm"
-                                            className="h-8 text-xs"
-                                            onClick={handleSaveEditServico}
-                                          >
-                                            Salvar
-                                          </Button>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="h-8 text-xs"
-                                            onClick={() => handleStartEditServico(s)}
-                                          >
-                                            Editar
-                                          </Button>
+                                                    if (!file) {
+                                                      setEditingServicoIconFile(null);
+                                                      return;
+                                                    }
+
+                                                    const validTypes = ["image/png", "image/svg+xml"];
+
+                                                    if (!validTypes.includes(file.type)) {
+                                                      toast({
+                                                        title: "Formato inválido",
+                                                        description: "Envie um arquivo SVG ou PNG.",
+                                                        variant: "destructive",
+                                                      });
+                                                      e.target.value = "";
+                                                      setEditingServicoIconFile(null);
+                                                      return;
+                                                    }
+
+                                                    setEditingServicoIconFile(file);
+                                                  }}
+                                                />
+                                                <span className="text-muted-foreground">
+                                                  Envie um novo ícone (SVG/PNG). Deixe em branco para manter o atual.
+                                                </span>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </TableCell>
+                                        <TableCell>
+                                          <div className="flex items-center gap-2 text-xs">
+                                            <Switch
+                                              checked={current.ativo}
+                                              onCheckedChange={(checked) =>
+                                                setEditingServico((prev) =>
+                                                  prev
+                                                    ? { ...prev, ativo: checked }
+                                                    : {
+                                                      nome: s.nome,
+                                                      slug: s.slug,
+                                                      icone: s.icone,
+                                                      ativo: checked,
+                                                    },
+                                                )
+                                              }
+                                              disabled={!isEditing}
+                                            />
+                                            <span className={current.ativo ? "text-emerald-500" : "text-destructive"}>
+                                              {current.ativo ? "Ativo" : "Inativo"}
+                                            </span>
+                                          </div>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                          <div className="flex items-center justify-end gap-2">
+                                            {isEditing ? (
+                                              <>
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  className="h-8 text-xs"
+                                                  onClick={handleCancelEditServico}
+                                                >
+                                                  Cancelar
+                                                </Button>
+                                                <Button
+                                                  size="sm"
+                                                  className="h-8 text-xs"
+                                                  onClick={handleSaveEditServico}
+                                                >
+                                                  Salvar
+                                                </Button>
+                                              </>
+                                            ) : (
+                                              <>
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  className="h-8 text-xs"
+                                                  onClick={() => handleStartEditServico(s)}
+                                                >
+                                                  Editar
+                                                </Button>
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  className="h-8 border-destructive/60 bg-destructive/10 text-xs font-semibold text-destructive hover:bg-destructive/20"
+                                                  onClick={() => handleDeleteServico(s.id)}
+                                                >
+                                                  Remover
+                                                </Button>
+                                              </>
+                                            )}
+                                          </div>
+                                        </TableCell>
+                                      </TableRow>
+                                    );
+                                  })}
+                                </TableBody>
+                                {servicos.length === 0 && (
+                                  <TableCaption className="py-6 text-xs text-muted-foreground">
+                                    Nenhum serviço cadastrado até o momento.
+                                  </TableCaption>
+                                )}
+                              </Table>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+                        <Card className="border border-border/70 bg-card/80">
+                          <CardHeader>
+                            <CardTitle className="text-sm font-medium">Novo profissional</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <div className="space-y-1.5">
+                              <Label htmlFor="prof-nome">Nome</Label>
+                              <Input
+                                id="prof-nome"
+                                value={novoProfissional.nome}
+                                onChange={(e) => setNovoProfissional((prev) => ({ ...prev, nome: e.target.value }))}
+                                placeholder="Ex: Dra. Ana Silva"
+                                className="bg-background/60 text-sm"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="prof-crm">CRM/CRP</Label>
+                              <Input
+                                id="prof-crm"
+                                value={novoProfissional.crm_crp}
+                                onChange={(e) => setNovoProfissional((prev) => ({ ...prev, crm_crp: e.target.value }))}
+                                placeholder="CRM 12345 / CRP 0000"
+                                className="bg-background/60 text-sm"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="prof-bio">Bio</Label>
+                              <Textarea
+                                id="prof-bio"
+                                value={novoProfissional.bio}
+                                onChange={(e) => setNovoProfissional((prev) => ({ ...prev, bio: e.target.value }))}
+                                placeholder="Resumo profissional, especialidades e foco de atuação."
+                                className="min-h-[70px] bg-background/60 text-sm"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="prof-foto">URL da foto</Label>
+                              <Input
+                                id="prof-foto"
+                                value={novoProfissional.foto_url}
+                                onChange={(e) => setNovoProfissional((prev) => ({ ...prev, foto_url: e.target.value }))}
+                                placeholder="https://..."
+                                className="bg-background/60 text-sm"
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1.5">
+                                <Label htmlFor="prof-preco">Preço base (R$)</Label>
+                                <Input
+                                  id="prof-preco"
+                                  type="number"
+                                  min={0}
+                                  step={10}
+                                  value={novoProfissional.preco_base}
+                                  onChange={(e) =>
+                                    setNovoProfissional((prev) => ({ ...prev, preco_base: e.target.value }))
+                                  }
+                                  placeholder="200"
+                                  className="bg-background/60 text-sm"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label htmlFor="prof-servico">Serviço</Label>
+                                <Select
+                                  value={novoProfissional.servico_id}
+                                  onValueChange={(value) =>
+                                    setNovoProfissional((prev) => ({ ...prev, servico_id: value }))
+                                  }
+                                >
+                                  <SelectTrigger id="prof-servico" className="bg-background/60 text-sm">
+                                    <SelectValue placeholder="Selecionar" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {servicos.map((s) => (
+                                      <SelectItem key={s.id} value={s.id}>
+                                        {s.nome}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            <Button className="mt-2 w-full" onClick={handleCreateProfissional}>
+                              Salvar profissional
+                            </Button>
+                          </CardContent>
+                        </Card>
+
+                        <Card className="border border-border/70 bg-card/80">
+                          <CardHeader>
+                            <CardTitle className="text-sm font-medium">Profissionais cadastrados</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="overflow-hidden rounded-lg border border-border/60">
+                              <Table>
+                                <TableHeader className="bg-muted/40">
+                                  <TableRow>
+                                    <TableHead>Nome</TableHead>
+                                    <TableHead>CRM/CRP</TableHead>
+                                    <TableHead>Serviço</TableHead>
+                                    <TableHead>Preço base</TableHead>
+                                    <TableHead className="w-[120px] text-right">Ações</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {profissionais.map((p) => {
+                                    const servico = servicos.find((s) => s.id === p.servico_id);
+                                    return (
+                                      <TableRow key={p.id} className="hover:bg-muted/40">
+                                        <TableCell>{p.nome}</TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">{p.crm_crp ?? "-"}</TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">{servico?.nome ?? "-"}</TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">
+                                          {p.preco_base !== null
+                                            ? p.preco_base.toLocaleString("pt-BR", {
+                                              style: "currency",
+                                              currency: "BRL",
+                                            })
+                                            : "-"}
+                                        </TableCell>
+                                        <TableCell className="text-right">
                                           <Button
                                             size="sm"
                                             variant="outline"
                                             className="h-8 border-destructive/60 bg-destructive/10 text-xs font-semibold text-destructive hover:bg-destructive/20"
-                                            onClick={() => handleDeleteServico(s.id)}
+                                            onClick={() => handleDeleteProfissional(p.id)}
                                           >
                                             Remover
                                           </Button>
-                                        </>
-                                      )}
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })}
-                          </TableBody>
-                          {servicos.length === 0 && (
-                            <TableCaption className="py-6 text-xs text-muted-foreground">
-                              Nenhum serviço cadastrado até o momento.
-                            </TableCaption>
-                          )}
-                        </Table>
+                                        </TableCell>
+                                      </TableRow>
+                                    );
+                                  })}
+                                </TableBody>
+                                {profissionais.length === 0 && (
+                                  <TableCaption className="py-6 text-xs text-muted-foreground">
+                                    Nenhum profissional cadastrado até o momento.
+                                  </TableCaption>
+                                )}
+                              </Table>
+                            </div>
+                          </CardContent>
+                        </Card>
                       </div>
-                      </CardContent>
-                    </Card>
-                  </div>
+                    </section>
+                  )}
 
-                  <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-                    <Card className="border border-border/70 bg-card/80">
-                      <CardHeader>
-                        <CardTitle className="text-sm font-medium">Novo profissional</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="prof-nome">Nome</Label>
-                          <Input
-                            id="prof-nome"
-                            value={novoProfissional.nome}
-                            onChange={(e) => setNovoProfissional((prev) => ({ ...prev, nome: e.target.value }))}
-                            placeholder="Ex: Dra. Ana Silva"
-                            className="bg-background/60 text-sm"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="prof-crm">CRM/CRP</Label>
-                          <Input
-                            id="prof-crm"
-                            value={novoProfissional.crm_crp}
-                            onChange={(e) => setNovoProfissional((prev) => ({ ...prev, crm_crp: e.target.value }))}
-                            placeholder="CRM 12345 / CRP 0000"
-                            className="bg-background/60 text-sm"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="prof-bio">Bio</Label>
-                          <Textarea
-                            id="prof-bio"
-                            value={novoProfissional.bio}
-                            onChange={(e) => setNovoProfissional((prev) => ({ ...prev, bio: e.target.value }))}
-                            placeholder="Resumo profissional, especialidades e foco de atuação."
-                            className="min-h-[70px] bg-background/60 text-sm"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="prof-foto">URL da foto</Label>
-                          <Input
-                            id="prof-foto"
-                            value={novoProfissional.foto_url}
-                            onChange={(e) => setNovoProfissional((prev) => ({ ...prev, foto_url: e.target.value }))}
-                            placeholder="https://..."
-                            className="bg-background/60 text-sm"
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1.5">
-                            <Label htmlFor="prof-preco">Preço base (R$)</Label>
-                            <Input
-                              id="prof-preco"
-                              type="number"
-                              min={0}
-                              step={10}
-                              value={novoProfissional.preco_base}
-                              onChange={(e) =>
-                                setNovoProfissional((prev) => ({ ...prev, preco_base: e.target.value }))
-                              }
-                              placeholder="200"
-                              className="bg-background/60 text-sm"
-                            />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label htmlFor="prof-servico">Serviço</Label>
-                            <Select
-                              value={novoProfissional.servico_id}
-                              onValueChange={(value) =>
-                                setNovoProfissional((prev) => ({ ...prev, servico_id: value }))
-                              }
-                            >
-                              <SelectTrigger id="prof-servico" className="bg-background/60 text-sm">
-                                <SelectValue placeholder="Selecionar" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {servicos.map((s) => (
-                                  <SelectItem key={s.id} value={s.id}>
-                                    {s.nome}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <Button className="mt-2 w-full" onClick={handleCreateProfissional}>
-                          Salvar profissional
-                        </Button>
-                      </CardContent>
-                    </Card>
+                  {currentSection === "precificacao" && (
+                    <section className="space-y-4">
+                      <Card className="border border-border/70 bg-card/80">
+                        <CardHeader>
+                          <CardTitle className="text-sm font-medium">Central de Precificação</CardTitle>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Gerencie todas as configurações de preços e cobranças da plataforma
+                          </p>
+                        </CardHeader>
+                        <CardContent>
+                          <Tabs defaultValue="planos" className="w-full">
+                            <TabsList className="w-full justify-start flex-wrap h-auto gap-1 bg-muted/30 p-1">
+                              <TabsTrigger value="planos" className="text-xs">Planos</TabsTrigger>
+                              <TabsTrigger value="profissionais" className="text-xs">Profissionais</TabsTrigger>
+                              <TabsTrigger value="marketplace" className="text-xs">Marketplace</TabsTrigger>
+                              <TabsTrigger value="pix" className="text-xs">PIX Configs</TabsTrigger>
+                              <TabsTrigger value="saques" className="text-xs">Saques</TabsTrigger>
+                            </TabsList>
 
-                    <Card className="border border-border/70 bg-card/80">
-                      <CardHeader>
-                        <CardTitle className="text-sm font-medium">Profissionais cadastrados</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="overflow-hidden rounded-lg border border-border/60">
-                          <Table>
-                            <TableHeader className="bg-muted/40">
-                              <TableRow>
-                                <TableHead>Nome</TableHead>
-                                <TableHead>CRM/CRP</TableHead>
-                                <TableHead>Serviço</TableHead>
-                                <TableHead>Preço base</TableHead>
-                                <TableHead className="w-[120px] text-right">Ações</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {profissionais.map((p) => {
-                                const servico = servicos.find((s) => s.id === p.servico_id);
-                                return (
-                                  <TableRow key={p.id} className="hover:bg-muted/40">
-                                    <TableCell>{p.nome}</TableCell>
-                                    <TableCell className="text-xs text-muted-foreground">{p.crm_crp ?? "-"}</TableCell>
-                                    <TableCell className="text-xs text-muted-foreground">{servico?.nome ?? "-"}</TableCell>
-                                    <TableCell className="text-xs text-muted-foreground">
-                                      {p.preco_base !== null
-                                        ? p.preco_base.toLocaleString("pt-BR", {
-                                            style: "currency",
-                                            currency: "BRL",
-                                          })
-                                        : "-"}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-8 border-destructive/60 bg-destructive/10 text-xs font-semibold text-destructive hover:bg-destructive/20"
-                                        onClick={() => handleDeleteProfissional(p.id)}
-                                      >
-                                        Remover
-                                      </Button>
-                                    </TableCell>
-                                  </TableRow>
-                                );
-                              })}
-                            </TableBody>
-                            {profissionais.length === 0 && (
-                              <TableCaption className="py-6 text-xs text-muted-foreground">
-                                Nenhum profissional cadastrado até o momento.
-                              </TableCaption>
-                            )}
-                          </Table>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </section>
-              )}
+                            <TabsContent value="planos" className="mt-4">
+                              <PlanConfigEditor />
+                            </TabsContent>
 
-              {currentSection === "dr-bio" && (
-                <section className="space-y-4">
-                  <Card className="border border-border/70 bg-card/80">
-                    <CardHeader>
-                      <CardTitle className="text-sm font-medium">Configurações do Agente Dr. Bio</CardTitle>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Gerencie a integração do nutricionista virtual com provedores externos de nutrição e ajuste a
-                        personalidade do agente.
-                      </p>
-                    </CardHeader>
-                    <CardContent className="space-y-6 text-sm">
-                      {/* 1. Gateway de API */}
-                      <div className="space-y-3">
-                        <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                          Gateway de API
-                        </h2>
-                        <div className="grid gap-4 md:grid-cols-[minmax(0,1.4fr)_minmax(0,2fr)]">
+                            <TabsContent value="profissionais" className="mt-4">
+                              <ProfessionalPricingConfig />
+                            </TabsContent>
+
+                            <TabsContent value="marketplace" className="mt-4">
+                              <HighlightOffersManager />
+                            </TabsContent>
+
+                            <TabsContent value="pix" className="mt-4">
+                              <PixConfigManager />
+                            </TabsContent>
+
+                            <TabsContent value="saques" className="mt-4">
+                              <WithdrawalRequestsManager />
+                            </TabsContent>
+                          </Tabs>
+                        </CardContent>
+                      </Card>
+                    </section>
+                  )}
+
+                  {currentSection === "dr-bio" && (
+                    <section className="space-y-4">
+                      <Card className="border border-border/70 bg-card/80">
+                        <CardHeader>
+                          <CardTitle className="text-sm font-medium">Configurações do Agente Dr. Bio</CardTitle>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Gerencie a integração do nutricionista virtual com provedores externos de nutrição e ajuste a
+                            personalidade do agente.
+                          </p>
+                        </CardHeader>
+                        <CardContent className="space-y-6 text-sm">
+                          {/* 1. Gateway de API */}
                           <div className="space-y-3">
-                            <div className="space-y-1.5">
-                              <Label htmlFor="drbio-provider" className="text-xs font-medium text-muted-foreground">
-                                Provedor de nutrição
-                              </Label>
-                              <Select
-                                value={aiProvider}
-                                onValueChange={(value) =>
-                                  setAiProvider(value as "api_ninjas_nutrition" | "openai_vision" | "custom_endpoint")
-                                }
-                                disabled={loadingAiConfig}
-                              >
-                                <SelectTrigger id="drbio-provider" className="h-9 bg-background/60 text-xs">
-                                  <SelectValue placeholder="Selecione o provedor" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="api_ninjas_nutrition">API-Ninjas Nutrition</SelectItem>
-                                  <SelectItem value="openai_vision">OpenAI Vision (fotos)</SelectItem>
-                                  <SelectItem value="custom_endpoint">Endpoint personalizado</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <p className="text-[11px] text-muted-foreground">
-                                Escolha qual backend de nutrição o Dr. Bio deve usar quando precisar de dados
-                                quantitativos (calorias, macros etc.).
-                              </p>
-                            </div>
+                            <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                              Gateway de API
+                            </h2>
+                            <div className="grid gap-4 md:grid-cols-[minmax(0,1.4fr)_minmax(0,2fr)]">
+                              <div className="space-y-3">
+                                <div className="space-y-1.5">
+                                  <Label htmlFor="drbio-provider" className="text-xs font-medium text-muted-foreground">
+                                    Provedor de nutrição
+                                  </Label>
+                                  <Select
+                                    value={aiProvider}
+                                    onValueChange={(value) =>
+                                      setAiProvider(value as "api_ninjas_nutrition" | "openai_vision" | "custom_endpoint")
+                                    }
+                                    disabled={loadingAiConfig}
+                                  >
+                                    <SelectTrigger id="drbio-provider" className="h-9 bg-background/60 text-xs">
+                                      <SelectValue placeholder="Selecione o provedor" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="api_ninjas_nutrition">API-Ninjas Nutrition</SelectItem>
+                                      <SelectItem value="openai_vision">OpenAI Vision (fotos)</SelectItem>
+                                      <SelectItem value="custom_endpoint">Endpoint personalizado</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <p className="text-[11px] text-muted-foreground">
+                                    Escolha qual backend de nutrição o Dr. Bio deve usar quando precisar de dados
+                                    quantitativos (calorias, macros etc.).
+                                  </p>
+                                </div>
 
-                            <div className="space-y-1.5">
-                              <Label htmlFor="drbio-api-key" className="text-xs font-medium text-muted-foreground">
-                                X-Api-Key do provedor
-                              </Label>
-                              <div className="relative">
-                                <Input
-                                  id="drbio-api-key"
-                                  type={showAiApiKey ? "text" : "password"}
-                                  autoComplete="off"
-                                  value={aiApiKey}
-                                  onChange={(e) => setAiApiKey(e.target.value)}
-                                  disabled={loadingAiConfig || savingAiConfig}
-                                  className="bg-background/60 pr-10 text-sm"
-                                  placeholder="Cole aqui a chave secreta de nutrição"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => setShowAiApiKey((prev) => !prev)}
-                                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
-                                  aria-label={showAiApiKey ? "Ocultar chave" : "Mostrar chave"}
-                                >
-                                  {showAiApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                </button>
+                                <div className="space-y-1.5">
+                                  <Label htmlFor="drbio-api-key" className="text-xs font-medium text-muted-foreground">
+                                    X-Api-Key do provedor
+                                  </Label>
+                                  <div className="relative">
+                                    <Input
+                                      id="drbio-api-key"
+                                      type={showAiApiKey ? "text" : "password"}
+                                      autoComplete="off"
+                                      value={aiApiKey}
+                                      onChange={(e) => setAiApiKey(e.target.value)}
+                                      disabled={loadingAiConfig || savingAiConfig}
+                                      className="bg-background/60 pr-10 text-sm"
+                                      placeholder="Cole aqui a chave secreta de nutrição"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowAiApiKey((prev) => !prev)}
+                                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
+                                      aria-label={showAiApiKey ? "Ocultar chave" : "Mostrar chave"}
+                                    >
+                                      {showAiApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </button>
+                                  </div>
+                                  <p className="text-[11px] text-muted-foreground">
+                                    Esta chave é armazenada de forma segura em <code>config_ai_agents</code> e só é lida por
+                                    funções de backend.
+                                  </p>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                  <Label htmlFor="drbio-base-url" className="text-xs font-medium text-muted-foreground">
+                                    Endpoint base para consultas nutricionais
+                                  </Label>
+                                  <Input
+                                    id="drbio-base-url"
+                                    type="text"
+                                    value={aiBaseUrl}
+                                    onChange={(e) => setAiBaseUrl(e.target.value)}
+                                    disabled={loadingAiConfig || savingAiConfig}
+                                    className="bg-background/60 text-xs"
+                                    placeholder="https://api.api-ninjas.com/v1/nutrition?query="
+                                  />
+                                  <p className="text-[11px] text-muted-foreground">
+                                    URL base utilizada quando o agente precisar consultar por exemplo "450g de peito bovino".
+                                  </p>
+                                </div>
                               </div>
-                              <p className="text-[11px] text-muted-foreground">
-                                Esta chave é armazenada de forma segura em <code>config_ai_agents</code> e só é lida por
-                                funções de backend.
-                              </p>
-                            </div>
 
-                            <div className="space-y-1.5">
-                              <Label htmlFor="drbio-base-url" className="text-xs font-medium text-muted-foreground">
-                                Endpoint base para consultas nutricionais
-                              </Label>
-                              <Input
-                                id="drbio-base-url"
-                                type="text"
-                                value={aiBaseUrl}
-                                onChange={(e) => setAiBaseUrl(e.target.value)}
-                                disabled={loadingAiConfig || savingAiConfig}
-                                className="bg-background/60 text-xs"
-                                placeholder="https://api.api-ninjas.com/v1/nutrition?query="
-                              />
-                              <p className="text-[11px] text-muted-foreground">
-                                URL base utilizada quando o agente precisar consultar por exemplo "450g de peito bovino".
-                              </p>
+                              {/* Sandbox */}
+                              <div className="space-y-2 rounded-md border border-border/60 bg-background/60 p-3">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div>
+                                    <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                                      Testar Dr. Bio
+                                    </h3>
+                                    <p className="text-[11px] text-muted-foreground">
+                                      Envie uma pergunta de comida e veja a resposta formatada da IA.
+                                    </p>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    className="h-8 px-3 text-xs"
+                                    onClick={handleTestDrBio}
+                                    loading={testLoading}
+                                    disabled={loadingAiConfig || savingAiConfig}
+                                  >
+                                    Executar teste
+                                  </Button>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                  <Label htmlFor="drbio-test-prompt" className="text-xs font-medium text-muted-foreground">
+                                    Entrada de teste
+                                  </Label>
+                                  <Input
+                                    id="drbio-test-prompt"
+                                    value={testPrompt}
+                                    onChange={(e) => setTestPrompt(e.target.value)}
+                                    placeholder="Ex: 450g de peito bovino"
+                                    className="h-9 bg-background/80 text-xs"
+                                  />
+                                </div>
+
+                                {testError && (
+                                  <p className="text-[11px] text-destructive">{testError}</p>
+                                )}
+
+                                <div className="grid gap-3 md:grid-cols-2">
+                                  <div className="space-y-1.5">
+                                    <Label className="text-[11px] font-medium text-muted-foreground">
+                                      Resposta bruta do gateway de IA (SSE)
+                                    </Label>
+                                    <Textarea
+                                      readOnly
+                                      value={testRawGatewayResponse}
+                                      className="min-h-[120px] bg-background/80 text-[11px] font-mono"
+                                      placeholder="Será exibido aqui o JSON bruto recebido via streaming."
+                                    />
+                                  </div>
+                                  <div className="space-y-1.5">
+                                    <Label className="text-[11px] font-medium text-muted-foreground">
+                                      Resposta formatada do Dr. Bio
+                                    </Label>
+                                    <Textarea
+                                      readOnly
+                                      value={testAiResponse}
+                                      className="min-h-[120px] bg-background/80 text-[11px]"
+                                      placeholder="Resposta de texto do agente baseada nas configurações atuais."
+                                    />
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
 
-                          {/* Sandbox */}
-                          <div className="space-y-2 rounded-md border border-border/60 bg-background/60 p-3">
-                            <div className="flex items-center justify-between gap-2">
-                              <div>
-                                <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                                  Testar Dr. Bio
-                                </h3>
+                          {/* 2. Mensagens e personalidade */}
+                          <div className="space-y-3 border-t border-border/60 pt-4">
+                            <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                              Mensagens e personalidade
+                            </h2>
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <div className="space-y-1.5">
+                                <Label htmlFor="drbio-system-context" className="text-xs font-medium text-muted-foreground">
+                                  Contexto do agente (persona)
+                                </Label>
+                                <Textarea
+                                  id="drbio-system-context"
+                                  value={aiSystemContext}
+                                  onChange={(e) => setAiSystemContext(e.target.value)}
+                                  rows={6}
+                                  className="bg-background/60 text-xs"
+                                  placeholder="Ex: Você é um nutricionista profissional especialista em esportes de alto rendimento..."
+                                />
                                 <p className="text-[11px] text-muted-foreground">
-                                  Envie uma pergunta de comida e veja a resposta formatada da IA.
+                                  Texto que será sempre colocado antes do sistema padrão do Dr. Bio, definindo tom de voz e
+                                  persona.
                                 </p>
                               </div>
+
+                              <div className="space-y-1.5">
+                                <Label
+                                  htmlFor="drbio-instructions-layer"
+                                  className="text-xs font-medium text-muted-foreground"
+                                >
+                                  Camada de instruções para dados da API
+                                </Label>
+                                <Textarea
+                                  id="drbio-instructions-layer"
+                                  value={aiInstructions}
+                                  onChange={(e) => setAiInstructions(e.target.value)}
+                                  rows={6}
+                                  className="bg-background/60 text-xs"
+                                  placeholder="Ex: Formate sempre a resposta usando as calorias e macros fornecidas pela API externa..."
+                                />
+                                <p className="text-[11px] text-muted-foreground">
+                                  Instruções adicionais sobre como o agente deve consumir e explicar os dados vindos do
+                                  provedor externo.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
+                            <p className="text-[11px] text-muted-foreground">
+                              As alterações são aplicadas imediatamente nas próximas conversas do Dr. Bio.
+                            </p>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-8 text-xs"
+                                onClick={handleSaveAiConfig}
+                                loading={savingAiConfig}
+                                disabled={loadingAiConfig}
+                              >
+                                Salvar Conteúdo Dr. Bio
+                              </Button>
                               <Button
                                 type="button"
                                 size="sm"
-                                className="h-8 px-3 text-xs"
-                                onClick={handleTestDrBio}
-                                loading={testLoading}
-                                disabled={loadingAiConfig || savingAiConfig}
+                                className="h-8 bg-primary text-primary-foreground text-xs hover:bg-primary/90"
+                                onClick={handleSaveAiConfig}
+                                loading={savingAiConfig}
+                                disabled={loadingAiConfig}
                               >
-                                Executar teste
+                                Recarregar e Atualizar Agente
                               </Button>
                             </div>
-
-                            <div className="space-y-1.5">
-                              <Label htmlFor="drbio-test-prompt" className="text-xs font-medium text-muted-foreground">
-                                Entrada de teste
-                              </Label>
-                              <Input
-                                id="drbio-test-prompt"
-                                value={testPrompt}
-                                onChange={(e) => setTestPrompt(e.target.value)}
-                                placeholder="Ex: 450g de peito bovino"
-                                className="h-9 bg-background/80 text-xs"
-                              />
-                            </div>
-
-                            {testError && (
-                              <p className="text-[11px] text-destructive">{testError}</p>
-                            )}
-
-                            <div className="grid gap-3 md:grid-cols-2">
-                              <div className="space-y-1.5">
-                                <Label className="text-[11px] font-medium text-muted-foreground">
-                                  Resposta bruta do gateway de IA (SSE)
-                                </Label>
-                                <Textarea
-                                  readOnly
-                                  value={testRawGatewayResponse}
-                                  className="min-h-[120px] bg-background/80 text-[11px] font-mono"
-                                  placeholder="Será exibido aqui o JSON bruto recebido via streaming."
-                                />
-                              </div>
-                              <div className="space-y-1.5">
-                                <Label className="text-[11px] font-medium text-muted-foreground">
-                                  Resposta formatada do Dr. Bio
-                                </Label>
-                                <Textarea
-                                  readOnly
-                                  value={testAiResponse}
-                                  className="min-h-[120px] bg-background/80 text-[11px]"
-                                  placeholder="Resposta de texto do agente baseada nas configurações atuais."
-                                />
-                              </div>
-                            </div>
                           </div>
-                        </div>
-                      </div>
-
-                      {/* 2. Mensagens e personalidade */}
-                      <div className="space-y-3 border-t border-border/60 pt-4">
-                        <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                          Mensagens e personalidade
-                        </h2>
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div className="space-y-1.5">
-                            <Label htmlFor="drbio-system-context" className="text-xs font-medium text-muted-foreground">
-                              Contexto do agente (persona)
-                            </Label>
-                            <Textarea
-                              id="drbio-system-context"
-                              value={aiSystemContext}
-                              onChange={(e) => setAiSystemContext(e.target.value)}
-                              rows={6}
-                              className="bg-background/60 text-xs"
-                              placeholder="Ex: Você é um nutricionista profissional especialista em esportes de alto rendimento..."
-                            />
-                            <p className="text-[11px] text-muted-foreground">
-                              Texto que será sempre colocado antes do sistema padrão do Dr. Bio, definindo tom de voz e
-                              persona.
-                            </p>
-                          </div>
-
-                          <div className="space-y-1.5">
-                            <Label
-                              htmlFor="drbio-instructions-layer"
-                              className="text-xs font-medium text-muted-foreground"
-                            >
-                              Camada de instruções para dados da API
-                            </Label>
-                            <Textarea
-                              id="drbio-instructions-layer"
-                              value={aiInstructions}
-                              onChange={(e) => setAiInstructions(e.target.value)}
-                              rows={6}
-                              className="bg-background/60 text-xs"
-                              placeholder="Ex: Formate sempre a resposta usando as calorias e macros fornecidas pela API externa..."
-                            />
-                            <p className="text-[11px] text-muted-foreground">
-                              Instruções adicionais sobre como o agente deve consumir e explicar os dados vindos do
-                              provedor externo.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
-                        <p className="text-[11px] text-muted-foreground">
-                          As alterações são aplicadas imediatamente nas próximas conversas do Dr. Bio.
-                        </p>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-8 text-xs"
-                            onClick={handleSaveAiConfig}
-                            loading={savingAiConfig}
-                            disabled={loadingAiConfig}
-                          >
-                            Salvar Conteúdo Dr. Bio
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="h-8 bg-primary text-primary-foreground text-xs hover:bg-primary/90"
-                            onClick={handleSaveAiConfig}
-                            loading={savingAiConfig}
-                            disabled={loadingAiConfig}
-                          >
-                            Recarregar e Atualizar Agente
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </section>
-              )}
-            </div>
-          </>
-        )}
-      </main>
-    </SidebarInset>
-  </div>
-</SidebarProvider>
+                        </CardContent>
+                      </Card>
+                    </section>
+                  )}
+                </div>
+              </>
+            )}
+          </main>
+        </SidebarInset>
+      </div>
+    </SidebarProvider>
   );
 };
 

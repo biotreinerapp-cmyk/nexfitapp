@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Watch, Bluetooth } from "lucide-react";
+import { Watch, Bluetooth, RefreshCw, Smartphone, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BackIconButton } from "@/components/navigation/BackIconButton";
+import { FloatingNavIsland } from "@/components/navigation/FloatingNavIsland";
 
 interface ConnectedDeviceInfo {
   id: string;
@@ -13,9 +13,7 @@ interface ConnectedDeviceInfo {
 const DeviceConnectivityPage = () => {
   const navigate = useNavigate();
 
-  const [isSupported, setIsSupported] = useState(
-    typeof navigator !== "undefined" && !!(navigator as any).bluetooth,
-  );
+  const [isSupported, setIsSupported] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectedDevice, setConnectedDevice] = useState<ConnectedDeviceInfo | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<"disconnected" | "connecting" | "connected">(
@@ -24,9 +22,12 @@ const DeviceConnectivityPage = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [bluetoothDevice, setBluetoothDevice] = useState<any | null>(null);
 
+  useEffect(() => {
+    setIsSupported(typeof navigator !== "undefined" && !!(navigator as any).bluetooth);
+  }, []);
+
   const handleConnectClick = async () => {
-    if (typeof navigator === "undefined" || !(navigator as any).bluetooth) {
-      setIsSupported(false);
+    if (!isSupported) {
       setErrorMessage("Bluetooth não é suportado neste dispositivo ou navegador.");
       return;
     }
@@ -54,7 +55,6 @@ const DeviceConnectivityPage = () => {
       setConnectionStatus("connected");
     } catch (error: any) {
       if (error?.name === "NotFoundError") {
-        // Usuário cancelou o seletor de dispositivo
         setConnectionStatus("disconnected");
       } else {
         console.error("Erro ao conectar via Web Bluetooth", error);
@@ -83,92 +83,113 @@ const DeviceConnectivityPage = () => {
   const hasDeviceConnected = connectedDevice != null && connectionStatus === "connected";
 
   return (
-    <main className="safe-bottom-content flex min-h-screen flex-col bg-background px-4 pt-6">
-      {/* Header */}
-      <header className="mb-4 flex items-center gap-3">
+    <main className="safe-bottom-main flex min-h-screen flex-col bg-background px-4 pb-24 pt-6 relative overflow-hidden">
+      {/* Background Decorations */}
+      <div className="absolute top-[-10%] right-[-10%] h-64 w-64 rounded-full bg-primary/5 blur-[100px]" />
+      <div className="absolute bottom-[-10%] left-[-10%] h-64 w-64 rounded-full bg-accent/5 blur-[100px]" />
+
+      <header className="mb-6 flex items-center gap-3 relative z-10">
         <BackIconButton to="/aluno/dashboard" />
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-accent-foreground/80">Área do Aluno</p>
-          <h1 className="mt-1 page-title-gradient text-2xl font-semibold">Dispositivos conectados</h1>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Gerencie seu smartwatch e sensores de treino.
-          </p>
+          <p className="text-[10px] font-black uppercase tracking-[0.4em] text-primary/60">Configuração</p>
+          <h1 className="mt-1 page-title-gradient text-2xl font-black uppercase tracking-tighter leading-none">Conectividade</h1>
         </div>
       </header>
 
       {!isSupported && (
-        <div className="mb-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-          Bluetooth não é suportado neste dispositivo ou navegador.
+        <div className="mb-4 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 relative z-10 backdrop-blur-md">
+          <div className="flex items-center gap-3">
+            <Smartphone className="h-5 w-5 text-destructive" />
+            <p className="text-xs font-medium text-destructive">
+              Bluetooth não suportado neste dispositivo.
+            </p>
+          </div>
         </div>
       )}
 
-      <section className="space-y-3">
+      <section className="space-y-4 relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
         {!hasDeviceConnected ? (
-          <Card className="border border-accent/40 bg-card/80">
-            <CardHeader className="flex flex-row items-center gap-3 pb-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-accent/60 bg-background/80">
-                <Watch className="h-5 w-5" />
+          <div className="relative overflow-hidden rounded-[32px] border border-white/5 bg-white/[0.03] p-6 backdrop-blur-xl">
+            <div className="flex flex-col items-center text-center gap-4 py-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5 border border-white/10">
+                <Watch className="h-8 w-8 text-muted-foreground/50" />
               </div>
-              <div>
-                <CardTitle className="text-sm">Nenhum dispositivo conectado</CardTitle>
-                <CardDescription className="text-[11px]">
-                  Conecte seu smartwatch ou sensor de frequência cardíaca.
-                </CardDescription>
+              <div className="space-y-1">
+                <h2 className="text-lg font-black uppercase tracking-tight">Nenhum Dispositivo</h2>
+                <p className="text-xs text-muted-foreground font-medium max-w-[200px] mx-auto">
+                  Conecte seu smartwatch ou sensor cardíaco para monitoramento real-time.
+                </p>
               </div>
-            </CardHeader>
-            <CardContent className="pt-1">
-              <Button
-                type="button"
-                className="w-full"
-                onClick={handleConnectClick}
-                disabled={isConnecting || !isSupported}
-              >
-                <Bluetooth className="mr-2 h-4 w-4" />
-                {isConnecting ? "Conectando..." : "Conectar dispositivo"}
-              </Button>
-              {errorMessage && (
-                <p className="mt-2 text-[11px] text-destructive">{errorMessage}</p>
-              )}
-            </CardContent>
-          </Card>
-        ) : (
-          <Card className="border border-primary/60 bg-card/80">
-            <CardHeader className="flex flex-row items-center gap-3 pb-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-primary/70 bg-primary/10">
-                <Bluetooth className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <CardTitle className="text-sm">{connectedDevice.name}</CardTitle>
-                <CardDescription className="text-[11px] text-primary">
-                  Conectado
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-2 pt-1 text-xs">
-              <p className="text-[11px] text-muted-foreground">
-                Seu dispositivo está conectado via Bluetooth. Transmissão de dados em tempo real e métricas
-                avançadas estarão disponíveis em uma atualização futura.
-              </p>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+
+              <div className="w-full pt-2">
                 <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full sm:w-auto"
+                  variant="premium"
+                  className="w-full h-14 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-primary/10"
+                  onClick={handleConnectClick}
+                  disabled={isConnecting || !isSupported}
+                >
+                  {isConnecting ? (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      Buscando...
+                    </>
+                  ) : (
+                    <>
+                      <Bluetooth className="mr-2 h-4 w-4" />
+                      Conectar Dispositivo
+                    </>
+                  )}
+                </Button>
+                {errorMessage && (
+                  <p className="mt-3 text-[10px] font-bold text-destructive uppercase tracking-wide">{errorMessage}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="relative overflow-hidden rounded-[32px] border border-primary/20 bg-primary/5 p-6 backdrop-blur-xl">
+            <div className="flex flex-col items-center text-center gap-4 py-4">
+              <div className="relative">
+                <div className="absolute inset-0 rounded-full bg-primary/20 blur-xl animate-pulse" />
+                <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20">
+                  <Bluetooth className="h-8 w-8 text-primary" />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <h2 className="text-lg font-black uppercase tracking-tight text-primary">{connectedDevice.name}</h2>
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                  </span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-primary">Conectado</span>
+                </div>
+              </div>
+
+              <p className="text-[10px] text-muted-foreground font-medium max-w-[240px] mx-auto">
+                Dispositivo pronto para transmitir dados de frequência cardíaca e treino.
+              </p>
+
+              <div className="w-full pt-4 grid gap-3">
+                <Button variant="outline" className="h-12 rounded-xl border-white/10 bg-white/5 hover:bg-white/10 w-full" disabled>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Ver Dados (Em Breve)</span>
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  className="h-10 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10 text-[10px] font-black uppercase tracking-widest"
                   onClick={handleDisconnectClick}
                 >
-                  Desconectar dispositivo
-                </Button>
-                <Button type="button" variant="outline" className="w-full sm:w-auto" disabled>
-                  Ver dados em tempo real (em breve)
+                  Desconectar
                 </Button>
               </div>
-              {errorMessage && (
-                <p className="mt-1 text-[11px] text-destructive">{errorMessage}</p>
-              )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
       </section>
+
+      <FloatingNavIsland />
     </main>
   );
 };

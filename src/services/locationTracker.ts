@@ -49,6 +49,7 @@ export type LocationIngestResult = {
   reportedSpeedMps: number | null;
   /** Smoothed point (median) when available; otherwise the raw point */
   point: LocationPoint;
+  isStationary: boolean;
 };
 
 const EARTH_RADIUS_M = 6371000;
@@ -81,23 +82,23 @@ const defaultsForMode = (mode: LocationTrackerMode): Required<LocationTrackerOpt
     maxAccuracyMeters: 25,
     minDeltaSeconds: 1,
     smoothingWindowSize: 5,
-    minSpeedMps: 0.8,
+    minSpeedMps: 0.5, // Lowered slightly to capture slow walks, but relies on distance check
     maxImplicitSpeedMps: 12,
-    stepAccuracyFactor: 0.6,
-    minStepMeters: 6,
+    stepAccuracyFactor: 0.5,
+    minStepMeters: 5,
   } satisfies Required<LocationTrackerOptions>;
 
   if (mode === "caminhada") {
-    return { ...base, maxImplicitSpeedMps: 7, minSpeedMps: 0.8 };
+    return { ...base, maxImplicitSpeedMps: 3.5, minSpeedMps: 0.5 };
   }
   if (mode === "corrida") {
-    return { ...base, maxImplicitSpeedMps: 12, minSpeedMps: 0.8 };
+    return { ...base, maxImplicitSpeedMps: 12, minSpeedMps: 1.5 };
   }
   if (mode === "ciclismo") {
-    return { ...base, maxImplicitSpeedMps: 18, minSpeedMps: 1.2 };
+    return { ...base, maxImplicitSpeedMps: 25, minSpeedMps: 2.0 };
   }
   if (mode === "trilha") {
-    return { ...base, maxImplicitSpeedMps: 9, minSpeedMps: 0.7 };
+    return { ...base, maxImplicitSpeedMps: 8, minSpeedMps: 0.5 };
   }
 
   return base;
@@ -144,6 +145,7 @@ export class LocationTracker {
           impliedSpeedMps: null,
           reportedSpeedMps,
           point,
+          isStationary: true,
         };
       }
 
@@ -156,6 +158,7 @@ export class LocationTracker {
         impliedSpeedMps: null,
         reportedSpeedMps,
         point: raw,
+        isStationary: true,
       };
     }
 
@@ -169,6 +172,7 @@ export class LocationTracker {
         impliedSpeedMps: null,
         reportedSpeedMps,
         point: raw,
+        isStationary: true, // Assuming stationary if updates are too fast/jittery without significant movement
       };
     }
 
@@ -184,6 +188,7 @@ export class LocationTracker {
         impliedSpeedMps: null,
         reportedSpeedMps,
         point: raw,
+        isStationary: true, // Weak signal usually implies indoor/stationary context
       };
     }
 
@@ -202,6 +207,7 @@ export class LocationTracker {
         impliedSpeedMps: null,
         reportedSpeedMps,
         point,
+        isStationary: true,
       };
     }
 
@@ -218,10 +224,12 @@ export class LocationTracker {
         impliedSpeedMps: Number.isFinite(impliedSpeedMps) ? impliedSpeedMps : null,
         reportedSpeedMps,
         point,
+        isStationary: false, // Jumps are technically "movement" but rejected
       };
     }
 
     // 6) Anti-drift (evidence of movement)
+    // We require EITHER convincing speed reported by OS OR significant distance
     const stepThresholdMeters = Math.max(point.accuracy * this.opts.stepAccuracyFactor, this.opts.minStepMeters);
     const hasSpeedEvidence = reportedSpeedMps !== null && reportedSpeedMps >= this.opts.minSpeedMps;
     const hasStepEvidence = deltaDistMeters >= stepThresholdMeters;
@@ -236,6 +244,7 @@ export class LocationTracker {
         impliedSpeedMps,
         reportedSpeedMps,
         point,
+        isStationary: true,
       };
     }
 
@@ -250,6 +259,7 @@ export class LocationTracker {
       impliedSpeedMps,
       reportedSpeedMps,
       point,
+      isStationary: false,
     };
   }
 

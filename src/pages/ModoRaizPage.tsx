@@ -4,6 +4,8 @@ import { Plus, Skull, Pencil, Trash2, Eye, Dumbbell } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserPlan } from "@/hooks/useUserPlan";
+import { Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,10 +37,47 @@ type ManualRoutine = {
 
 export default function ModoRaizPage() {
   const { user } = useAuth();
+  const { plan } = useUserPlan();
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const isFree = plan === "FREE";
+
+  if (isFree) {
+    return (
+      <div className="min-h-screen bg-background pb-28">
+        <header className="sticky top-0 z-30 border-b border-border/40 bg-background/80 backdrop-blur-md">
+          <div className="mx-auto flex max-w-lg items-center gap-2 px-4 py-3">
+            <BackIconButton to="/aluno/dashboard" />
+            <Skull className="h-6 w-6 text-primary" />
+            <h1 className="text-lg font-bold text-foreground">Modo Raiz</h1>
+          </div>
+        </header>
+        <main className="mx-auto max-w-lg px-4 pt-16 text-center">
+          <div className="mb-6 flex justify-center">
+            <div className="rounded-full bg-primary/10 p-6">
+              <Lock className="h-12 w-12 text-primary" />
+            </div>
+          </div>
+          <h2 className="text-2xl font-bold text-foreground mb-2">Recurso Premium</h2>
+          <p className="text-muted-foreground mb-8">
+            O Modo Raiz é exclusivo para membros **Advance** e **Elite**.
+            Assine agora para ter controle total sobre seus treinos e criar rotinas personalizadas.
+          </p>
+          <Button
+            className="w-full"
+            size="lg"
+            onClick={() => navigate("/aluno/plano")}
+          >
+            Ver Planos de Assinatura
+          </Button>
+        </main>
+        <FloatingNavIsland />
+      </div>
+    );
+  }
 
   const { data: routines = [], isLoading } = useQuery({
     queryKey: ["manual_routines", user?.id],

@@ -1,11 +1,16 @@
 import { CreditCard } from "lucide-react";
 import { BackIconButton } from "@/components/navigation/BackIconButton";
 import { MyPlanCard } from "@/components/subscription/MyPlanCard";
+import { FloatingNavIsland } from "@/components/navigation/FloatingNavIsland";
 
 const AlunoPlanoPage = () => {
   return (
-    <main className="safe-bottom-content flex min-h-screen flex-col bg-background px-4 pt-6">
-      <header className="mb-4 flex items-center gap-3">
+    <main className="safe-bottom-main flex min-h-screen flex-col bg-background px-4 pb-24 pt-6 relative overflow-hidden">
+      {/* Background Decorations */}
+      <div className="absolute top-[-10%] right-[-10%] h-64 w-64 rounded-full bg-primary/5 blur-[100px]" />
+      <div className="absolute bottom-[-10%] left-[-10%] h-64 w-64 rounded-full bg-accent/5 blur-[100px]" />
+
+      <header className="mb-4 flex items-center gap-3 relative z-10">
         <BackIconButton to="/aluno/perfil" />
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-accent-foreground/80">Área do Aluno</p>
@@ -19,9 +24,10 @@ const AlunoPlanoPage = () => {
         </div>
       </header>
 
-      <section className="space-y-3">
+      <section className="space-y-3 relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <MyPlanCard />
       </section>
+      <FloatingNavIsland />
     </main>
   );
 };

@@ -30,7 +30,7 @@ export function HighlightOffersAdminPanel() {
     title: "",
     description: "",
     duration_days: 7,
-    price_cents: 0,
+    price_reais: "",
     features: "",
     badge_label: "",
     is_active: true,
@@ -56,7 +56,7 @@ export function HighlightOffersAdminPanel() {
 
   const resetForm = () => {
     setEditing(null);
-    setForm({ title: "", description: "", duration_days: 7, price_cents: 0, features: "", badge_label: "", is_active: true, sort_order: 0 });
+    setForm({ title: "", description: "", duration_days: 7, price_reais: "", features: "", badge_label: "", is_active: true, sort_order: 0 });
   };
 
   const openEdit = (o: HighlightOffer) => {
@@ -65,7 +65,7 @@ export function HighlightOffersAdminPanel() {
       title: o.title,
       description: o.description ?? "",
       duration_days: o.duration_days,
-      price_cents: o.price_cents,
+      price_reais: (o.price_cents / 100).toFixed(2).replace(".", ","),
       features: o.features.join("\n"),
       badge_label: o.badge_label ?? "",
       is_active: o.is_active,
@@ -79,7 +79,7 @@ export function HighlightOffersAdminPanel() {
       title: form.title,
       description: form.description || null,
       duration_days: form.duration_days,
-      price_cents: form.price_cents,
+      price_cents: Math.round(parseFloat(form.price_reais.replace(",", ".") || "0") * 100),
       features: featuresArr,
       badge_label: form.badge_label || null,
       is_active: form.is_active,
@@ -141,8 +141,8 @@ export function HighlightOffersAdminPanel() {
               <Input type="number" value={form.duration_days} onChange={e => setForm(p => ({ ...p, duration_days: Number(e.target.value) }))} />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Preço (centavos)</Label>
-              <Input type="number" value={form.price_cents} onChange={e => setForm(p => ({ ...p, price_cents: Number(e.target.value) }))} />
+              <Label className="text-xs">Preço (R$)</Label>
+              <Input value={form.price_reais} onChange={e => setForm(p => ({ ...p, price_reais: e.target.value }))} placeholder="Ex: 29,90" />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Ordem</Label>

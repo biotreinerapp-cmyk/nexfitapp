@@ -3,6 +3,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Users, Trophy, Target, Link2, Share2, Copy, Plus, MapPin, Clock, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserPlan } from "@/hooks/useUserPlan";
+import { Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
+import { FloatingNavIsland } from "@/components/navigation/FloatingNavIsland";
 
 interface RunningClub {
   id: string;
@@ -69,9 +72,12 @@ const getInviteUrl = (inviteCode: string) => {
 
 const RunningClubPage = () => {
   const { user } = useAuth();
+  const { plan } = useUserPlan();
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const isFree = plan === "FREE";
 
   const [clubs, setClubs] = useState<RunningClub[]>([]);
   const [memberships, setMemberships] = useState<RunningClubMember[]>([]);
@@ -253,91 +259,91 @@ const RunningClubPage = () => {
     void handleInviteFromUrl();
   }, [user, inviteFromUrl, toast]);
 
-   const handleCreateClub = async (values: { name: string; description: string; city: string; state: string; visibility: "public" | "private" }) => {
-     if (!user) {
-       toast({
-         title: "Você precisa estar logado",
-         description: "Entre na sua conta para criar um clube de corrida.",
-         variant: "destructive",
-       });
-       return;
-     }
- 
-     try {
-       setIsCreatingClub(true);
- 
-       const inviteCode = crypto.randomUUID?.() ?? Math.random().toString(36).slice(2, 10);
- 
-        const { data: club, error } = await supabase
-          .from("running_clubs")
-          .insert({
-            name: values.name,
-            description: values.description,
-            city: values.city || null,
-            state: values.state || null,
-            visibility: values.visibility,
-            invite_code: inviteCode,
-            created_by: user.id,
-          })
-          .select("id, name, description, visibility, invite_code, city, state")
-          .single();
- 
-       if (error || !club) {
-         console.error("Erro ao criar clube", error);
-         toast({
-           title: "Não foi possível criar o clube",
-           description: error?.message || "Ocorreu um erro inesperado. Tente novamente em alguns instantes.",
-           variant: "destructive",
-         });
-         return;
-       }
- 
-       const { error: memberError } = await supabase.from("running_club_members").insert({
-         club_id: club.id,
-         user_id: user.id,
-         role: "admin",
-         status: "active",
-       });
- 
-       if (memberError) {
-         console.error("Clube criado, mas houve erro ao adicionar membro", memberError);
-         toast({
-           title: "Clube criado, mas houve erro ao te adicionar",
-           description:
-             memberError.message ||
-             "Seu clube foi criado, mas não conseguimos te adicionar como membro automaticamente.",
-           variant: "destructive",
-         });
-       }
- 
-       setClubs((prev) => [...prev, club as RunningClub]);
-       setMemberships((prev) => [
-         ...prev,
-         {
-           id: "temp",
-           club_id: club.id,
-           user_id: user.id,
-           role: "admin",
-           status: "active",
-         },
-       ]);
-        setSelectedClubId(club.id);
-        setCreateDialogOpen(false);
+  const handleCreateClub = async (values: { name: string; description: string; city: string; state: string; visibility: "public" | "private" }) => {
+    if (!user) {
+      toast({
+        title: "Você precisa estar logado",
+        description: "Entre na sua conta para criar um clube de corrida.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsCreatingClub(true);
+
+      const inviteCode = crypto.randomUUID?.() ?? Math.random().toString(36).slice(2, 10);
+
+      const { data: club, error } = await supabase
+        .from("running_clubs")
+        .insert({
+          name: values.name,
+          description: values.description,
+          city: values.city || null,
+          state: values.state || null,
+          visibility: values.visibility,
+          invite_code: inviteCode,
+          created_by: user.id,
+        })
+        .select("id, name, description, visibility, invite_code, city, state")
+        .single();
+
+      if (error || !club) {
+        console.error("Erro ao criar clube", error);
         toast({
-          title: "Clube criado com sucesso",
-          description: "Convide amigos e comece a correr junto.",
+          title: "Não foi possível criar o clube",
+          description: error?.message || "Ocorreu um erro inesperado. Tente novamente em alguns instantes.",
+          variant: "destructive",
         });
-     } catch (err) {
-       console.error("Erro inesperado ao criar clube", err);
-       toast({
-         title: "Erro ao criar clube",
-         description: "Algo inesperado aconteceu. Verifique sua conexão e tente novamente.",
-         variant: "destructive",
-       });
-     } finally {
-       setIsCreatingClub(false);
-     }
-   };
+        return;
+      }
+
+      const { error: memberError } = await supabase.from("running_club_members").insert({
+        club_id: club.id,
+        user_id: user.id,
+        role: "admin",
+        status: "active",
+      });
+
+      if (memberError) {
+        console.error("Clube criado, mas houve erro ao adicionar membro", memberError);
+        toast({
+          title: "Clube criado, mas houve erro ao te adicionar",
+          description:
+            memberError.message ||
+            "Seu clube foi criado, mas não conseguimos te adicionar como membro automaticamente.",
+          variant: "destructive",
+        });
+      }
+
+      setClubs((prev) => [...prev, club as RunningClub]);
+      setMemberships((prev) => [
+        ...prev,
+        {
+          id: "temp",
+          club_id: club.id,
+          user_id: user.id,
+          role: "admin",
+          status: "active",
+        },
+      ]);
+      setSelectedClubId(club.id);
+      setCreateDialogOpen(false);
+      toast({
+        title: "Clube criado com sucesso",
+        description: "Convide amigos e comece a correr junto.",
+      });
+    } catch (err) {
+      console.error("Erro inesperado ao criar clube", err);
+      toast({
+        title: "Erro ao criar clube",
+        description: "Algo inesperado aconteceu. Verifique sua conexão e tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingClub(false);
+    }
+  };
 
   const handleJoinSelectedClub = async () => {
     if (!user || !selectedClub) return;
@@ -483,23 +489,54 @@ const RunningClubPage = () => {
     const stateTerm = stateFilter.trim().toLowerCase();
     const cityTerm = cityFilter.trim().toLowerCase();
 
-      return clubs
-        .filter((club) => {
-          const name = (club.name ?? "").toLowerCase();
-          const city = (club.city ?? "").toLowerCase();
-          const state = (club.state ?? "").toLowerCase();
+    return clubs
+      .filter((club) => {
+        const name = (club.name ?? "").toLowerCase();
+        const city = (club.city ?? "").toLowerCase();
+        const state = (club.state ?? "").toLowerCase();
 
-          const matchesSearch = term ? name.includes(term) : true;
-          const matchesVisibility = visibilityFilter === "all" ? true : club.visibility === visibilityFilter;
-          const matchesState = stateTerm ? state.includes(stateTerm) : true;
-          const matchesCity = cityTerm ? city.includes(cityTerm) : true;
+        const matchesSearch = term ? name.includes(term) : true;
+        const matchesVisibility = visibilityFilter === "all" ? true : club.visibility === visibilityFilter;
+        const matchesState = stateTerm ? state.includes(stateTerm) : true;
+        const matchesCity = cityTerm ? city.includes(cityTerm) : true;
 
-          return matchesSearch && matchesVisibility && matchesState && matchesCity;
-        });
+        return matchesSearch && matchesVisibility && matchesState && matchesCity;
+      });
   }, [clubs, searchTerm, visibilityFilter, stateFilter, cityFilter]);
- 
-   return (
-    <main className="safe-bottom-main flex min-h-screen flex-col gap-4 bg-background px-4 pt-4">
+
+  if (isFree) {
+    return (
+      <main className="safe-bottom-main flex min-h-screen flex-col gap-4 bg-background px-4 pb-24 pt-4">
+        <header className="mb-2 flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/aluno/dashboard")} className="mr-1 text-foreground">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="flex flex-col">
+            <span className="text-xs uppercase tracking-[0.3em] text-accent-foreground/80">Running Club</span>
+            <h1 className="mt-1 page-title-gradient text-xl font-semibold tracking-tight">Recurso Premium</h1>
+          </div>
+        </header>
+
+        <section className="mt-12 flex flex-col items-center text-center">
+          <div className="mb-6 rounded-full bg-primary/10 p-6">
+            <Lock className="h-12 w-12 text-primary" />
+          </div>
+          <h2 className="text-2xl font-bold text-foreground mb-2">Junte-se ao Pelotão</h2>
+          <p className="text-muted-foreground mb-8 max-w-sm">
+            O Running Club é exclusivo para membros **Advance** e **Elite**.
+            Participe de clubes, desafios e rankings com outros corredores.
+          </p>
+          <Button className="w-full" size="lg" onClick={() => navigate("/aluno/plano")}>
+            Ver Planos de Assinatura
+          </Button>
+        </section>
+        <FloatingNavIsland />
+      </main>
+    );
+  }
+
+  return (
+    <main className="safe-bottom-main flex min-h-screen flex-col gap-4 bg-background px-4 pb-24 pt-4">
       <header className="mb-2 flex items-center gap-3">
         <Button
           variant="ghost"
@@ -576,9 +613,8 @@ const RunningClubPage = () => {
                 return (
                   <Card
                     key={club.id}
-                    className={`border px-3 py-2 transition-colors ${
-                      selectedClub?.id === club.id ? "border-primary bg-primary/10" : "border-border/60 hover:border-accent/60"
-                    }`}
+                    className={`border px-3 py-2 transition-colors ${selectedClub?.id === club.id ? "border-primary bg-primary/10" : "border-border/60 hover:border-accent/60"
+                      }`}
                   >
                     <button
                       type="button"
@@ -639,7 +675,7 @@ const RunningClubPage = () => {
       )}
 
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-md border border-accent/40 bg-card/95">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Criar meu clube de corrida</DialogTitle>
             <DialogDescription className="text-xs">
@@ -730,18 +766,18 @@ const RunningClubPage = () => {
                   </FormItem>
                 )}
               />
-             <DialogFooter className="mt-2">
-               <Button type="submit" className="w-full" disabled={isCreatingClub}>
-                 {isCreatingClub ? "Criando..." : "Criar clube agora"}
-               </Button>
-             </DialogFooter>
+              <DialogFooter className="mt-2">
+                <Button type="submit" className="w-full" disabled={isCreatingClub}>
+                  {isCreatingClub ? "Criando..." : "Criar clube agora"}
+                </Button>
+              </DialogFooter>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
 
       <Dialog open={shareDialogOpen && !!selectedClub} onOpenChange={setShareDialogOpen}>
-        <DialogContent className="max-w-md border border-accent/40 bg-card/95">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Compartilhar clube</DialogTitle>
             <DialogDescription className="text-xs">
@@ -785,6 +821,7 @@ const RunningClubPage = () => {
           )}
         </DialogContent>
       </Dialog>
+      <FloatingNavIsland />
     </main>
   );
 };

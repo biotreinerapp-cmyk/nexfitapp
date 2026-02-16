@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, useNavigate, useLocation, BrowserRouter } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,8 +13,20 @@ import AlunoAtividadeMomentoPage from "./pages/AlunoAtividadeMomento";
 import AlunoTreinosHojePage from "./pages/AlunoTreinosHoje";
 import AlunoDashboardPage from "./pages/AlunoDashboard";
 import AlunoOnboardingPage from "./pages/AlunoOnboarding";
-import AdminPage from "./pages/Admin";
-import AdminMasterPage from "./pages/AdminMaster";
+
+// Admin Imports
+import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
+import AdminUsersPage from "./pages/admin/AdminUsersPage";
+import AdminFinancialPage from "./pages/admin/AdminFinancialPage";
+import AdminStoresPage from "./pages/admin/AdminStoresPage";
+import AdminTelemedicinaPage from "./pages/admin/AdminTelemedicinaPage";
+import AdminContentPage from "./pages/admin/AdminContentPage";
+import AdminNotificationsPage from "./pages/admin/AdminNotificationsPage";
+import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
+import AdminExercisesPage from "./pages/admin/AdminExercisesPage";
+import { AdminLayout } from "./components/admin/layout/AdminLayout";
+
+// Detailed Imports
 import MarketplaceCategoriesPage from "./pages/MarketplaceCategoriesPage";
 import MarketplaceStoresPage from "./pages/MarketplaceStoresPage";
 import MarketplaceStorePage from "./pages/MarketplaceStorePage";
@@ -26,6 +39,21 @@ import LojaDestaquePage from "./pages/LojaDestaquePage";
 import LojaProdutosPage from "./pages/LojaProdutosPage";
 import LojaEstoquePage from "./pages/LojaEstoquePage";
 import LojaPerfilPage from "./pages/LojaPerfilPage";
+import LojaPlanoPage from "./pages/LojaPlanoPage";
+import LojaOrderDetailPage from "./pages/LojaOrderDetailPage";
+import ProfessionalRegistrationPage from "./pages/ProfessionalRegistrationPage";
+import ProfessionalDashboard from "./pages/ProfessionalDashboard";
+
+import ProfessionalsListPage from "./pages/ProfessionalsListPage";
+import ProfessionalLandingPage from "./pages/ProfessionalLandingPage";
+import ProfessionalLPEditor from "./pages/ProfessionalLPEditor";
+import EntrepreneurPortalPage from "./pages/EntrepreneurPortalPage";
+import LojaOnboardingPage from "./pages/LojaOnboardingPage";
+import ProfessionalOnboardingPage from "./pages/ProfessionalOnboardingPage";
+import ProfessionalChatPage from "./pages/ProfessionalChatPage";
+import ProfessionalFinanceiroPage from "./pages/ProfessionalFinanceiroPage";
+import ProfessionalProfilePage from "./pages/ProfessionalProfilePage";
+import ProfessionalAgendaPage from "./pages/ProfessionalAgendaPage";
 import RunningClubPage from "./pages/RunningClubPage";
 import RunningClubDetailPage from "./pages/RunningClubDetailPage";
 import AlunoPersonalizarAtividadePage from "./pages/AlunoPersonalizarAtividade";
@@ -35,6 +63,8 @@ import AlunoHistoricoDetalhePage from "./pages/AlunoHistoricoDetalhePage";
 import AlunoEditarPerfilPage from "./pages/AlunoEditarPerfilPage";
 import AlunoPreferenciasPage from "./pages/AlunoPreferenciasPage";
 import AlunoPlanoPage from "./pages/AlunoPlanoPage";
+import AlunoPlanosLP from "./pages/AlunoPlanosLP";
+import AlunoPlanosCheckout from "./pages/AlunoPlanosCheckout";
 import { UserPreferencesProvider } from "./hooks/useUserPreferences";
 import DeviceConnectivityPage from "./pages/DeviceConnectivityPage";
 import { ActivityProvider } from "./hooks/useActivityContext";
@@ -45,26 +75,98 @@ import ModoRaizFormPage from "./pages/ModoRaizFormPage";
 import ModoRaizViewPage from "./pages/ModoRaizViewPage";
 import { useConnectionStatus } from "@/hooks/useConnectionStatus";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
+import AdminMasterPage from "./pages/AdminMaster";
+import AdminPricingPage from "./pages/admin/AdminPricingPage";
 
 const AlunoRoute = ({ children }: { children: JSX.Element }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const [profileChecked, setProfileChecked] = useState(false);
+  const [profileValid, setProfileValid] = useState(true);
+  const [isStoreOwner, setIsStoreOwner] = useState(false);
 
-  // SWR: bloqueia apenas no primeiro boot (sessão ainda não resolvida)
+  useEffect(() => {
+    if (!user || loading) return;
+    let cancelled = false;
+    supabase
+      .from("profiles")
+      .select("id, role")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(async ({ data }) => {
+        if (cancelled) return;
+        if (!data) {
+          console.warn("AlunoRoute: perfil não encontrado, deslogando...");
+          await supabase.auth.signOut();
+          setProfileValid(false);
+        } else if (data.role === "store_owner" || data.role === "professional") {
+          setIsStoreOwner(true); // Using this as a "not an aluno" flag in this context
+        }
+        setProfileChecked(true);
+      });
+    return () => { cancelled = true; };
+  }, [user, loading]);
+
+  if (loading) {
+    return <div className="flex min-h-screen items-center justify-center bg-background">Carregando...</div>;
+  }
+
+  if (!user || !profileValid) return <Navigate to="/auth" replace />;
+
+  if (!profileChecked) {
+    return <div className="flex min-h-screen items-center justify-center bg-background">Carregando...</div>;
+  }
+
+  // Store owners e Profissionais nunca devem ver rotas de aluno
+  if (isStoreOwner) {
+    // Redireciona para o painel correto
+    // Se for profissional, o perfil indicou isso no useEffect inicial
+    supabase.from("profiles").select("role").eq("id", user.id).maybeSingle().then(({ data }) => {
+      if (data?.role === "professional") {
+        navigate("/professional/dashboard", { replace: true });
+      } else if (data?.role === "store_owner") {
+        navigate("/loja/dashboard", { replace: true });
+      } else {
+        navigate("/", { replace: true });
+      }
+    });
+    return <div className="flex min-h-screen items-center justify-center bg-background">Redirecionando...</div>;
+  }
+
+  const isMasterAdmin = user.email === "biotreinerapp@gmail.com";
+  const searchParams = new URLSearchParams(location.search);
+  const adminView = searchParams.get("adminView") === "1";
+
+  if (isMasterAdmin && !adminView) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return children;
+};
+
+// Rota dedicada para lojistas - não exige onboarding
+const LojaRoute = ({ children }: { children: JSX.Element }) => {
+  const { user, loading } = useAuth();
+
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background">Carregando...</div>;
   }
 
   if (!user) return <Navigate to="/auth" replace />;
 
-  const isMasterAdmin = user.email === "biotreinerapp@gmail.com";
-  const searchParams = new URLSearchParams(location.search);
-  const adminView = searchParams.get("adminView") === "1";
+  return children;
+};
 
-  // Apenas o admin master, por padrão, vai para o painel master, a menos que esteja forçando a visão de aluno
-  if (isMasterAdmin && !adminView) {
-    return <Navigate to="/admin-master" replace />;
+// Rota dedicada para profissionais
+const ProfessionalRoute = ({ children }: { children: JSX.Element }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div className="flex min-h-screen items-center justify-center bg-background">Carregando...</div>;
   }
+
+  if (!user) return <Navigate to="/auth" replace />;
 
   return children;
 };
@@ -134,6 +236,18 @@ const RequireOnboarding = ({ children }: { children: JSX.Element }) => {
         return;
       }
 
+      // Store owners não passam por onboarding de aluno
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileData?.role === "store_owner" || profileData?.role === "professional") {
+        setChecking(false);
+        return;
+      }
+
       // OFFLINE-FIRST: se estiver offline, usamos cache local (se existir) e não bloqueamos o app.
       if (!navigator.onLine) {
         if (cached) {
@@ -183,15 +297,22 @@ const RequireOnboarding = ({ children }: { children: JSX.Element }) => {
         data.peso_kg === null ||
         !data.training_level;
 
-      // Atualiza cache local sempre que conseguir verificar online.
-      if (data) {
-        writeOnboardingCache(user.id, {
-          onboarding_completed: Boolean(data.onboarding_completed),
-          altura_cm: data.altura_cm,
-          peso_kg: data.peso_kg,
-          training_level: data.training_level ?? null,
-        });
+      // Se o perfil não existe (conta deletada ou corrompida), desloga e redireciona.
+      if (!data) {
+        console.warn("RequireOnboarding: perfil não encontrado, deslogando...");
+        await supabase.auth.signOut();
+        navigate("/auth", { replace: true });
+        setChecking(false);
+        return;
       }
+
+      // Atualiza cache local sempre que conseguir verificar online.
+      writeOnboardingCache(user.id, {
+        onboarding_completed: Boolean(data.onboarding_completed),
+        altura_cm: data.altura_cm,
+        peso_kg: data.peso_kg,
+        training_level: data.training_level ?? null,
+      });
 
       if (needsOnboarding) {
         navigate("/aluno/onboarding", { replace: true });
@@ -280,6 +401,22 @@ const AppRoutes = () => (
     <Routes>
       <Route path="/" element={<Index />} />
       <Route path="/auth" element={<AuthPage />} />
+      <Route path="/entrepreneur/register" element={<EntrepreneurPortalPage />} />
+
+      {/* Admin Routes */}
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<AdminDashboardPage />} />
+        <Route path="users" element={<AdminUsersPage />} />
+        <Route path="financial" element={<AdminFinancialPage />} />
+        <Route path="stores" element={<AdminStoresPage />} />
+        <Route path="telemedicina" element={<AdminTelemedicinaPage />} />
+        <Route path="pricing" element={<AdminPricingPage />} />
+        <Route path="content" element={<AdminContentPage />} />
+        <Route path="exercises" element={<AdminExercisesPage />} />
+        <Route path="notifications" element={<AdminNotificationsPage />} />
+        <Route path="settings" element={<AdminSettingsPage />} />
+      </Route>
+
       <Route
         path="/aluno/atividade"
         element={
@@ -290,405 +427,482 @@ const AppRoutes = () => (
           </AlunoRoute>
         }
       />
-    <Route
-      path="/aluno/treinos"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <AlunoTreinosHojePage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/aluno/monitoramento"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <AlunoAtividadeMomentoPage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/aluno/monitoramento-tempo-real"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <AlunoAtividadePage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/aluno/treino-ativo"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <AlunoTreinoAtivoPage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/aluno/atividade-personalizar"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <AlunoPersonalizarAtividadePage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/aluno/onboarding"
-      element={
-        <AlunoRoute>
-          <AlunoOnboardingPage />
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/aluno/dashboard"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <AlunoDashboardPage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/aluno/perfil"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <AlunoPerfilPage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/aluno/perfil/editar"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <AlunoEditarPerfilPage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/aluno/perfil/plano"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <AlunoPlanoPage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/aluno/perfil/preferencias"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <AlunoPreferenciasPage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/aluno/conectividade"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <DeviceConnectivityPage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/aluno/historico"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <AlunoHistoricoPage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/aluno/historico/:id"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <AlunoHistoricoDetalhePage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/aluno/progresso"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <AlunoProgressoPage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-    />
-    <Route
-       path="/aluno/running-club"
-       element={
-         <AlunoRoute>
-           <RequireOnboarding>
-             <RunningClubPage />
-           </RequireOnboarding>
-         </AlunoRoute>
-       }
-     />
-     <Route
-       path="/aluno/running-club/:clubId"
-       element={
-         <AlunoRoute>
-           <RequireOnboarding>
-             <RunningClubDetailPage />
-           </RequireOnboarding>
-         </AlunoRoute>
-       }
-     />
-    <Route
-      path="/aluno/nutricionista"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <NutricionistaPage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/telemedicina"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <TelemedicinaPage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/marketplace"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <MarketplaceCategoriesPage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/marketplace/categoria/:category"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <MarketplaceStoresPage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/marketplace/loja/:storeId"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <MarketplaceStorePage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-     />
-    <Route
-      path="/marketplace/loja/:storeId/carrinho"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <MarketplaceCartPage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/aluno/modo-raiz"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <ModoRaizPage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/aluno/modo-raiz/nova"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <ModoRaizFormPage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/aluno/modo-raiz/:id"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <ModoRaizViewPage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/aluno/modo-raiz/:id/editar"
-      element={
-        <AlunoRoute>
-          <RequireOnboarding>
-            <ModoRaizFormPage />
-          </RequireOnboarding>
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/loja/dashboard"
-      element={
-        <AlunoRoute>
-          <LojaDashboardPage />
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/loja/financeiro"
-      element={
-        <AlunoRoute>
-          <LojaFinanceiroPage />
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/loja/destaque"
-      element={
-        <AlunoRoute>
-          <LojaDestaquePage />
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/loja/produtos"
-      element={
-        <AlunoRoute>
-          <LojaProdutosPage />
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/loja/estoque"
-      element={
-        <AlunoRoute>
-          <LojaEstoquePage />
-        </AlunoRoute>
-      }
-    />
-    <Route
-      path="/loja/perfil"
-      element={
-        <AlunoRoute>
-          <LojaPerfilPage />
-        </AlunoRoute>
-      }
-    />
-    <Route path="/admin" element={<AdminPage />} />
-    <Route
-      path="/admin-master"
-      element={
-        <AdminMasterRoute>
-          <AdminMasterPage />
-        </AdminMasterRoute>
-      }
-    />
-    <Route
-      path="/admin-master/usuarios"
-      element={
-        <AdminMasterRoute>
-          <AdminMasterPage />
-        </AdminMasterRoute>
-      }
-    />
-    <Route
-      path="/admin-master/usuarios/solicitacoes-upgrade"
-      element={
-        <AdminMasterRoute>
-          <AdminMasterPage />
-        </AdminMasterRoute>
-      }
-    />
-    <Route
-      path="/admin-master/marketplace"
-      element={
-        <AdminMasterRoute>
-          <AdminMasterPage />
-        </AdminMasterRoute>
-      }
-    />
-    <Route
-      path="/admin-master/telemedicina"
-      element={
-        <AdminMasterRoute>
-          <AdminMasterPage />
-        </AdminMasterRoute>
-      }
-    />
-    <Route
-      path="/admin-master/dr-bio"
-      element={
-        <AdminMasterRoute>
-          <AdminMasterPage />
-        </AdminMasterRoute>
-      }
-    />
-    <Route
-      path="/admin-master/configuracoes"
-      element={
-        <AdminMasterRoute>
-          <AdminMasterPage />
-        </AdminMasterRoute>
-      }
-    />
-    <Route
-      path="/admin-master/noticias"
-      element={
-        <AdminMasterRoute>
-          <AdminMasterPage />
-        </AdminMasterRoute>
-      }
-    />
-    <Route
-      path="/admin-master/pagamentos"
-      element={
-        <AdminMasterRoute>
-          <AdminMasterPage />
-        </AdminMasterRoute>
-      }
-    />
-    <Route
-      path="/admin-master/ajustes"
-      element={
-        <AdminMasterRoute>
-          <AdminMasterPage />
-        </AdminMasterRoute>
-      }
-    />
-    <Route path="*" element={<NotFound />} />
-  </Routes>
+      <Route
+        path="/aluno/treinos"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <AlunoTreinosHojePage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/monitoramento"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <AlunoAtividadeMomentoPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/monitoramento-tempo-real"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <AlunoAtividadePage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/treino-ativo"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <AlunoTreinoAtivoPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/atividade-personalizar"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <AlunoPersonalizarAtividadePage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/onboarding"
+        element={
+          <AlunoRoute>
+            <AlunoOnboardingPage />
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/dashboard"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <AlunoDashboardPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/perfil"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <AlunoPerfilPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/perfil/editar"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <AlunoEditarPerfilPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/perfil/plano"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <AlunoPlanoPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/planos"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <AlunoPlanosLP />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/planos/checkout/:planType"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <AlunoPlanosCheckout />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/perfil/preferencias"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <AlunoPreferenciasPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/conectividade"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <DeviceConnectivityPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/historico"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <AlunoHistoricoPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/historico/:id"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <AlunoHistoricoDetalhePage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/progresso"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <AlunoProgressoPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/running-club"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <RunningClubPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/running-club/:clubId"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <RunningClubDetailPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/nutricionista"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <NutricionistaPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/telemedicina"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <TelemedicinaPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/marketplace"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <MarketplaceCategoriesPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/marketplace/categoria/:category"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <MarketplaceStoresPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/marketplace/loja/:storeId"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <MarketplaceStorePage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/marketplace/loja/:storeId/carrinho"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <MarketplaceCartPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/modo-raiz"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <ModoRaizPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/modo-raiz/nova"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <ModoRaizFormPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/modo-raiz/:id"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <ModoRaizViewPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/modo-raiz/:id/editar"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <ModoRaizFormPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      {/* Onboarding Routes (Public) */}
+      <Route path="/loja/onboarding" element={<LojaOnboardingPage />} />
+      <Route path="/professional/onboarding" element={<ProfessionalOnboardingPage />} />
+
+      {/* Loja Routes */}
+      <Route
+        path="/loja/dashboard"
+        element={
+          <LojaRoute>
+            <LojaDashboardPage />
+          </LojaRoute>
+        }
+      />
+      <Route
+        path="/loja/financeiro"
+        element={
+          <LojaRoute>
+            <LojaFinanceiroPage />
+          </LojaRoute>
+        }
+      />
+      <Route
+        path="/loja/destaque"
+        element={
+          <LojaRoute>
+            <LojaDestaquePage />
+          </LojaRoute>
+        }
+      />
+      <Route
+        path="/loja/produtos"
+        element={
+          <LojaRoute>
+            <LojaProdutosPage />
+          </LojaRoute>
+        }
+      />
+      <Route
+        path="/loja/estoque"
+        element={
+          <LojaRoute>
+            <LojaEstoquePage />
+          </LojaRoute>
+        }
+      />
+      <Route
+        path="/loja/perfil"
+        element={
+          <LojaRoute>
+            <LojaPerfilPage />
+          </LojaRoute>
+        }
+      />
+      <Route
+        path="/loja/perfil/plano"
+        element={
+          <LojaRoute>
+            <LojaPlanoPage />
+          </LojaRoute>
+        }
+      />
+      <Route
+        path="/loja/pedido/:orderId"
+        element={
+          <LojaRoute>
+            <LojaOrderDetailPage />
+          </LojaRoute>
+        }
+      />
+
+      {/* Professional Routes */}
+      <Route
+        path="/professional/register"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalRegistrationPage />
+          </ProfessionalRoute>
+        }
+      />
+      <Route
+        path="/professional/dashboard"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalDashboard />
+          </ProfessionalRoute>
+        }
+      />
+      <Route
+        path="/professional/lp-editor"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalLPEditor />
+          </ProfessionalRoute>
+        }
+      />
+      <Route
+        path="/professional/lp/:professionalId"
+        element={<ProfessionalLandingPage />}
+      />
+      <Route
+        path="/professional/onboarding"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalOnboardingPage />
+          </ProfessionalRoute>
+        }
+      />
+      <Route
+        path="/professional/chat"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalChatPage />
+          </ProfessionalRoute>
+        }
+      />
+      <Route
+        path="/professional/agenda"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalAgendaPage />
+          </ProfessionalRoute>
+        }
+      />
+      <Route
+        path="/professional/financeiro"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalFinanceiroPage />
+          </ProfessionalRoute>
+        }
+      />
+      <Route
+        path="/professional/profile"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalProfilePage />
+          </ProfessionalRoute>
+        }
+      />
+
+      {/* Public Professional Pages */}
+      <Route path="/profissionais" element={<ProfessionalsListPage />} />
+      <Route path="/profissional/:professionalId" element={<ProfessionalLandingPage />} />
+
+      {/* Legacy Admin Routes (Kept for reference/migration) */}
+      <Route
+        path="/admin-master"
+        element={
+          <AdminMasterRoute>
+            <AdminMasterPage />
+          </AdminMasterRoute>
+        }
+      />
+      <Route
+        path="/admin-master/usuarios"
+        element={
+          <AdminMasterRoute>
+            <AdminMasterPage />
+          </AdminMasterRoute>
+        }
+      />
+      <Route
+        path="/admin-master/usuarios/solicitacoes-upgrade"
+        element={
+          <AdminMasterRoute>
+            <AdminMasterPage />
+          </AdminMasterRoute>
+        }
+      />
+      <Route
+        path="/admin-master/marketplace"
+        element={
+          <AdminMasterRoute>
+            <AdminMasterPage />
+          </AdminMasterRoute>
+        }
+      />
+      <Route
+        path="/admin-pricing"
+        element={
+          <AdminMasterRoute>
+            <AdminPricingPage />
+          </AdminMasterRoute>
+        }
+      />
+      {/* LEAGCY ADMIN CONSOLE ROUTES REMOVED */}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   </>
 );
 

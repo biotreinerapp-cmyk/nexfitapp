@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Send, Zap, MoreVertical } from "lucide-react";
+import { ArrowLeft, Send, Zap, MoreVertical, Phone, Video, Paperclip, Camera, Mic, Check, CheckCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserPlan } from "@/hooks/useUserPlan";
@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Calendar } from "@/components/ui/calendar";
 import drBioAvatar from "@/assets/dr-bio-avatar.png";
+import { cn } from "@/lib/utils";
 
 interface PerfilNutricionista {
   nome: string | null;
@@ -33,6 +34,8 @@ interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  createdAt: number;
+  status: "sent" | "delivered" | "read";
 }
 
 interface TelemedProfissional {
@@ -55,8 +58,8 @@ const SUGESTOES_RAPIDAS = [
   { id: "pos-treino", label: "💪 Pós-treino", texto: "O que comer após o treino?" },
 ] as const;
 
-const CHAT_STORAGE_PREFIX = "biotreiner_chat_" as const;
-const WELCOME_SESSION_PREFIX = "nexfit_welcome_dr_bio_shown_" as const;
+const CHAT_STORAGE_PREFIX = "biotreiner_chat_v2_" as const; // Changed prefix to force fresh start
+const WELCOME_SESSION_PREFIX = "nexfit_welcome_dr_bio_shown_v2_" as const;
 
 type HorarioDisponivel = (typeof HORARIOS_DISPONIVEIS)[number];
 
@@ -110,7 +113,13 @@ const NutricionistaPage = () => {
       if (stored) {
         const parsed = JSON.parse(stored) as ChatMessage[];
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setMessages(parsed);
+          // Validate if it has new structure (createdAt)
+          if (parsed[0].createdAt) {
+            setMessages(parsed);
+          } else {
+            // Old format, clear it
+            window.localStorage.removeItem(`${CHAT_STORAGE_PREFIX}${user.id}`);
+          }
         }
       }
     } catch (error) {
@@ -143,7 +152,6 @@ const NutricionistaPage = () => {
   // Mensagem de boas-vindas apenas se não houver histórico restaurado
   useEffect(() => {
     if (!loadingPerfil && perfil && messages.length === 0) {
-      // Evita repetir a saudação se o componente apenas remontar (ex.: alternar abas).
       try {
         if (typeof window !== "undefined" && user) {
           const key = `${WELCOME_SESSION_PREFIX}${user.id}`;
@@ -158,13 +166,15 @@ const NutricionistaPage = () => {
       const objetivo = perfil.objetivo || "melhorar sua saúde";
       const peso = perfil.peso_kg ? `${perfil.peso_kg}kg` : "seu peso atual";
 
-      const saudacao = `Olá ${nome}! Sou o Dr. Bio, seu nutricionista virtual. Analisei seu perfil e vi que seu objetivo é ${objetivo} e você está com ${peso}.`;
+      const saudacao = `Olá ${nome}! Sou o Dr. Bio, seu nutricionista virtual. Analisei seu perfil e vi que seu objetivo é ${objetivo} e você está com ${peso}. Como posso te ajudar hoje?`;
 
       setMessages([
         {
           id: "boas-vindas",
           role: "assistant",
           content: saudacao,
+          createdAt: Date.now(),
+          status: "read"
         },
       ]);
     }
@@ -207,7 +217,7 @@ const NutricionistaPage = () => {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${accessToken}`,
-        apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFmZmZ5ZnNtY3ZwaHJoYnR4cmd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcwNjU1NDYsImV4cCI6MjA4MjY0MTU0Nn0.cpLjvUADTJxzdr0MGIZFai_zYHPbnaU2P1I-EyDoqnw",
+        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
       },
       body: JSON.stringify({
         messages: historyForApi,
@@ -260,6 +270,8 @@ const NutricionistaPage = () => {
                   id: `assistant-${Date.now()}`,
                   role: "assistant",
                   content: delta,
+                  createdAt: Date.now(),
+                  status: "read",
                 },
               ];
             });
@@ -281,6 +293,8 @@ const NutricionistaPage = () => {
       id: `user-${Date.now()}`,
       role: "user",
       content: input.trim(),
+      createdAt: Date.now(),
+      status: "read", // Assume read immediately for UI simplicity in this demo
     };
 
     const historyForApi = [...messages, userMessage].map(({ role, content }) => ({ role, content }));
@@ -301,6 +315,8 @@ const NutricionistaPage = () => {
           id: `assistant-error-${Date.now()}`,
           role: "assistant",
           content: fallback,
+          createdAt: Date.now(),
+          status: "read",
         },
       ]);
     } finally {
@@ -317,6 +333,8 @@ const NutricionistaPage = () => {
       id: `user-${Date.now()}`,
       role: "user",
       content: texto,
+      createdAt: Date.now(),
+      status: "read",
     };
 
     const historyForApi = [...messages, userMessage].map(({ role, content }) => ({ role, content }));
@@ -336,6 +354,8 @@ const NutricionistaPage = () => {
           id: `assistant-error-${Date.now()}`,
           role: "assistant",
           content: fallback,
+          createdAt: Date.now(),
+          status: "read",
         },
       ]);
     } finally {
@@ -359,15 +379,6 @@ const NutricionistaPage = () => {
     setDataSelecionada(undefined);
     setHoraSelecionada(null);
     setProfissionalSelecionado(null);
-  };
-
-  const handleAbrirAgenda = (profissional: TelemedProfissional) => {
-    if (!hasTelemedAccess && !isMaster) {
-      return;
-    }
-
-    setProfissionalSelecionado(profissional);
-    setAgendaOpen(true);
   };
 
   const handleConfirmarAgendamento = async () => {
@@ -403,6 +414,10 @@ const NutricionistaPage = () => {
     setAgendaOpen(false);
   };
 
+  const formatMessageTime = (timestamp: number) => {
+    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
   if (!canAccess && planoAtual === "FREE") {
     return (
       <main className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -411,23 +426,9 @@ const NutricionistaPage = () => {
           <p className="mb-3 text-[11px] text-muted-foreground">
             O Dr. Bio está disponível a partir do plano <span className="font-semibold text-primary">{PLAN_LABEL.ADVANCE}</span>.
           </p>
-          <p className="mb-4 text-[11px] text-muted-foreground">
-            Faça o upgrade para desbloquear orientações alimentares personalizadas, dicas de hidratação e sugestões
-            de refeições rápidas alinhadas ao seu objetivo.
-          </p>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button className="flex-1" size="lg" onClick={() => navigate("/aluno/dashboard")}>
-              Ver planos disponíveis
-            </Button>
-            <Button
-              className="flex-1"
-              size="lg"
-              variant="outline"
-              onClick={() => navigate("/aluno/dashboard")}
-            >
-              Voltar ao dashboard
-            </Button>
-          </div>
+          <Button className="w-full" size="lg" onClick={() => navigate("/aluno/dashboard")}>
+            Ver planos disponíveis
+          </Button>
         </Card>
       </main>
     );
@@ -435,245 +436,267 @@ const NutricionistaPage = () => {
 
   return (
     <>
-      <main className="flex h-screen flex-col bg-background overflow-hidden">
-      {/* Cabeçalho fixo estilo WhatsApp */}
-      <header className="fixed top-0 left-0 right-0 z-50 flex items-center gap-3 bg-card/95 px-4 py-3 shadow-[0_4px_18px_rgba(0,0,0,0.85)] backdrop-blur-sm">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate("/aluno/dashboard")}
-          aria-label="Voltar"
-          className="mr-1 text-foreground"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div className="flex items-center gap-3">
-          <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-card text-[11px] font-semibold text-primary-foreground shadow-md shadow-black/40">
-            <img
-              src={drBioAvatar}
-              alt="Foto de perfil do Dr. Bio, nutricionista virtual da Nexfit"
-              className="h-9 w-9 rounded-full object-cover"
-            />
-            <span className="absolute bottom-0 right-0 inline-flex h-2.5 w-2.5 rounded-full border border-background bg-primary" />
+      <main className="safe-bottom-main flex h-screen flex-col bg-[#0b141a]"> {/* WhatsApp Dark Background */}
+        {/* WhatsApp Header */}
+        <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-[#202c33] px-2 py-2 shadow-sm">
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/aluno/dashboard")}
+              className="text-[#aebac1] hover:bg-white/5 rounded-full h-10 w-10"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/aluno/telemedicina")}>
+              <div className="relative">
+                <img
+                  src={drBioAvatar}
+                  alt="Dr. Bio"
+                  className="h-9 w-9 rounded-full object-cover border border-white/5"
+                />
+                <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-[#202c33] bg-green-500" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-[#e9edef] leading-tight">Dr. Bio</span>
+                <span className="text-[11px] text-[#8696a0] leading-tight">Online 24h</span>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold text-foreground">Dr. Bio</span>
-            <span className="text-[11px] font-medium text-primary">Online</span>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" className="text-[#aebac1] hover:bg-white/5 rounded-full h-10 w-10">
+              <Video className="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="text-[#aebac1] hover:bg-white/5 rounded-full h-10 w-10">
+              <Phone className="h-5 w-5 h-[1.1rem] w-[1.1rem]" />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-[#aebac1] hover:bg-white/5 rounded-full h-10 w-10">
+                  <MoreVertical className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-[#233138] border-[#233138] text-[#d1d7db]">
+                <DropdownMenuItem onClick={() => setModalSugestoesOpen(true)} className="hover:bg-[#182229]">
+                  Sugestões Rápidas
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleClear} disabled={messages.length === 0} className="text-red-400 hover:bg-[#182229] focus:text-red-400">
+                  Limpar conversa
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-primary"
-            onClick={() => setModalSugestoesOpen(true)}
-            aria-label="Sugestões rápidas"
-          >
-            <Zap className="h-4 w-4" />
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground"
-                aria-label="Menu"
-              >
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={handleClear}
-                disabled={messages.length === 0}
-                className="text-destructive focus:text-destructive"
-              >
-                Limpar conversa
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </header>
+        </header>
 
-      {/* Área principal do chat em tela cheia com scroll */}
-      <section className="flex flex-1 flex-col bg-background overflow-hidden mt-[60px] mb-[120px]">
-        <div className="relative flex h-full flex-1 flex-col">
-          {/* Lista de mensagens com rolagem independente */}
-          <div className="flex-1 max-h-full space-y-2 overflow-y-auto bg-gradient-to-b from-background via-background/95 to-background/90 px-3 py-3">
+        {/* Chat Area */}
+        <section
+          className="flex flex-1 flex-col overflow-hidden mt-[60px] relative"
+          style={{
+            backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')",
+            backgroundRepeat: "repeat",
+            backgroundSize: "400px",
+            backgroundBlendMode: "overlay",
+            backgroundColor: "#0b141a"
+          }}
+        >
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2 scroller">
+            {/* Encryption Notice */}
+            <div className="flex justify-center mb-6">
+              <div className="bg-[#182229] text-[#ffd279] text-[10px] px-3 py-1.5 rounded-lg text-center shadow-sm max-w-[85%] leading-relaxed">
+                <p>🔒 As mensagens são criptografadas e processadas pela IA Nexfit.</p>
+              </div>
+            </div>
+
             {messages.map((msg) => {
               const isUser = msg.role === "user";
               return (
-                <div key={msg.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+                <div key={msg.id} className={cn("flex w-full", isUser ? "justify-end" : "justify-start")}>
                   <div
-                    className={`relative max-w-[80%] rounded-2xl px-3 py-2 text-xs leading-relaxed shadow-lg shadow-black/40 ${
+                    className={cn(
+                      "relative max-w-[85%] px-3 py-1.5 rounded-lg shadow-sm text-[13px] leading-relaxed break-words",
                       isUser
-                        ? "rounded-br-sm bg-primary text-primary-foreground"
-                        : "rounded-bl-sm bg-muted/80 text-foreground"
-                    }`}
+                        ? "bg-[#005c4b] text-[#e9edef] rounded-tr-none"
+                        : "bg-[#202c33] text-[#e9edef] rounded-tl-none"
+                    )}
                   >
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    <div className="markdown-prose">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                    <div className={cn("flex items-center justify-end gap-1 mt-0.5 select-none", isUser ? "text-[#8696a0]" : "text-[#8696a0]")}>
+                      <span className="text-[9px] font-medium">{formatMessageTime(msg.createdAt)}</span>
+                      {isUser && (
+                        <span className={cn(msg.status === "read" ? "text-[#53bdeb]" : "text-[#8696a0]")}>
+                          <CheckCheck className="h-3 w-3" />
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Tail SVG */}
+                    <div className="absolute top-0">
+                      {isUser ? (
+                        <svg viewBox="0 0 8 13" height="13" width="8" className="absolute -right-[8px] top-0 fill-[#005c4b]"><path d="M5.188 1H0v11.193l6.467-8.625C7.526 2.156 6.958 1 5.188 1z"></path></svg>
+                      ) : (
+                        <svg viewBox="0 0 8 13" height="13" width="8" className="absolute -left-[8px] top-0 fill-[#202c33]"><path d="M-2.288 1h5.187c1.77 0 2.338 1.156 1.28 2.568L-2.289 12.193V1z"></path></svg>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
             })}
-
-            {messages.length === 0 && (
-              <p className="pt-6 text-center text-xs text-muted-foreground">
-                Assim que seu perfil for carregado, o Dr. Bio iniciará a conversa com orientações iniciais.
-              </p>
-            )}
-
             {isTyping && (
               <div className="flex justify-start">
-                <div className="max-w-[60%] rounded-2xl rounded-bl-sm bg-muted/80 px-3 py-2 text-[11px] text-muted-foreground shadow-lg shadow-black/40 animate-fade-in">
-                  <div className="flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/70 pulse" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/70 pulse" style={{ animationDelay: "0.15s" }} />
-                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/70 pulse" style={{ animationDelay: "0.3s" }} />
-                  </div>
+                <div className="bg-[#202c33] px-4 py-2 rounded-lg rounded-tl-none shadow-sm flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 bg-[#8696a0] rounded-full animate-bounce delay-0"></span>
+                  <span className="h-1.5 w-1.5 bg-[#8696a0] rounded-full animate-bounce delay-150"></span>
+                  <span className="h-1.5 w-1.5 bg-[#8696a0] rounded-full animate-bounce delay-300"></span>
                 </div>
               </div>
             )}
-
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Aviso informativo fixo no rodapé */}
-          <div className="fixed bottom-[56px] left-0 right-0 z-40 bg-muted/95 px-4 py-2 text-[11px] text-muted-foreground shadow-[0_-6px_20px_rgba(0,0,0,0.9)] backdrop-blur-sm border-t border-border/40">
-            O Dr. Bio se trata de uma Inteligência Artificial e sua função é de suporte e acesso rápido a informações de saúde. Para mais informações, acesse o painel de Telemedicina.
-          </div>
-
-          {/* Barra de entrada fixa flutuante estilo WhatsApp */}
+          {/* Input Area */}
           <form
             onSubmit={handleSend}
-            className="fixed bottom-0 left-0 right-0 z-50 flex items-center gap-2 bg-card/95 px-3 py-2 shadow-[0_-8px_24px_rgba(0,0,0,0.95)] backdrop-blur-md border-t border-border/40"
-            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+            className="p-2 bg-[#202c33] flex items-end gap-2 z-50 pb-[calc(env(safe-area-inset-bottom)+8px)]"
           >
-             <div className="flex flex-1 items-center rounded-full bg-card/60 px-3 py-1.5">
+            <Button type="button" variant="ghost" size="icon" className="text-[#8696a0] hover:bg-white/5 rounded-full mb-1 h-10 w-10 shrink-0" onClick={() => setModalSugestoesOpen(true)}>
+              <Zap className="h-5 w-5" />
+            </Button>
+
+            <div className="flex-1 bg-[#2a3942] rounded-2xl flex items-center px-3 py-1.5 min-h-[42px] mb-1">
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Digite sua dúvida ou peça uma sugestão de refeição..."
-                className="h-7 flex-1 border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
+                placeholder="Mensagem"
+                className="flex-1 bg-transparent border-0 focus-visible:ring-0 px-0 text-[#e9edef] placeholder:text-[#8696a0] text-[15px] h-auto max-h-[100px]"
               />
+              <div className="flex items-center gap-3 ml-2">
+                <Paperclip className="h-5 w-5 text-[#8696a0] -rotate-45" />
+                {input.length === 0 && <Camera className="h-5 w-5 text-[#8696a0]" />}
+              </div>
             </div>
+
             <Button
               type="submit"
               size="icon"
               disabled={sending || !input.trim()}
-              aria-label="Enviar mensagem"
-              className="h-9 w-9 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/40 hover:bg-primary/90"
+              className={cn(
+                "rounded-full h-10 w-10 mb-1 shrink-0 transition-colors shadow-none",
+                input.trim() ? "bg-[#00a884] hover:bg-[#008f72] text-white" : "bg-[#00a884] text-white"
+              )}
             >
-              <Send className="h-4 w-4" />
+              {input.trim() ? <Send className="h-5 w-5 ml-0.5" /> : <Mic className="h-5 w-5" />}
             </Button>
           </form>
-        </div>
-      </section>
+        </section>
 
-      <Dialog
-        open={agendaOpen}
-        onOpenChange={(open) => {
-          setAgendaOpen(open);
-          if (!open) {
-            resetAgendaState();
-          }
-        }}
-      >
-        <DialogContent className="max-w-sm border border-accent/40 bg-card/95">
-          <DialogHeader>
-            <DialogTitle className="text-sm">Agendar consulta</DialogTitle>
-            <DialogDescription className="text-[11px] text-muted-foreground">
-              Selecione a data e o horário desejados para sua consulta remota.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <p className="text-xs text-foreground">
-              {profissionalSelecionado ? profissionalSelecionado.nome : "Selecione um profissional"}
-            </p>
-            <Calendar
-              mode="single"
-              selected={dataSelecionada}
-              onSelect={setDataSelecionada}
-              className="pointer-events-auto rounded-lg border border-border/60 bg-background"
-              disabled={(date) => date < new Date()}
-            />
-            <div className="space-y-1">
-              <p className="text-[11px] text-muted-foreground">Horários disponíveis</p>
-              <div className="flex flex-wrap gap-2">
-                {HORARIOS_DISPONIVEIS.map((horario) => (
-                  <Button
-                    key={horario}
-                    type="button"
-                    size="sm"
-                    variant={horaSelecionada === horario ? "default" : "outline"}
-                    className="h-7 px-3 text-[11px]"
-                    onClick={() => setHoraSelecionada(horario)}
-                  >
-                    {horario}
-                  </Button>
-                ))}
+        {/* Agendamento Dialog */}
+        <Dialog
+          open={agendaOpen}
+          onOpenChange={(open) => {
+            setAgendaOpen(open);
+            if (!open) resetAgendaState();
+          }}
+        >
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="text-sm">Agendar consulta</DialogTitle>
+              <DialogDescription className="text-[11px] text-muted-foreground">
+                Selecione a data e o horário desejados para sua consulta remota.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <p className="text-xs text-foreground">
+                {profissionalSelecionado ? profissionalSelecionado.nome : "Selecione um profissional"}
+              </p>
+              <Calendar
+                mode="single"
+                selected={dataSelecionada}
+                onSelect={setDataSelecionada}
+                className="pointer-events-auto rounded-lg border border-border/60 bg-background"
+                disabled={(date) => date < new Date()}
+              />
+              <div className="space-y-1">
+                <p className="text-[11px] text-muted-foreground">Horários disponíveis</p>
+                <div className="flex flex-wrap gap-2">
+                  {HORARIOS_DISPONIVEIS.map((horario) => (
+                    <Button
+                      key={horario}
+                      type="button"
+                      size="sm"
+                      variant={horaSelecionada === horario ? "default" : "outline"}
+                      className="h-7 px-3 text-[11px]"
+                      onClick={() => setHoraSelecionada(horario)}
+                    >
+                      {horario}
+                    </Button>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-          <div className="mt-3 flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="text-[11px]"
-              onClick={() => {
-                setAgendaOpen(false);
-                resetAgendaState();
-              }}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              className="text-[11px]"
-              loading={salvandoAgendamento}
-              disabled={!dataSelecionada || !horaSelecionada}
-              onClick={handleConfirmarAgendamento}
-            >
-              Confirmar
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </main>
+            <div className="mt-3 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-[11px]"
+                onClick={() => {
+                  setAgendaOpen(false);
+                  resetAgendaState();
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="text-[11px]"
+                loading={salvandoAgendamento}
+                disabled={!dataSelecionada || !horaSelecionada}
+                onClick={handleConfirmarAgendamento}
+              >
+                Confirmar
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
-    {/* Modal de Sugestões Rápidas */}
-    <Dialog open={modalSugestoesOpen} onOpenChange={setModalSugestoesOpen}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Sugestões Rápidas</DialogTitle>
-          <DialogDescription>
-            Escolha uma pergunta frequente para começar a conversa com o Dr. Bio
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-2 pt-4">
-          {SUGESTOES_RAPIDAS.map((sugestao) => (
-            <Button
-              key={sugestao.id}
-              type="button"
-              variant="outline"
-              loading={sending && sendingSugestaoId === sugestao.id}
-              disabled={sending}
-              onClick={() => {
-                setSendingSugestaoId(sugestao.id);
-                void handleSugestaoRapida(sugestao.texto);
-              }}
-              className="h-auto justify-start border-primary/30 text-left text-sm hover:bg-primary/10 hover:text-primary py-3"
-            >
-              <span className="mr-2 text-lg">{sugestao.label.split(" ")[0]}</span>
-              <span>{sugestao.label.split(" ").slice(1).join(" ")}</span>
-            </Button>
-          ))}
-        </div>
-      </DialogContent>
-    </Dialog>
-  </>
+        {/* Sugestões Rápidas Dialog */}
+        <Dialog open={modalSugestoesOpen} onOpenChange={setModalSugestoesOpen}>
+          <DialogContent className="max-w-md bg-[#233138] border-[#233138] text-[#e9edef]">
+            <DialogHeader>
+              <DialogTitle className="text-[#e9edef]">Sugestões Rápidas</DialogTitle>
+              <DialogDescription className="text-[#8696a0]">
+                Toque em uma opção para enviar
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-2 pt-4">
+              {SUGESTOES_RAPIDAS.map((sugestao) => (
+                <Button
+                  key={sugestao.id}
+                  type="button"
+                  variant="ghost"
+                  loading={sending && sendingSugestaoId === sugestao.id}
+                  disabled={sending}
+                  onClick={() => {
+                    setSendingSugestaoId(sugestao.id);
+                    void handleSugestaoRapida(sugestao.texto);
+                  }}
+                  className="h-auto justify-start text-left text-sm hover:bg-[#182229] py-3 border-b border-[#2a3942] rounded-none last:border-0"
+                >
+                  <span className="mr-3 text-xl">{sugestao.label.split(" ")[0]}</span>
+                  <div className="flex flex-col">
+                    <span className="text-[#e9edef] font-medium">{sugestao.label.split(" ").slice(1).join(" ")}</span>
+                    <span className="text-xs text-[#8696a0] font-normal truncate max-w-[250px]">{sugestao.texto}</span>
+                  </div>
+                </Button>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+      </main>
+    </>
   );
 };
 

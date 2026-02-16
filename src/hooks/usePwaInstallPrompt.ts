@@ -9,18 +9,27 @@ interface BeforeInstallPromptEvent extends Event {
 export const usePwaInstallPrompt = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
     const isStandalone =
       window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone;
 
+    // Detect iOS
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
+    setIsIOS(isIosDevice && !isStandalone);
+
     const dismissed = window.localStorage.getItem("biotreiner_install_banner_dismissed") === "true";
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
-      if (isStandalone || dismissed) return;
+      // Even if dismissed, we capture the prompt just in case user clicks button manually
+      // but we don't show the banner automatically if dismissed.
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setShowInstallBanner(true);
+      if (!isStandalone && !dismissed) {
+        setShowInstallBanner(true);
+      }
     };
 
     const handleAppInstalled = () => {
@@ -38,14 +47,20 @@ export const usePwaInstallPrompt = () => {
   }, []);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-    await deferredPrompt.prompt();
-    const choiceResult = await deferredPrompt.userChoice;
-    if (choiceResult.outcome === "accepted") {
-      window.localStorage.setItem("biotreiner_install_banner_dismissed", "true");
+    if (!deferredPrompt) return; // For Android/Desktop
+
+    // Safety check just in case
+    try {
+      await deferredPrompt.prompt();
+      const choiceResult = await deferredPrompt.userChoice;
+      if (choiceResult.outcome === "accepted") {
+        window.localStorage.setItem("biotreiner_install_banner_dismissed", "true");
+      }
+      setShowInstallBanner(false);
+      setDeferredPrompt(null);
+    } catch (err) {
+      console.error("Install prompt failed", err);
     }
-    setShowInstallBanner(false);
-    setDeferredPrompt(null);
   };
 
   const handleCloseBanner = () => {
@@ -57,5 +72,7 @@ export const usePwaInstallPrompt = () => {
     showInstallBanner,
     handleInstallClick,
     handleCloseBanner,
+    isIOS,
+    deferredPrompt
   };
 };

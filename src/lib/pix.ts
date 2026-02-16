@@ -5,6 +5,15 @@ const pad2 = (n: number) => n.toString().padStart(2, "0");
 
 const tlv = (id: string, value: string) => `${id}${pad2(value.length)}${value}`;
 
+// Normalizes strings to remove accents and keep only allowed characters for PIX
+const normalize = (str: string) => {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // Remove accents
+    .replace(/[^A-Za-z0-9 ]/g, "") // Keep only alphanumeric and space
+    .toUpperCase();
+};
+
 // CRC16/CCITT-FALSE
 // poly 0x1021, init 0xFFFF, xorout 0x0000
 export const crc16ccitt = (input: string) => {
@@ -36,35 +45,47 @@ export const buildPixPayload = ({
   txid,
   city,
 }: PixPayloadParams) => {
-  const key = pixKey.trim();
-  const name = receiverName.trim().slice(0, 25);
-  const merchantCity = (city ?? "BRASIL").trim().slice(0, 15);
-  const tx = (txid ?? "BIO" + Date.now().toString().slice(-6)).slice(0, 25);
+  // Clean key: remove spaces
+  const key = pixKey.trim().replace(/\s/g, "");
+
+  // Normalize name and city (No accents, upper case, strictly Alpha-numeric for safety)
+  const name = normalize(receiverName).slice(0, 25);
+  // Avoid generic "BRASIL" as some apps reject it; use SAO PAULO as a safe default
+  const merchantCity = normalize(city && city !== "BRASIL" ? city : "SAO PAULO").slice(0, 15);
+
+  // TXID: For static PIX, '***' is the standard fallback
+  const tx = txid ? normalize(txid).replace(/\s/g, "").slice(0, 25) : "***";
 
   // Merchant Account Information (ID 26)
-  // GUI: br.gov.bcb.pix
-  // Key: 01
-  // Description: 02 (optional)
   const mai =
     tlv("00", "br.gov.bcb.pix") +
-    tlv("01", key) +
-    (description?.trim() ? tlv("02", description.trim().slice(0, 50)) : "");
+    tlv("01", key);
 
-  // Amount uses dot decimal separator with 2 decimals
-  const amountStr = Number.isFinite(amount) ? amount.toFixed(2) : "0.00";
+  // Amount formatting: dot decimal
+  const amountStr = Number.isFinite(amount) && amount > 0 ? amount.toFixed(2) : "";
 
-  const payloadNoCrc =
-    tlv("00", "01") + // payload format indicator
-    tlv("26", mai) + // merchant account information
-    tlv("52", "0000") + // merchant category code
-    tlv("53", "986") + // currency BRL
-    tlv("54", amountStr) + // transaction amount
-    tlv("58", "BR") + // country
-    tlv("59", name) + // merchant name
-    tlv("60", merchantCity) + // merchant city
-    tlv("62", tlv("05", tx)) + // additional data field template (txid)
-    "6304"; // CRC placeholder
+  // EMV Data Groups
+  const parts = [
+    tlv("00", "01"),           // Payload Format Indicator
+    tlv("01", "12"),           // Point of Initiation Method: 12 (Static, multiple use)
+    tlv("26", mai),            // Merchant Account Information
+    tlv("52", "0000"),         // Merchant Category Code
+    tlv("53", "986"),          // Transaction Currency (BRL)
+  ];
 
+  if (amountStr) {
+    parts.push(tlv("54", amountStr)); // Transaction Amount
+  }
+
+  parts.push(tlv("58", "BR"));         // Country Code
+  parts.push(tlv("59", name));       // Merchant Name
+  parts.push(tlv("60", merchantCity)); // Merchant City
+
+  // Tag 62: Additional Data Field
+  parts.push(tlv("62", tlv("05", tx)));
+
+  const payloadNoCrc = parts.join("") + "6304";
   const crc = crc16ccitt(payloadNoCrc);
+
   return payloadNoCrc + crc;
 };

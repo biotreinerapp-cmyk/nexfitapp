@@ -11,6 +11,8 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        premium: "bg-primary text-black font-black uppercase tracking-tight shadow-xl shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/40 active:scale-95 transition-all rounded-2xl",
+        "outline-premium": "border-2 border-primary text-primary font-black uppercase tracking-tight hover:bg-primary/10 active:scale-95 transition-all rounded-2xl",
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline:
           "border border-primary text-primary bg-transparent hover:bg-primary/10 hover:text-primary-foreground",
@@ -34,7 +36,7 @@ const buttonVariants = cva(
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
+  VariantProps<typeof buttonVariants> {
   asChild?: boolean;
   /** When true, shows a spinner and disables the button (no intermediate text). */
   loading?: boolean;

@@ -25,10 +25,13 @@ All colors MUST be HSL.
 @layer base {
   :root {
     /* BioTreiner Official Branding - Deep Black Theme */
-    --background: 156 15% 4%; /* #0A0D0C deep black */
-    --foreground: 0 0% 100%; /* #FFFFFF white */
+    --background: 156 15% 4%;
+    /* #0A0D0C deep black */
+    --foreground: 0 0% 100%;
+    /* #FFFFFF white */
 
-    --card: 150 10% 6%; /* #0F1211 slightly lighter dark */
+    --card: 150 10% 6%;
+    /* #0F1211 slightly lighter dark */
     --card-foreground: 0 0% 100%;
 
     /* Superfícies especiais */
@@ -42,23 +45,30 @@ All colors MUST be HSL.
     --popover-foreground: 0 0% 100%;
 
     /* Primary updated to #56FF02 (neon lime) */
-    --primary: 100 100% 50%; /* #56FF02 */
-    --primary-foreground: 0 0% 0%; /* texto preto nos botões verdes */
+    --primary: 100 100% 50%;
+    /* #56FF02 */
+    --primary-foreground: 0 0% 0%;
+    /* texto preto nos botões verdes */
 
     /* Remove purple from system */
-    --secondary: 0 0% 100%; /* white */
+    --secondary: 0 0% 100%;
+    /* white */
     --secondary-foreground: 0 0% 0%;
 
     --muted: 156 10% 8%;
-    --muted-foreground: 0 0% 76%; /* #C1C1C1 light gray */
+    --muted-foreground: 0 0% 76%;
+    /* #C1C1C1 light gray */
 
     /* Accent becomes primary (no purple accents anywhere) */
-    --accent: 100 100% 50%; /* #56FF02 */
+    --accent: 100 100% 50%;
+    /* #56FF02 */
     --accent-foreground: 0 0% 0%;
 
     /* Identidade (alta energia) */
-    --energy-lime: 100 100% 50%; /* #56FF02 */
-    --energy-purple: 0 0% 100%; /* white (purple removed) */
+    --energy-lime: 100 100% 50%;
+    /* #56FF02 */
+    --energy-purple: 0 0% 100%;
+    /* white (purple removed) */
 
     --hub-service-bg: 100 100% 50%;
     --hub-service-foreground: 0 0% 0%;
@@ -71,7 +81,8 @@ All colors MUST be HSL.
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 100%; /* white borders */
+    --border: 0 0% 100%;
+    /* white borders */
     --input: 156 15% 8%;
     --ring: 100 100% 50%;
 
@@ -89,10 +100,13 @@ All colors MUST be HSL.
 
   .dark {
     /* BioTreiner Official Branding - Deep Black Theme */
-    --background: 156 15% 4%; /* #0A0D0C deep black */
-    --foreground: 0 0% 100%; /* #FFFFFF white */
+    --background: 156 15% 4%;
+    /* #0A0D0C deep black */
+    --foreground: 0 0% 100%;
+    /* #FFFFFF white */
 
-    --card: 150 10% 6%; /* #0F1211 slightly lighter dark */
+    --card: 150 10% 6%;
+    /* #0F1211 slightly lighter dark */
     --card-foreground: 0 0% 100%;
 
     /* Superfícies especiais */
@@ -106,23 +120,28 @@ All colors MUST be HSL.
     --popover-foreground: 0 0% 100%;
 
     /* Primary updated to #56FF02 (neon lime) */
-    --primary: 100 100% 50%; /* #56FF02 */
+    --primary: 100 100% 50%;
+    /* #56FF02 */
     --primary-foreground: 0 0% 0%;
 
     /* Remove purple from system */
-    --secondary: 0 0% 100%; /* white */
+    --secondary: 0 0% 100%;
+    /* white */
     --secondary-foreground: 0 0% 0%;
 
     --muted: 156 10% 8%;
-    --muted-foreground: 0 0% 76%; /* #C1C1C1 light gray */
+    --muted-foreground: 0 0% 76%;
+    /* #C1C1C1 light gray */
 
     /* Accent becomes primary (no purple accents anywhere) */
-    --accent: 100 100% 50%; /* #56FF02 */
+    --accent: 100 100% 50%;
+    /* #56FF02 */
     --accent-foreground: 0 0% 0%;
 
     /* Identidade (alta energia) */
     --energy-lime: 100 100% 50%;
-    --energy-purple: 0 0% 100%; /* white (purple removed) */
+    --energy-purple: 0 0% 100%;
+    /* white (purple removed) */
 
     --hub-service-bg: 100 100% 50%;
     --hub-service-foreground: 0 0% 0%;
@@ -131,7 +150,8 @@ All colors MUST be HSL.
     --destructive: 0 62% 30%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 100%; /* white borders */
+    --border: 0 0% 100%;
+    /* white borders */
     --input: 156 15% 8%;
     --ring: 100 100% 50%;
 
@@ -168,22 +188,33 @@ All colors MUST be HSL.
     -webkit-text-size-adjust: 100%;
   }
 
-  input, textarea, select, button {
+  input,
+  textarea,
+  select,
+  button {
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
+  }
+
+  /* Prevent iOS zoom on focus */
+  @media screen and (max-width: 768px) {
+
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
   }
 }
 
 @layer components {
   .btn-planos {
     @apply inline-flex items-center justify-center font-semibold text-xs rounded-full px-6 py-2 shadow-lg transition-transform duration-200 hover:scale-105;
-    background-image: linear-gradient(
-      135deg,
-      hsl(12 88% 60%),
-      hsl(220 85% 55%),
-      hsl(315 85% 60%)
-    );
+    background-image: linear-gradient(135deg,
+        hsl(12 88% 60%),
+        hsl(220 85% 55%),
+        hsl(315 85% 60%));
     box-shadow: 0 18px 45px hsl(0 0% 0% / 0.65);
   }
 
@@ -232,5 +263,60 @@ All colors MUST be HSL.
   .safe-bottom-banner {
     bottom: calc(1rem + constant(safe-area-inset-bottom));
     bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+}
+
+@layer utilities {
+  .animate-matrix-drop {
+    animation: matrix-drop 3s linear infinite;
+  }
+
+  .animate-scan {
+    animation: scan 2s ease-in-out infinite;
+  }
+
+  .animate-spin-slow {
+    animation: spin 8s linear infinite;
+  }
+
+  .animate-shimmer {
+    background-size: 200% auto;
+    animation: shimmer 2s linear infinite;
+  }
+
+  @keyframes matrix-drop {
+    0% {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+
+    50% {
+      opacity: 1;
+    }
+
+    100% {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+  }
+
+  @keyframes scan {
+
+    0%,
+    100% {
+      transform: translateY(-300%);
+      opacity: 0;
+    }
+
+    50% {
+      transform: translateY(300%);
+      opacity: 0.8;
+    }
+  }
+
+  @keyframes shimmer {
+    to {
+      background-position: 200% center;
+    }
   }
 }

@@ -3,18 +3,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { LojaFloatingNavIsland } from "@/components/navigation/LojaFloatingNavIsland";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Plus, ImagePlus, X } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Plus, ImagePlus, X, Pencil, Trash2, Search, Package } from "lucide-react";
 
 interface MarketplaceProduct {
   id: string;
   nome: string;
   descricao: string | null;
   image_url: string | null;
+  image_urls: string[] | null;
   preco_original: number;
   preco_desconto: number;
   ativo: boolean;
@@ -33,6 +35,19 @@ const LojaProdutosPage = () => {
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Edit state
+  const [editProduct, setEditProduct] = useState<MarketplaceProduct | null>(null);
+  const [editForm, setEditForm] = useState({ nome: "", preco: "", descricao: "", ativo: true });
+  const [editImageFiles, setEditImageFiles] = useState<File[]>([]);
+  const [editImagePreviews, setEditImagePreviews] = useState<string[]>([]);
+  const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
+  const [editSaving, setEditSaving] = useState(false);
+
+  // Delete state
+  const [deleteProduct, setDeleteProduct] = useState<MarketplaceProduct | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   useEffect(() => {
     document.title = "Produtos - Nexfit Lojista";
   }, []);
@@ -49,9 +64,9 @@ const LojaProdutosPage = () => {
       if (!store) { setLoading(false); return; }
       setStoreId(store.id);
 
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("marketplace_products")
-        .select("id, nome, descricao, image_url, preco_original, preco_desconto, ativo")
+        .select("id, nome, descricao, image_url, image_urls, preco_original, preco_desconto, ativo")
         .eq("store_id", store.id)
         .order("nome");
 
@@ -61,6 +76,7 @@ const LojaProdutosPage = () => {
     void load();
   }, [user]);
 
+  // ── Create helpers ──
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     for (const file of files) {
@@ -91,6 +107,21 @@ const LojaProdutosPage = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const uploadImages = async (files: File[], sId: string): Promise<string[]> => {
+    const urls: string[] = [];
+    for (const file of files) {
+      const ext = file.name.split(".").pop() ?? "jpg";
+      const path = `products/${sId}/${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage
+        .from("marketplace_store_images")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from("marketplace_store_images").getPublicUrl(path);
+      urls.push(urlData.publicUrl);
+    }
+    return urls;
+  };
+
   const handleSave = async () => {
     if (!storeId) return;
     const nome = form.nome.trim();
@@ -100,160 +131,400 @@ const LojaProdutosPage = () => {
       return;
     }
     setSaving(true);
+    try {
+      const uploadedUrls = await uploadImages(imageFiles, storeId);
+      const { data, error } = await (supabase as any)
+        .from("marketplace_products")
+        .insert({
+          store_id: storeId,
+          nome,
+          descricao: form.descricao.trim() || null,
+          image_url: uploadedUrls[0] ?? null,
+          image_urls: uploadedUrls,
+          preco_original: preco,
+          preco_desconto: preco,
+          ativo: true,
+        })
+        .select()
+        .maybeSingle();
 
-    const uploadedUrls: string[] = [];
-
-    // Upload images
-    for (const file of imageFiles) {
-      const ext = file.name.split(".").pop() ?? "jpg";
-      const path = `products/${storeId}/${crypto.randomUUID()}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from("marketplace_store_images")
-        .upload(path, file, { contentType: file.type, upsert: false });
-
-      if (uploadError) {
-        toast({ title: "Erro ao enviar imagem", description: uploadError.message, variant: "destructive" });
-        setSaving(false);
-        return;
+      if (error || !data) {
+        toast({ title: "Erro ao cadastrar", description: error?.message, variant: "destructive" });
+      } else {
+        setProducts((p) => [...p, data as MarketplaceProduct]);
+        setForm({ nome: "", preco: "", descricao: "" });
+        clearImages();
+        setShowForm(false);
+        toast({ title: "Produto cadastrado!" });
       }
-
-      const { data: urlData } = supabase.storage
-        .from("marketplace_store_images")
-        .getPublicUrl(path);
-
-      uploadedUrls.push(urlData.publicUrl);
-    }
-
-    const { data, error } = await (supabase as any)
-      .from("marketplace_products")
-      .insert({
-        store_id: storeId,
-        nome,
-        descricao: form.descricao.trim() || null,
-        image_url: uploadedUrls[0] ?? null,
-        image_urls: uploadedUrls,
-        preco_original: preco,
-        preco_desconto: preco,
-        ativo: true,
-      })
-      .select()
-      .maybeSingle();
-
-    if (error || !data) {
-      toast({ title: "Erro ao cadastrar", description: error?.message, variant: "destructive" });
-    } else {
-      setProducts((p) => [...p, data as MarketplaceProduct]);
-      setForm({ nome: "", preco: "", descricao: "" });
-      clearImages();
-      setShowForm(false);
-      toast({ title: "Produto cadastrado!" });
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar imagem", description: err.message, variant: "destructive" });
     }
     setSaving(false);
   };
 
+  // ── Edit helpers ──
+  const openEdit = (p: MarketplaceProduct) => {
+    setEditProduct(p);
+    setEditForm({
+      nome: p.nome,
+      preco: p.preco_desconto.toFixed(2).replace(".", ","),
+      descricao: p.descricao ?? "",
+      ativo: p.ativo,
+    });
+    setExistingImageUrls(p.image_urls ?? (p.image_url ? [p.image_url] : []));
+    setEditImageFiles([]);
+    setEditImagePreviews([]);
+  };
+
+  const handleEditFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    for (const file of files) {
+      if (!file.type.startsWith("image/")) {
+        toast({ title: "Selecione um arquivo de imagem", variant: "destructive" });
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast({ title: "Imagem deve ter no máximo 5MB", variant: "destructive" });
+        return;
+      }
+    }
+    const totalCurrent = existingImageUrls.length + editImageFiles.length;
+    const remaining = 3 - totalCurrent;
+    const toAdd = files.slice(0, remaining);
+    setEditImageFiles((prev) => [...prev, ...toAdd]);
+    setEditImagePreviews((prev) => [...prev, ...toAdd.map((f) => URL.createObjectURL(f))]);
+    if (editFileInputRef.current) editFileInputRef.current.value = "";
+  };
+
+  const removeExistingImage = (index: number) => {
+    setExistingImageUrls((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeEditNewImage = (index: number) => {
+    setEditImageFiles((prev) => prev.filter((_, i) => i !== index));
+    setEditImagePreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const extractStoragePath = (url: string): string | null => {
+    const marker = "/object/public/marketplace_store_images/";
+    const idx = url.indexOf(marker);
+    if (idx === -1) return null;
+    return url.substring(idx + marker.length);
+  };
+
+  const handleEditSave = async () => {
+    if (!storeId || !editProduct) return;
+    const nome = editForm.nome.trim();
+    const preco = Number(editForm.preco.replace(",", "."));
+    if (!nome || !preco || Number.isNaN(preco)) {
+      toast({ title: "Preencha nome e preço válidos", variant: "destructive" });
+      return;
+    }
+    setEditSaving(true);
+    try {
+      // Delete removed images from storage
+      const originalUrls = editProduct.image_urls ?? (editProduct.image_url ? [editProduct.image_url] : []);
+      const removedUrls = originalUrls.filter((u) => !existingImageUrls.includes(u));
+      for (const url of removedUrls) {
+        const path = extractStoragePath(url);
+        if (path) {
+          await supabase.storage.from("marketplace_store_images").remove([path]);
+        }
+      }
+
+      // Upload new images
+      const newUploadedUrls = await uploadImages(editImageFiles, storeId);
+      const finalUrls = [...existingImageUrls, ...newUploadedUrls];
+
+      const { error } = await (supabase as any)
+        .from("marketplace_products")
+        .update({
+          nome,
+          descricao: editForm.descricao.trim() || null,
+          preco_original: preco,
+          preco_desconto: preco,
+          image_url: finalUrls[0] ?? null,
+          image_urls: finalUrls,
+          ativo: editForm.ativo,
+        })
+        .eq("id", editProduct.id);
+
+      if (error) {
+        toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
+      } else {
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === editProduct.id
+              ? { ...p, nome, descricao: editForm.descricao.trim() || null, preco_original: preco, preco_desconto: preco, image_url: finalUrls[0] ?? null, image_urls: finalUrls, ativo: editForm.ativo }
+              : p
+          )
+        );
+        setEditProduct(null);
+        toast({ title: "Produto atualizado!" });
+      }
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar imagem", description: err.message, variant: "destructive" });
+    }
+    setEditSaving(false);
+  };
+
+  // ── Delete helpers ──
+  const handleDelete = async () => {
+    if (!deleteProduct) return;
+    setDeleting(true);
+
+    // Delete images from storage
+    const urls = deleteProduct.image_urls ?? (deleteProduct.image_url ? [deleteProduct.image_url] : []);
+    const paths = urls.map(extractStoragePath).filter(Boolean) as string[];
+    if (paths.length > 0) {
+      await supabase.storage.from("marketplace_store_images").remove(paths);
+    }
+
+    const { error } = await supabase.from("marketplace_products").delete().eq("id", deleteProduct.id);
+    if (error) {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+    } else {
+      setProducts((prev) => prev.filter((p) => p.id !== deleteProduct.id));
+      toast({ title: "Produto excluído!" });
+    }
+    setDeleteProduct(null);
+    setDeleting(false);
+  };
+
+  const totalEditImages = existingImageUrls.length + editImageFiles.length;
+
   return (
-    <main className="min-h-screen bg-background px-4 pb-8 pt-6 safe-bottom-floating-nav">
-      <header className="mb-4 flex items-center justify-between">
+    <main className="min-h-screen bg-black px-4 pb-28 pt-8 safe-bottom-floating-nav">
+      <header className="mb-6 flex items-center justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Produtos</p>
-          <h1 className="mt-1 text-2xl font-semibold text-foreground">Meus produtos</h1>
+          <p className="text-xs uppercase tracking-[0.3em] text-zinc-400">Produtos</p>
+          <h1 className="mt-1 text-2xl font-black text-white uppercase tracking-tight">Meus Produtos</h1>
         </div>
-        <Button size="sm" onClick={() => setShowForm(!showForm)}>
-          <Plus className="mr-1 h-4 w-4" /> Novo
-        </Button>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold uppercase tracking-widest text-black hover:bg-primary/90 transition-colors"
+        >
+          <Plus className="h-4 w-4" /> Novo
+        </button>
       </header>
 
+      {/* ── Create Form ── */}
       {showForm && (
-        <Card className="mb-4 border border-border/20 bg-card/80">
-          <CardContent className="space-y-3 pt-5 text-sm">
-            <div className="space-y-1.5">
-              <Label>Nome</Label>
-              <Input value={form.nome} onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))} placeholder="Ex: Whey Protein 900g" className="bg-background/60" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Preço (R$)</Label>
-              <Input value={form.preco} onChange={(e) => setForm((f) => ({ ...f, preco: e.target.value }))} placeholder="Ex: 199,90" className="bg-background/60" />
-            </div>
-
-            {/* Image upload - up to 3 */}
-            <div className="space-y-1.5">
-              <Label>Imagens do produto (até 3)</Label>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={handleFileChange}
+        <div className="mb-6 overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.03] animate-in slide-in-from-top-4 fade-in duration-300">
+          <div className="border-b border-white/5 bg-white/5 px-6 py-4">
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider">Novo Produto</h3>
+          </div>
+          <div className="space-y-4 p-6">
+            <div className="space-y-2">
+              <Label className="text-xs text-zinc-400 uppercase tracking-wider">Nome do Produto</Label>
+              <Input
+                value={form.nome}
+                onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
+                placeholder="Ex: Whey Protein 900g"
+                className="h-11 rounded-xl border-white/10 bg-black/40 text-white placeholder:text-zinc-600 focus:border-primary/50 focus:ring-primary/20"
               />
-              <div className="flex gap-2 flex-wrap">
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs text-zinc-400 uppercase tracking-wider">Preço (R$)</Label>
+              <Input
+                value={form.preco}
+                onChange={(e) => setForm((f) => ({ ...f, preco: e.target.value }))}
+                placeholder="Ex: 199,90"
+                className="h-11 rounded-xl border-white/10 bg-black/40 text-white placeholder:text-zinc-600 focus:border-primary/50 focus:ring-primary/20"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs text-zinc-400 uppercase tracking-wider">Imagens (Máx 3)</Label>
+              <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileChange} />
+              <div className="flex gap-3 flex-wrap">
                 {imagePreviews.map((preview, i) => (
-                  <div key={i} className="relative inline-block">
-                    <img
-                      src={preview}
-                      alt={`Preview ${i + 1}`}
-                      className="h-24 w-24 rounded-lg border border-border/20 object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeImage(i)}
-                      className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-foreground"
-                    >
-                      <X className="h-3.5 w-3.5" />
+                  <div key={i} className="relative inline-block group">
+                    <img src={preview} alt={`Preview ${i + 1}`} className="h-24 w-24 rounded-xl border border-white/10 object-cover" />
+                    <button type="button" onClick={() => removeImage(i)} className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white shadow-md hover:bg-red-600 transition-colors">
+                      <X className="h-3 w-3" />
                     </button>
                   </div>
                 ))}
                 {imageFiles.length < 3 && (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border/40 bg-background/60 text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
-                  >
+                  <button type="button" onClick={() => fileInputRef.current?.click()} className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-white/20 bg-white/5 text-zinc-400 transition-colors hover:border-primary/50 hover:text-primary hover:bg-primary/5">
                     <ImagePlus className="h-6 w-6" />
-                    <span className="text-[10px]">Adicionar</span>
+                    <span className="text-[9px] uppercase font-bold tracking-wide">Adicionar</span>
                   </button>
                 )}
               </div>
             </div>
-
-            <div className="space-y-1.5">
-              <Label>Descrição</Label>
-              <Textarea value={form.descricao} onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))} placeholder="Descrição do produto" className="min-h-[60px] bg-background/60" />
+            <div className="space-y-2">
+              <Label className="text-xs text-zinc-400 uppercase tracking-wider">Descrição</Label>
+              <Textarea
+                value={form.descricao}
+                onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
+                placeholder="Detalhes do produto product..."
+                className="min-h-[80px] rounded-xl border-white/10 bg-black/40 text-white placeholder:text-zinc-600 focus:border-primary/50 focus:ring-primary/20"
+              />
             </div>
-            <div className="flex justify-end gap-2 pt-1">
-              <Button variant="outline" size="sm" onClick={() => { setShowForm(false); clearImages(); }}>Cancelar</Button>
-              <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                variant="ghost"
+                onClick={() => { setShowForm(false); clearImages(); }}
+                className="text-zinc-400 hover:text-white hover:bg-white/5"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={saving}
+                className="bg-primary text-black hover:bg-primary/90 font-bold uppercase tracking-widest"
+              >
+                {saving ? "Salvando..." : "Salvar Produto"}
+              </Button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
+      {/* ── Product List ── */}
       {loading ? (
-        <p className="text-sm text-muted-foreground">Carregando...</p>
+        <div className="flex justify-center p-8">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
       ) : products.length === 0 ? (
-        <p className="mt-8 text-center text-sm text-muted-foreground">Nenhum produto cadastrado ainda.</p>
+        <div className="rounded-[24px] border border-white/5 bg-white/[0.03] p-10 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/5">
+            <Package className="h-8 w-8 text-zinc-600" />
+          </div>
+          <p className="text-sm text-zinc-500">Nenhum produto cadastrado ainda.</p>
+          <Button variant="link" onClick={() => setShowForm(true)} className="text-primary mt-2">
+            Cadastrar o primeiro
+          </Button>
+        </div>
       ) : (
-        <div className="space-y-2">
+        <div className="grid gap-3 pb-8">
           {products.map((p) => (
-            <Card key={p.id} className="border border-border/20 bg-card/80">
-              <CardContent className="flex items-center gap-3 py-3">
-                <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">
+            <div key={p.id} className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.03] p-4 transition-all hover:bg-white/[0.06]">
+              <div className="flex items-center gap-4">
+                <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl bg-white/5 border border-white/5">
                   {p.image_url ? (
-                    <img src={p.image_url} alt={p.nome} className="h-full w-full object-cover" loading="lazy" />
+                    <img src={p.image_url} alt={p.nome} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
                   ) : (
-                    <span className="text-[10px] text-muted-foreground">Sem img</span>
+                    <div className="flex h-full w-full items-center justify-center">
+                      <Package className="h-6 w-6 text-zinc-700" />
+                    </div>
                   )}
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-foreground">{p.nome}</p>
-                  <p className="text-xs font-semibold text-primary">R$ {p.preco_desconto.toFixed(2)}</p>
-                  <p className="text-[11px] text-muted-foreground">{p.ativo ? "Ativo" : "Inativo"}</p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <p className="text-base font-bold text-white truncate pr-2">{p.nome}</p>
+                    <div className={`h-2 w-2 rounded-full ${p.ativo ? 'bg-primary shadow-[0_0_8px_hsl(var(--primary))]' : 'bg-zinc-700'}`} />
+                  </div>
+                  <p className="text-sm font-medium text-primary mt-0.5">R$ {p.preco_desconto.toFixed(2)}</p>
+                  <p className="text-[10px] text-zinc-500 uppercase tracking-wide mt-1">{p.ativo ? "Disponível na loja" : "Indisponível"}</p>
                 </div>
-              </CardContent>
-            </Card>
+                <div className="flex flex-col gap-1">
+                  <button
+                    onClick={() => openEdit(p)}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-zinc-400 hover:bg-primary/10 hover:text-primary transition-colors"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setDeleteProduct(p)}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-zinc-400 hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       )}
+
+      {/* ── Edit Dialog ── */}
+      <Dialog open={!!editProduct} onOpenChange={(open) => { if (!open) setEditProduct(null); }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto border border-white/10 bg-black/90 backdrop-blur-xl sm:rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-white">Editar Produto</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label className="text-zinc-400">Nome</Label>
+              <Input
+                value={editForm.nome}
+                onChange={(e) => setEditForm((f) => ({ ...f, nome: e.target.value }))}
+                className="bg-white/5 border-white/10 text-white focus:border-primary/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-zinc-400">Preço (R$)</Label>
+              <Input
+                value={editForm.preco}
+                onChange={(e) => setEditForm((f) => ({ ...f, preco: e.target.value }))}
+                className="bg-white/5 border-white/10 text-white focus:border-primary/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-zinc-400">Imagens (Máx 3)</Label>
+              <input ref={editFileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleEditFileChange} />
+              <div className="flex gap-2 flex-wrap">
+                {existingImageUrls.map((url, i) => (
+                  <div key={`existing-${i}`} className="relative inline-block">
+                    <img src={url} alt={`Img ${i + 1}`} className="h-20 w-20 rounded-lg border border-white/10 object-cover" />
+                    <button type="button" onClick={() => removeExistingImage(i)} className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                {editImagePreviews.map((preview, i) => (
+                  <div key={`new-${i}`} className="relative inline-block">
+                    <img src={preview} alt={`Nova ${i + 1}`} className="h-20 w-20 rounded-lg border border-white/10 object-cover" />
+                    <button type="button" onClick={() => removeEditNewImage(i)} className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                {totalEditImages < 3 && (
+                  <button type="button" onClick={() => editFileInputRef.current?.click()} className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-white/20 bg-white/5 text-zinc-500 hover:border-primary/50 hover:text-primary transition-colors">
+                    <ImagePlus className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-zinc-400">Descrição</Label>
+              <Textarea
+                value={editForm.descricao}
+                onChange={(e) => setEditForm((f) => ({ ...f, descricao: e.target.value }))}
+                className="min-h-[80px] bg-white/5 border-white/10 text-white focus:border-primary/50"
+              />
+            </div>
+            <div className="flex items-center justify-between rounded-xl bg-white/5 p-3">
+              <Label className="text-zinc-300">Produto Ativo</Label>
+              <Switch checked={editForm.ativo} onCheckedChange={(v) => setEditForm((f) => ({ ...f, ativo: v }))} className="data-[state=checked]:bg-primary" />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" className="text-zinc-400 hover:text-white" onClick={() => setEditProduct(null)}>Cancelar</Button>
+            <Button className="bg-primary text-black hover:bg-primary/90 font-bold" onClick={handleEditSave} disabled={editSaving}>{editSaving ? "Salvando..." : "Salvar Alterações"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Delete Confirmation Dialog ── */}
+      <Dialog open={!!deleteProduct} onOpenChange={(open) => { if (!open) setDeleteProduct(null); }}>
+        <DialogContent className="max-w-sm border border-white/10 bg-black/90 backdrop-blur-xl sm:rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-white">Excluir produto</DialogTitle>
+            <DialogDescription className="text-zinc-400">
+              Tem certeza que deseja excluir <strong>{deleteProduct?.nome}</strong>? Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 pt-2">
+            <Button variant="ghost" className="text-zinc-400 hover:text-white" onClick={() => setDeleteProduct(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting} className="bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20">{deleting ? "Excluindo..." : "Excluir Definitivamente"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <LojaFloatingNavIsland />
     </main>

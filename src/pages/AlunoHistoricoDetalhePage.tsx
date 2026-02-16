@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { FloatingNavIsland } from "@/components/navigation/FloatingNavIsland";
 import { useNavigate, useParams } from "react-router-dom";
 import { Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -199,17 +200,17 @@ const AlunoHistoricoDetalhePage = () => {
       getActivityTypeById((item.activity_type ?? "").toLowerCase().trim()) ?? undefined;
     const gpsRoute = Array.isArray(item.gps_points)
       ? item.gps_points
-          .map((p: any) => {
-            const lat = typeof p?.lat === "number" ? p.lat : typeof p?.latitude === "number" ? p.latitude : null;
-            const lng = typeof p?.lng === "number" ? p.lng : typeof p?.longitude === "number" ? p.longitude : null;
-            if (lat == null || lng == null) return null;
-            return {
-              lat,
-              lng,
-              timestamp: typeof p?.timestamp === "number" ? p.timestamp : undefined,
-            };
-          })
-          .filter(Boolean)
+        .map((p: any) => {
+          const lat = typeof p?.lat === "number" ? p.lat : typeof p?.latitude === "number" ? p.latitude : null;
+          const lng = typeof p?.lng === "number" ? p.lng : typeof p?.longitude === "number" ? p.longitude : null;
+          if (lat == null || lng == null) return null;
+          return {
+            lat,
+            lng,
+            timestamp: typeof p?.timestamp === "number" ? p.timestamp : undefined,
+          };
+        })
+        .filter(Boolean)
       : undefined;
 
     navigate("/aluno/atividade-personalizar", {
@@ -230,7 +231,7 @@ const AlunoHistoricoDetalhePage = () => {
   };
 
   return (
-    <main className="safe-bottom-content flex min-h-screen flex-col bg-background px-4 pt-6 pb-20">
+    <main className="safe-bottom-main flex min-h-screen flex-col bg-background px-4 pt-6 pb-24">
       <header className="mb-4 flex items-center gap-3">
         <BackIconButton onClick={() => navigate(-1)} />
         <div>
@@ -348,6 +349,7 @@ const AlunoHistoricoDetalhePage = () => {
           </Card>
         </section>
       )}
+      <FloatingNavIsland />
     </main>
   );
 };

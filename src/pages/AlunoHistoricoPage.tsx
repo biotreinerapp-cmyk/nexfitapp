@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { FloatingNavIsland } from "@/components/navigation/FloatingNavIsland";
 import { Activity, Calendar as CalendarIcon, Filter } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
@@ -237,7 +238,7 @@ const AlunoHistoricoPage = () => {
   };
 
   return (
-    <main className="safe-bottom-content flex min-h-screen flex-col bg-background px-4 pt-6">
+    <main className="safe-bottom-main flex min-h-screen flex-col bg-background px-4 pt-6 pb-24">
       <header className="mb-4 flex items-center gap-3">
         <BackIconButton to="/aluno/perfil" />
         <div>
@@ -336,10 +337,10 @@ const AlunoHistoricoPage = () => {
               const data = dataBase ? new Date(dataBase) : null;
               const dataFormatada = data
                 ? data.toLocaleDateString("pt-BR", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                  })
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })
                 : "Data não informada";
 
               const duracaoTexto = formatDuration(sessao.duration_seconds, sessao.started_at, sessao.ended_at);
@@ -399,6 +400,7 @@ const AlunoHistoricoPage = () => {
           )}
         </div>
       </section>
+      <FloatingNavIsland />
     </main>
   );
 };

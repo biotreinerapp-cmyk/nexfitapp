@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Timer, Activity, Flame, Zap, Play, Pause, ChevronRight, Dumbbell, Target } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -8,6 +8,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import type { ActivityType } from "@/lib/activityTypes";
 import { BackIconButton } from "@/components/navigation/BackIconButton";
+import { SecureVideo } from "@/components/ui/SecureVideo";
+import { FloatingNavIsland } from "@/components/navigation/FloatingNavIsland";
+import { cn } from "@/lib/utils";
+
+const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY || "7abffdb721mshe6edf9169775d83p1212ffjsn4c407842489b";
 
 interface TreinoAtivoState {
   sessaoId?: string;
@@ -17,6 +22,7 @@ interface TreinoAtivoState {
     body_part: string | null;
     target_muscle: string | null;
     equipment: string | null;
+    video_url: string | null;
     series: number;
     repeticoes: number;
   };
@@ -294,133 +300,171 @@ const AlunoTreinoAtivoPage = () => {
   };
 
   return (
-    <main className="safe-bottom-content flex min-h-screen flex-col bg-background px-4 pt-6">
-      <header className="mb-4 flex items-center gap-3">
-        <BackIconButton to="/aluno/treinos" />
-        <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-accent-foreground/80">Treino Ativo</p>
-          <h1 className="mt-1 page-title-gradient text-xl font-semibold">{exercicio?.nome || "Exercício"}</h1>
-          {exercicio && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              {exercicio.series} séries x {exercicio.repeticoes} repetições
-            </p>
-          )}
+    <div className="flex min-h-screen flex-col bg-background px-4 pb-24 pt-6">
+      <header className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <BackIconButton to="/aluno/treinos" />
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Treino Ativo</p>
+            <h1 className="page-title-gradient text-2xl font-black tracking-tight uppercase leading-none">{exercicio?.nome || "Série Ativa"}</h1>
+          </div>
+        </div>
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/5 bg-white/5 text-primary">
+          <Activity className="h-5 w-5 animate-pulse" />
         </div>
       </header>
 
       {exercicio && (
-        <section className="flex flex-1 flex-col gap-4">
-          <Card className="border border-primary/40 bg-card/90">
-            <CardHeader>
-              <CardTitle className="text-sm">Progresso das séries</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 text-xs">
-              {/* Imagem do grupo muscular trabalhado no exercício */}
-              <div className="overflow-hidden rounded-xl border border-accent/40 bg-muted/10">
-                <div className="flex items-center gap-3 p-3">
-                  <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-muted">
-                    <img
-                      src={exercicio?.body_part ? `/images/muscles/${exercicio.body_part}.png` : "/default-exercise.png"}
-                      alt={
-                        exercicio?.target_muscle
-                          ? `Grupo muscular trabalhado: ${exercicio.target_muscle}`
-                          : "Exercício em destaque"
-                      }
-                      className="h-full w-full object-cover"
-                      loading="lazy"
+        <section className="flex flex-1 flex-col gap-6">
+          {/* Main Media & Focus Card */}
+          <div className="relative overflow-hidden rounded-[32px] border border-white/5 bg-gradient-to-b from-white/[0.05] to-transparent p-2 backdrop-blur-xl">
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[24px] bg-black/40">
+              {exercicio?.video_url && exercicio.video_url.endsWith(".mp4") ? (
+                <SecureVideo
+                  src={exercicio.video_url}
+                  apiKey={RAPIDAPI_KEY}
+                  className="h-full w-full object-cover"
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                />
+              ) : (
+                <img
+                  src={
+                    exercicio?.video_url ||
+                    (exercicio?.body_part ? `/images/muscles/${exercicio.body_part}.png` : "/default-exercise.png")
+                  }
+                  alt={exercicio?.nome || "Exercício"}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              )}
+
+              {/* Overlay Goal */}
+              <div className="absolute top-4 left-4">
+                <div className="flex items-center gap-2 rounded-2xl bg-black/60 px-4 py-2 backdrop-blur-md border border-white/10">
+                  <Zap className="h-4 w-4 text-primary" />
+                  <span className="text-xs font-black text-white">{exercicio.series} SÉRIES x {exercicio.repeticoes} REPS</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 px-2">
+              <div className="space-y-1">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">Foco Principal</p>
+                <div className="flex items-center gap-2">
+                  <Dumbbell className="h-4 w-4 text-primary" />
+                  <span className="text-[13px] font-black text-foreground uppercase tracking-tight">
+                    {exercicio?.target_muscle || exercicio?.body_part || "Força Geral"}
+                  </span>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">Equipamento</p>
+                <p className="text-[11px] font-bold text-muted-foreground capitalize">{exercicio.equipment || "Nenhum"}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* High Performance Stats Grid */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.03] p-4 text-center">
+              <Timer className="absolute -right-2 -top-2 h-12 w-12 text-blue-500/10" />
+              <p className="text-[9px] font-black uppercase tracking-widest text-blue-500/60 mb-1">Duração</p>
+              <p className="text-xl font-black text-foreground tabular-nums">{formattedTime}</p>
+            </div>
+            <div className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.03] p-4 text-center">
+              <Activity className="absolute -right-2 -top-2 h-12 w-12 text-primary/10" />
+              <p className="text-[9px] font-black uppercase tracking-widest text-primary/60 mb-1">Batimento</p>
+              <div className="flex items-baseline justify-center gap-1">
+                <p className="text-xl font-black text-foreground tabular-nums">{bpm}</p>
+                <span className="text-[9px] font-bold text-muted-foreground">bpm</span>
+              </div>
+            </div>
+            <div className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.03] p-4 text-center">
+              <Flame className="absolute -right-2 -top-2 h-12 w-12 text-orange-500/10" />
+              <p className="text-[9px] font-black uppercase tracking-widest text-orange-500/60 mb-1">Energia</p>
+              <div className="flex items-baseline justify-center gap-1">
+                <p className="text-xl font-black text-foreground tabular-nums">{Math.round(calories)}</p>
+                <span className="text-[9px] font-bold text-muted-foreground">kcal</span>
+              </div>
+            </div>
+            <div className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.03] p-4 text-center">
+              <Target className="absolute -right-2 -top-2 h-12 w-12 text-emerald-500/10" />
+              <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500/60 mb-1">Intensidade</p>
+              <p className="text-xl font-black text-emerald-400 tracking-tight">{intensity}</p>
+            </div>
+          </div>
+
+          {/* Progress & Controls Card */}
+          <div className="mt-2 space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between px-1">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Série em andamento</p>
+                  <p className="text-lg font-black text-foreground tracking-tight">
+                    Série <span className="text-primary">{currentSet}</span> de {exercicio.series}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1">
+                  {[...Array(exercicio.series)].map((_, i) => (
+                    <div
+                      key={i}
+                      className={cn(
+                        "h-1.5 w-6 rounded-full transition-all duration-500",
+                        i + 1 < currentSet ? "bg-primary" :
+                          i + 1 === currentSet ? "bg-primary animate-pulse w-10" :
+                            "bg-white/10"
+                      )}
                     />
-                  </div>
-                  <div className="flex flex-1 flex-col text-xs">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                      Grupo muscular
-                    </p>
-                    <p className="text-sm font-semibold text-foreground">
-                      {exercicio.target_muscle || exercicio.body_part || "Musculatura alvo"}
-                    </p>
-                    {exercicio.equipment && (
-                      <p className="mt-0.5 text-[11px] text-muted-foreground">
-                        Equipamento: <span className="font-medium text-foreground">{exercicio.equipment}</span>
-                      </p>
-                    )}
-                  </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Dados de repetição da sessão atual */}
-              <div className="space-y-1">
-                <p>
-                  Série atual: <span className="font-semibold">{currentSet}</span> de {exercicio.series}
-                </p>
-                <p>
-                  Repetições na série: <span className="font-semibold">{repsInCurrentSet}</span> / {exercicio.repeticoes}
-                </p>
-                <p>
-                  Total de repetições: <span className="font-semibold">{totalReps}</span>
-                </p>
-              </div>
+              <div className="relative flex min-h-[140px] items-center justify-between rounded-[32px] border border-white/5 bg-white/[0.02] p-6 backdrop-blur-3xl">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">Reps na série</p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-6xl font-black tracking-tighter text-foreground">{repsInCurrentSet}</span>
+                    <span className="text-xl font-bold text-muted-foreground/20 italic">/ {exercicio.repeticoes}</span>
+                  </div>
+                </div>
 
-              {/* Ações da sessão: cronômetro e incremento de repetições */}
-              <div className="mt-4 grid grid-cols-2 gap-3">
                 <Button
-                  variant={isRunning ? "outline" : "default"}
-                  size="lg"
-                  className="w-full"
-                  onClick={handleToggleTimer}
-                >
-                  {isRunning ? "Pausar cronômetro" : "Iniciar cronômetro"}
-                </Button>
-                <Button
-                  variant="secondary"
-                  className="w-full"
-                  size="lg"
+                  className="h-24 w-24 rounded-[32px] bg-primary text-black shadow-[0_0_30px_rgba(var(--primary-rgb),0.3)] hover:scale-105 active:scale-95 transition-all"
                   onClick={handleAddRep}
                 >
-                  +1 repetição
+                  <span className="text-4xl font-black">+1</span>
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          <Card className="border border-accent/60 bg-card/90">
-            <CardHeader>
-              <CardTitle className="text-sm">Intensidade e duração</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-3 gap-3 text-xs">
-              <div className="flex flex-col items-center gap-1">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Tempo</p>
-                <span className="text-lg font-semibold tabular-nums">{formattedTime}</span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Frequência</p>
-                <span className="text-lg font-semibold tabular-nums text-primary">{bpm} bpm</span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Calorias</p>
-                <span className="text-lg font-semibold tabular-nums text-accent">{Math.round(calories)} kcal</span>
-              </div>
-              <div className="col-span-3 mt-1 text-center text-[11px] text-muted-foreground">
-                Intensidade estimada: <span className="font-semibold text-foreground">{intensity}</span>
-              </div>
-            </CardContent>
-          </Card>
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <Button
+                variant="outline-premium"
+                className="py-10 rounded-3xl"
+                onClick={handleToggleTimer}
+              >
+                {isRunning ? <Pause className="mr-2 h-5 w-5" /> : <Play className="mr-2 h-5 w-5" />}
+                {isRunning ? "Pausar" : "Retomar"}
+              </Button>
 
-          <div className="mt-auto flex flex-col gap-2 pb-6">
-            <Button className="w-full" size="lg" onClick={handleFinalizar} loading={isFinalizing}>
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-              Finalizar exercício e personalizar momento
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full"
-              onClick={() => navigate("/aluno/dashboard")}
-            >
-              Voltar para o dashboard
-            </Button>
+              <Button
+                className="variant-premium py-10 rounded-3xl"
+                onClick={handleFinalizar}
+                loading={isFinalizing}
+              >
+                <CheckCircle2 className="mr-2 h-5 w-5" />
+                Finalizar
+              </Button>
+            </div>
           </div>
         </section>
+
       )}
-    </main>
+      <FloatingNavIsland />
+    </div>
   );
 };
 

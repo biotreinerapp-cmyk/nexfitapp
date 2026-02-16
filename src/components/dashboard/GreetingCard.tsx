@@ -49,50 +49,52 @@ export const GreetingCard = ({
     : null;
 
   return (
-    <div className="relative flex h-24 items-center gap-4 overflow-hidden rounded-2xl border border-border/60 bg-[hsl(var(--carbon))] px-3 py-2 pr-16">
-      {/* Aba vertical (overlay absoluto; geometria constante) */}
+    <div className="relative flex h-32 items-center gap-5 overflow-hidden rounded-[32px] border border-white/5 bg-white/[0.03] p-6 pr-16 backdrop-blur-xl">
+      <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-primary/10 blur-2xl" />
+
+      {/* Aba vertical (overlay absoluto) */}
       {badge && (
         <div
           className={
-            "absolute bottom-0 right-0 top-0 z-10 w-9 rounded-r-2xl shadow-sm " +
-            badge.className
+            "absolute bottom-0 right-0 top-0 z-10 w-10 flex items-center justify-center " +
+            (badgeVariant === "ELITE" ? "bg-[#FFD700] text-black" : badge.className)
           }
           aria-label={badge.label}
         >
-          <div className="flex h-full w-full items-center justify-center">
-            <span className="text-xs font-semibold tracking-wide text-primary-foreground [writing-mode:vertical-lr]">
-              {badgeVariant}
-            </span>
-          </div>
+          <span className="rotate-180 text-[10px] font-black tracking-[0.2em] [writing-mode:vertical-lr] uppercase">
+            {badgeVariant}
+          </span>
         </div>
       )}
 
-      <Avatar className="h-12 w-12 rounded-xl">
-        {avatarUrl && (
-          <AvatarImage
-            src={avatarUrl}
-            alt={name ? `Foto de ${name}` : "Foto do usuário"}
-            onError={onAvatarError}
-            className="rounded-xl"
-          />
-        )}
-        <AvatarFallback className="rounded-xl text-sm font-semibold">
-          {(name?.charAt(0) ?? "?").toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
+      <div className="relative">
+        <Avatar className="h-20 w-20 border-2 border-primary/20 p-1 bg-white/5">
+          {avatarUrl && (
+            <AvatarImage
+              src={avatarUrl}
+              alt={name ? `Foto de ${name}` : "Foto do usuário"}
+              onError={onAvatarError}
+              className="rounded-full object-cover"
+            />
+          )}
+          <AvatarFallback className="bg-primary/10 text-primary text-2xl font-black rounded-full">
+            {(name?.charAt(0) ?? "?").toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+      </div>
 
-      <div className="flex min-w-0 flex-1 flex-col justify-center overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col justify-center overflow-hidden gap-1 z-0">
         {name ? (
-          <span className="truncate bg-gradient-to-r from-primary to-accent bg-clip-text text-[clamp(1.05rem,4vw,1.35rem)] font-semibold leading-tight text-transparent">
+          <span className="truncate text-xl font-black uppercase tracking-tight text-foreground">
             {name}
           </span>
         ) : (
-          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-8 w-48 bg-white/5 rounded-lg" />
         )}
 
         {subtitleShort && (
           <span
-            className="mt-0.5 truncate text-xs leading-snug text-muted-foreground"
+            className="truncate text-[10px] font-medium text-muted-foreground uppercase tracking-widest"
             title={safeSubtitle ?? undefined}
           >
             {subtitleShort}

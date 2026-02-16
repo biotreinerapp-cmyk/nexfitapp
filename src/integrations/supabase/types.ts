@@ -563,6 +563,66 @@ export type Database = {
         }
         Relationships: []
       }
+      highlight_purchase_requests: {
+        Row: {
+          amount_cents: number
+          id: string
+          offer_id: string
+          pix_payload: string | null
+          processed_at: string | null
+          processed_by: string | null
+          receipt_path: string | null
+          rejection_reason: string | null
+          requested_at: string
+          status: string
+          store_id: string
+          user_id: string
+        }
+        Insert: {
+          amount_cents: number
+          id?: string
+          offer_id: string
+          pix_payload?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          receipt_path?: string | null
+          rejection_reason?: string | null
+          requested_at?: string
+          status?: string
+          store_id: string
+          user_id: string
+        }
+        Update: {
+          amount_cents?: number
+          id?: string
+          offer_id?: string
+          pix_payload?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          receipt_path?: string | null
+          rejection_reason?: string | null
+          requested_at?: string
+          status?: string
+          store_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "highlight_purchase_requests_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "highlight_offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "highlight_purchase_requests_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lojas: {
         Row: {
           advertencias: number | null

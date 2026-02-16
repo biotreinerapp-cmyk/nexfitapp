@@ -1,28 +1,33 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 
+export interface QueuedWorkout {
+  id: string;
+  userId: string;
+  activityType: string;
+  startedAt: string;
+  endedAt: string;
+  durationSeconds: number;
+  distanceKm?: number;
+  calories: number;
+  avgHr?: number;
+  paceAvg?: number;
+  // Using 'any' for complex JSON objects that map to JSONB in Supabase, 
+  // but strictly typing specific known fields where possible is better.
+  // For now, these mirror the database columns.
+  gpsPoints?: any[];
+  intensity?: { label: string | null };
+  extras?: {
+    generatedUrl?: string | null;
+    caption?: string | null;
+    legacy_sessao_id?: string;
+  };
+  timestamp: number; // Added when queuing
+}
+
 interface OfflineQueueDB extends DBSchema {
   workoutQueue: {
     key: string;
-    value: {
-      id: string;
-      userId: string;
-      activityType: string;
-      startedAt: string;
-      endedAt?: string;
-      durationSeconds?: number;
-      distanceKm?: number;
-      calories?: number;
-      avgHr?: number;
-      maxHr?: number;
-      paceAvg?: number;
-      gpsPolyline?: any;
-      gpsPoints?: any;
-      intensity?: any;
-      equipment?: string[];
-      notes?: string;
-      extras?: any;
-      timestamp: number;
-    };
+    value: QueuedWorkout;
   };
   activityCache: {
     key: string;
@@ -53,7 +58,7 @@ async function getDB(): Promise<IDBPDatabase<OfflineQueueDB>> {
   return db;
 }
 
-export async function enqueueWorkout(workout: any): Promise<void> {
+export async function enqueueWorkout(workout: Omit<QueuedWorkout, 'timestamp'>): Promise<void> {
   const database = await getDB();
   await database.put('workoutQueue', {
     ...workout,
@@ -62,7 +67,7 @@ export async function enqueueWorkout(workout: any): Promise<void> {
   console.log('[OfflineQueue] Workout enfileirado:', workout.id);
 }
 
-export async function getQueuedWorkouts(): Promise<any[]> {
+export async function getQueuedWorkouts(): Promise<QueuedWorkout[]> {
   const database = await getDB();
   return await database.getAll('workoutQueue');
 }
@@ -95,7 +100,7 @@ export async function cacheActivityList(key: string, data: any): Promise<void> {
 export async function getCachedActivityList(key: string): Promise<any | null> {
   const database = await getDB();
   const cached = await database.get('activityCache', key);
-  
+
   if (!cached) return null;
 
   // Cache válido por 24 horas

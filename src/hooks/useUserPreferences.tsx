@@ -46,14 +46,8 @@ const DEFAULT_PREFERENCES: UserPreferences = {
 interface RawProfile {
   language_pref?: string | null;
   measurement_system?: string | null;
-  distance_unit?: string | null;
-  weight_unit?: string | null;
-  height_unit?: string | null;
   gps_auto_pause?: boolean | null;
-  gps_accuracy_mode?: string | null;
   activity_privacy_default?: string | null;
-  notify_activity_reminders?: boolean | null;
-  notify_training_summary?: boolean | null;
 }
 
 export const UserPreferencesProvider = ({ children }: { children: ReactNode }) => {
@@ -70,26 +64,11 @@ export const UserPreferencesProvider = ({ children }: { children: ReactNode }) =
       try {
         const { data, error } = await supabase
           .from("profiles")
-          .select(
-            [
-              "language_pref",
-              "measurement_system",
-              "distance_unit",
-              "weight_unit",
-              "height_unit",
-              "gps_auto_pause",
-              "gps_accuracy_mode",
-              "activity_privacy_default",
-              "notify_activity_reminders",
-              "notify_training_summary",
-            ].join(", ")
-          )
+          .select("language_pref, measurement_system, gps_auto_pause, activity_privacy_default")
           .eq("id", user.id)
           .maybeSingle();
 
         if (error) {
-          // Silent failure on load, keep defaults
-          // eslint-disable-next-line no-console
           console.error("Erro ao carregar preferências do usuário", error);
           return;
         }
@@ -99,16 +78,15 @@ export const UserPreferencesProvider = ({ children }: { children: ReactNode }) =
         setState({
           languagePref: raw.language_pref ?? DEFAULT_PREFERENCES.languagePref,
           measurementSystem: (raw.measurement_system as MeasurementSystem) ?? DEFAULT_PREFERENCES.measurementSystem,
-          distanceUnit: (raw.distance_unit as DistanceUnit) ?? DEFAULT_PREFERENCES.distanceUnit,
-          weightUnit: (raw.weight_unit as WeightUnit) ?? DEFAULT_PREFERENCES.weightUnit,
-          heightUnit: (raw.height_unit as HeightUnit) ?? DEFAULT_PREFERENCES.heightUnit,
+          distanceUnit: DEFAULT_PREFERENCES.distanceUnit,
+          weightUnit: DEFAULT_PREFERENCES.weightUnit,
+          heightUnit: DEFAULT_PREFERENCES.heightUnit,
           gpsAutoPause: raw.gps_auto_pause ?? DEFAULT_PREFERENCES.gpsAutoPause,
-          gpsAccuracyMode: (raw.gps_accuracy_mode as GpsAccuracyMode) ?? DEFAULT_PREFERENCES.gpsAccuracyMode,
+          gpsAccuracyMode: DEFAULT_PREFERENCES.gpsAccuracyMode,
           activityPrivacyDefault:
             (raw.activity_privacy_default as ActivityPrivacy) ?? DEFAULT_PREFERENCES.activityPrivacyDefault,
-          notifyActivityReminders:
-            raw.notify_activity_reminders ?? DEFAULT_PREFERENCES.notifyActivityReminders,
-          notifyTrainingSummary: raw.notify_training_summary ?? DEFAULT_PREFERENCES.notifyTrainingSummary,
+          notifyActivityReminders: DEFAULT_PREFERENCES.notifyActivityReminders,
+          notifyTrainingSummary: DEFAULT_PREFERENCES.notifyTrainingSummary,
         });
       } finally {
         setLoading(false);
@@ -132,14 +110,8 @@ export const UserPreferencesProvider = ({ children }: { children: ReactNode }) =
       .update({
         language_pref: next.languagePref,
         measurement_system: next.measurementSystem,
-        distance_unit: next.distanceUnit,
-        weight_unit: next.weightUnit,
-        height_unit: next.heightUnit,
         gps_auto_pause: next.gpsAutoPause,
-        gps_accuracy_mode: next.gpsAccuracyMode,
         activity_privacy_default: next.activityPrivacyDefault,
-        notify_activity_reminders: next.notifyActivityReminders,
-        notify_training_summary: next.notifyTrainingSummary,
       })
       .eq("id", user.id);
 

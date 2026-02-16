@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Activity, CreditCard, Settings2 } from "lucide-react";
+import { Activity, CreditCard, Settings2, History, MapPin, Clock, Zap, User, ArrowUpRight, Award, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +10,8 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { HubServiceButton } from "@/components/dashboard/HubServiceButton";
 import { BackIconButton } from "@/components/navigation/BackIconButton";
 import { PlanExpiryBanner } from "@/components/subscription/PlanExpiryBanner";
+import { FloatingNavIsland } from "@/components/navigation/FloatingNavIsland";
+import { cn } from "@/lib/utils";
 
 interface AtividadeSessaoRow {
   id: string;
@@ -53,7 +55,7 @@ const AlunoPerfilPage = () => {
       const [{ data: perfil }, { data: atividadesData }] = await Promise.all([
         supabase
           .from("profiles")
-            .select("display_name, avatar_url, peso_kg, altura_cm, objetivo, subscription_plan, plan_expires_at")
+          .select("display_name, avatar_url, peso_kg, altura_cm, objetivo, subscription_plan, plan_expires_at")
           .eq("id", user.id)
           .maybeSingle(),
         (supabase as any)
@@ -78,10 +80,10 @@ const AlunoPerfilPage = () => {
           altura_cm: perfil.altura_cm ?? null,
           objetivo: perfil.objetivo ?? null,
         });
-          setPlanInfo({
-            subscription_plan: (perfil as any).subscription_plan ?? null,
-            plan_expires_at: (perfil as any).plan_expires_at ?? null,
-          });
+        setPlanInfo({
+          subscription_plan: (perfil as any).subscription_plan ?? null,
+          plan_expires_at: (perfil as any).plan_expires_at ?? null,
+        });
       }
 
       if (atividadesData) {
@@ -154,7 +156,7 @@ const AlunoPerfilPage = () => {
   };
 
   return (
-    <main className="safe-bottom-floating-nav flex min-h-screen flex-col bg-background px-4 pt-6">
+    <main className="safe-bottom-main flex min-h-screen flex-col bg-background px-4 pb-24 pt-6">
       {shouldShowPlanExpiryBanner && daysLeftToExpire != null && (
         <div className="mb-4">
           <PlanExpiryBanner daysLeft={daysLeftToExpire} onRenew={() => navigate("/aluno/perfil/plano")} />
@@ -166,114 +168,138 @@ const AlunoPerfilPage = () => {
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-accent-foreground/80">Área do Aluno</p>
           <h1 className="mt-1 page-title-gradient text-2xl font-semibold">Perfil</h1>
-           <p className="mt-1 text-xs text-muted-foreground">Resumo do seu perfil no Nexfit.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Resumo do seu perfil no Nexfit.</p>
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col gap-4 pb-4">
+      <div className="flex flex-1 flex-col gap-6 pb-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
         {/* Bloco header do usuário */}
-        <section className="space-y-3">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-14 w-14">
-              {avatarUrl && (
-                <AvatarImage src={avatarUrl} alt="Foto de perfil" onError={handleAvatarError} />
-              )}
-              <AvatarFallback>{initial}</AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col">
-              <span className="text-sm font-medium text-foreground">{displayName}</span>
-               <span className="text-[11px] text-muted-foreground">Este é o seu hub de perfil no Nexfit.</span>
+        <section className="relative overflow-hidden rounded-[32px] border border-white/5 bg-white/[0.03] p-6 backdrop-blur-xl">
+          <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-primary/10 blur-2xl" />
+          <div className="flex items-center gap-5">
+            <div className="relative">
+              <Avatar className="h-20 w-20 border-2 border-primary/20 p-1 bg-white/5">
+                {avatarUrl && (
+                  <AvatarImage src={avatarUrl} className="rounded-full" alt="Foto de perfil" onError={handleAvatarError} />
+                )}
+                <AvatarFallback className="bg-primary/10 text-primary text-2xl font-black">{initial}</AvatarFallback>
+              </Avatar>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xl font-black text-foreground tracking-tight uppercase">{displayName}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-medium text-muted-foreground">Hub de Perfil Nexfit</span>
+              </div>
             </div>
           </div>
         </section>
 
         {/* Bloco Estatísticas Gerais */}
-        <section className="space-y-2">
-          <h2 className="text-sm font-medium text-foreground">Estatísticas gerais</h2>
-          <p className="text-[11px] text-muted-foreground">Visão rápida do seu histórico de uso.</p>
+        <section className="space-y-4">
+          <div className="px-1">
+            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60">Performance & Bio</h2>
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Card className="border border-accent/40 bg-card/80">
-              <CardHeader className="pb-1">
-                <CardTitle className="text-xs font-medium">Total de atividades</CardTitle>
-                <CardDescription className="text-[11px] text-muted-foreground">Todas as sessões registradas</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-1">
-                <p className="text-xl font-semibold text-foreground">{totalAtividades > 0 ? totalAtividades : "—"}</p>
-              </CardContent>
-            </Card>
+            {/* Total Atividades */}
+            <div className="group relative overflow-hidden rounded-[28px] border border-white/5 bg-white/[0.03] p-5 backdrop-blur-xl transition-all hover:bg-white/[0.06]">
+              <Activity className="absolute -right-2 -top-2 h-12 w-12 text-primary/5" />
+              <p className="text-[9px] font-black uppercase tracking-widest text-primary/60 mb-1">Atividades</p>
+              <div className="flex items-baseline gap-1">
+                <p className="text-2xl font-black text-foreground tabular-nums">
+                  {totalAtividades > 0 ? totalAtividades : "0"}
+                </p>
+                <span className="text-[9px] font-bold text-muted-foreground uppercase">Sessões</span>
+              </div>
+            </div>
 
-            <Card className="border border-accent/40 bg-card/80">
-              <CardHeader className="pb-1">
-                <CardTitle className="text-xs font-medium">Tempo total de treino</CardTitle>
-                <CardDescription className="text-[11px] text-muted-foreground">Soma das sessões concluídas</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-1">
-                <p className="text-xl font-semibold text-foreground">{formatTotalMinutos()}</p>
-              </CardContent>
-            </Card>
+            {/* Tempo Total */}
+            <div className="group relative overflow-hidden rounded-[28px] border border-white/5 bg-white/[0.03] p-5 backdrop-blur-xl transition-all hover:bg-white/[0.06]">
+              <Clock className="absolute -right-2 -top-2 h-12 w-12 text-orange-500/5" />
+              <p className="text-[9px] font-black uppercase tracking-widest text-orange-500/60 mb-1">Volume Total</p>
+              <div className="flex items-baseline gap-1">
+                <p className="text-lg font-black text-foreground tabular-nums truncate max-w-full">
+                  {formatTotalMinutos()}
+                </p>
+              </div>
+            </div>
 
-            <Card className="border border-accent/40 bg-card/80">
-              <CardHeader className="pb-1">
-                <CardTitle className="text-xs font-medium">Distância total</CardTitle>
-                <CardDescription className="text-[11px] text-muted-foreground">Somente atividades com GPS</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-1">
-                <p className="text-xl font-semibold text-foreground">{formatTotalDistancia()}</p>
-              </CardContent>
-            </Card>
+            {/* Distância */}
+            <div className="group relative overflow-hidden rounded-[28px] border border-white/5 bg-white/[0.03] p-5 backdrop-blur-xl transition-all hover:bg-white/[0.06]">
+              <MapPin className="absolute -right-2 -top-2 h-12 w-12 text-blue-500/5" />
+              <p className="text-[9px] font-black uppercase tracking-widest text-blue-500/60 mb-1">Distância</p>
+              <div className="flex items-baseline gap-1">
+                <p className="text-2xl font-black text-foreground tabular-nums">
+                  {formatTotalDistancia().split(" ")[0]}
+                </p>
+                <span className="text-[9px] font-bold text-muted-foreground uppercase">{formatTotalDistancia().split(" ")[1]}</span>
+              </div>
+            </div>
 
-            <Card className="border border-accent/40 bg-card/80">
-              <CardHeader className="pb-1">
-                <CardTitle className="text-xs font-medium">Perfil metabólico</CardTitle>
-                <CardDescription className="text-[11px] text-muted-foreground">Dados do seu onboarding</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-2">
-                <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-                  <div>
-                    <p className="text-[11px] text-muted-foreground">Peso</p>
-                    <p className="text-sm font-semibold text-foreground">
-                      {perfilMetabolico?.peso_kg ? `${perfilMetabolico.peso_kg.toFixed(1)} kg` : "—"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-muted-foreground">Altura</p>
-                    <p className="text-sm font-semibold text-foreground">
-                      {perfilMetabolico?.altura_cm ? `${perfilMetabolico.altura_cm.toFixed(0)} cm` : "—"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-muted-foreground">IMC</p>
-                    <p className="text-sm font-semibold text-primary">{imc ? imc.toFixed(1) : "—"}</p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-muted-foreground">Objetivo</p>
-                    <p className="text-[11px] font-medium text-foreground line-clamp-2">
-                      {perfilMetabolico?.objetivo || "Defina seu foco no onboarding."}
-                    </p>
-                  </div>
+            {/* Perfil Metabólico */}
+            <div className="group relative overflow-hidden rounded-[28px] border border-white/5 bg-white/[0.03] p-5 backdrop-blur-xl transition-all hover:bg-white/[0.06]">
+              <Zap className="absolute -right-2 -top-2 h-12 w-12 text-emerald-500/5 transition-transform group-hover:scale-110" />
+              <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500/60 mb-2">Metabólico</p>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-[8px] font-black uppercase text-muted-foreground">Peso</p>
+                  <p className="text-[11px] font-black text-foreground">
+                    {perfilMetabolico?.peso_kg ? `${perfilMetabolico.peso_kg.toFixed(0)}kg` : "—"}
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
+                <div>
+                  <p className="text-[8px] font-black uppercase text-muted-foreground">IMC</p>
+                  <p className="text-[11px] font-black text-emerald-400">{imc ? imc.toFixed(1) : "—"}</p>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* Bloco Histórico de Atividades */}
-        <section className="space-y-2">
-          <HubServiceButton title="Seu histórico" icon={Activity} onClick={() => navigate("/aluno/historico")} />
-        </section>
+        {/* Bloco Ações Rápidas */}
+        <section className="space-y-3">
+          <div className="px-1">
+            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 mb-1">Gerenciamento</h2>
+          </div>
 
-        {/* Bloco Meu Plano */}
-        <section className="space-y-2">
-          <HubServiceButton title="Meu plano" icon={CreditCard} onClick={() => navigate("/aluno/perfil/plano")} />
-        </section>
+          <div className="grid gap-3">
+            <HubServiceButton
+              title="Seu Histórico"
+              subtitle="Veja todas as suas sessões"
+              icon={History}
+              variant="premium"
+              className="h-16 rounded-[24px]"
+              rightSlot={<ArrowUpRight className="h-4 w-4 opacity-50" />}
+              onClick={() => navigate("/aluno/historico")}
+            />
 
-        {/* Bloco Configurações */}
-        <section className="space-y-3 pb-4">
-          <HubServiceButton title="Editar perfil" icon={Settings2} onClick={() => navigate("/aluno/perfil/editar")} />
-          <HubServiceButton title="Preferências" icon={Settings2} onClick={() => navigate("/aluno/perfil/preferencias")} />
+
+            <div className="grid grid-cols-2 gap-3 mt-1">
+              <button
+                onClick={() => navigate("/aluno/perfil/editar")}
+                className="flex flex-col items-center justify-center gap-2 rounded-3xl border border-white/5 bg-white/5 p-4 transition-all hover:bg-white/10 active:scale-95"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <User className="h-5 w-5" />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-foreground">Editar Dados</span>
+              </button>
+
+              <button
+                onClick={() => navigate("/aluno/perfil/preferencias")}
+                className="flex flex-col items-center justify-center gap-2 rounded-3xl border border-white/5 bg-white/5 p-4 transition-all hover:bg-white/10 active:scale-95"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/5 text-muted-foreground">
+                  <Settings2 className="h-5 w-5" />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-foreground">Ajustes</span>
+              </button>
+            </div>
+          </div>
         </section>
       </div>
+      <FloatingNavIsland />
     </main>
   );
 };

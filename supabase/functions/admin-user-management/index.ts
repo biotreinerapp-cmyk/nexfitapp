@@ -232,6 +232,74 @@ serve(async (req) => {
     if (action === "delete") {
       console.log("admin-user-management: delete start", { userId });
 
+      // --- 1. Find store-related IDs for this user ---
+      const { data: userStores } = await supabaseAdmin
+        .from("store_users")
+        .select("store_id")
+        .eq("user_id", userId);
+      const storeIds = (userStores ?? []).map((s: any) => s.store_id);
+
+      const { data: mkStores } = await supabaseAdmin
+        .from("marketplace_stores")
+        .select("id")
+        .eq("owner_user_id", userId);
+      const mkStoreIds = (mkStores ?? []).map((s: any) => s.id);
+
+      // Get marketplace order IDs (as buyer) to delete order items
+      const { data: mkOrders } = await supabaseAdmin
+        .from("marketplace_orders")
+        .select("id")
+        .eq("user_id", userId);
+      const mkOrderIds = (mkOrders ?? []).map((o: any) => o.id);
+
+      // Get store order IDs to delete cart items
+      const { data: stOrders } = await supabaseAdmin
+        .from("store_orders")
+        .select("id")
+        .eq("user_id", userId);
+      const stOrderIds = (stOrders ?? []).map((o: any) => o.id);
+
+      // --- 2. Delete dependent rows in correct order ---
+      const preSteps: Array<{ label: string; promise: Promise<{ error: any }> }> = [];
+
+      // Delete marketplace_order_items for buyer orders
+      if (mkOrderIds.length) {
+        preSteps.push({ label: "marketplace_order_items(buyer)", promise: supabaseAdmin.from("marketplace_order_items").delete().in("order_id", mkOrderIds) as any });
+      }
+
+      // Delete marketplace_order_items & orders for store products
+      if (mkStoreIds.length) {
+        // Get orders placed TO this store
+        const { data: storeOrders } = await supabaseAdmin
+          .from("marketplace_orders")
+          .select("id")
+          .in("store_id", mkStoreIds);
+        const storeOrderIds = (storeOrders ?? []).map((o: any) => o.id);
+        if (storeOrderIds.length) {
+          preSteps.push({ label: "marketplace_order_items(store)", promise: supabaseAdmin.from("marketplace_order_items").delete().in("order_id", storeOrderIds) as any });
+          preSteps.push({ label: "marketplace_orders(store)", promise: supabaseAdmin.from("marketplace_orders").delete().in("store_id", mkStoreIds) as any });
+        }
+        preSteps.push({ label: "marketplace_products", promise: supabaseAdmin.from("marketplace_products").delete().in("store_id", mkStoreIds) as any });
+        preSteps.push({ label: "pix_configs(mk)", promise: supabaseAdmin.from("pix_configs").delete().in("marketplace_store_id", mkStoreIds) as any });
+      }
+
+      // Delete store_cart_items before store_orders
+      if (stOrderIds.length) {
+        preSteps.push({ label: "store_cart_items", promise: supabaseAdmin.from("store_cart_items").delete().in("order_id", stOrderIds) as any });
+      }
+
+      // Delete pix_configs for stores
+      if (storeIds.length) {
+        preSteps.push({ label: "pix_configs(store)", promise: supabaseAdmin.from("pix_configs").delete().in("store_id", storeIds) as any });
+        // Delete store_products before stores
+        preSteps.push({ label: "store_products", promise: supabaseAdmin.from("store_products").delete().in("store_id", storeIds) as any });
+      }
+
+      if (preSteps.length) {
+        await Promise.allSettled(preSteps.map((s) => s.promise));
+      }
+
+      // --- 3. Main cleanup (original + new tables) ---
       const deleteSteps: Array<{ label: string; promise: Promise<{ error: any }> }> = [
         { label: "user_roles", promise: supabaseAdmin.from("user_roles").delete().eq("user_id", userId) as any },
         { label: "agenda_treinos", promise: supabaseAdmin.from("agenda_treinos").delete().eq("aluno_id", userId) as any },
@@ -246,7 +314,13 @@ serve(async (req) => {
         { label: "running_club_activities", promise: supabaseAdmin.from("running_club_activities").delete().eq("user_id", userId) as any },
         { label: "running_club_challenge_progress", promise: supabaseAdmin.from("running_club_challenge_progress").delete().eq("user_id", userId) as any },
         { label: "store_orders", promise: supabaseAdmin.from("store_orders").delete().eq("user_id", userId) as any },
+        { label: "marketplace_orders(buyer)", promise: supabaseAdmin.from("marketplace_orders").delete().eq("user_id", userId) as any },
+        { label: "marketplace_coupons", promise: supabaseAdmin.from("marketplace_coupons").delete().eq("user_id", userId) as any },
         { label: "pagamentos", promise: supabaseAdmin.from("pagamentos").delete().eq("user_id", userId) as any },
+        { label: "user_notifications", promise: supabaseAdmin.from("user_notifications").delete().eq("user_id", userId) as any },
+        { label: "manual_routines", promise: supabaseAdmin.from("manual_routines").delete().eq("user_id", userId) as any },
+        { label: "store_users", promise: supabaseAdmin.from("store_users").delete().eq("user_id", userId) as any },
+        { label: "marketplace_stores", promise: supabaseAdmin.from("marketplace_stores").delete().eq("owner_user_id", userId) as any },
       ];
 
       const stepResults = await Promise.allSettled(deleteSteps.map((s) => s.promise));
@@ -263,6 +337,14 @@ serve(async (req) => {
           stepErrors.push({ label, message: err?.message ?? JSON.stringify(err) });
         }
       });
+
+      // --- 4. Clean up stores owned by this user ---
+      if (storeIds.length) {
+        // Clear profile FK first
+        await supabaseAdmin.from("profiles").update({ store_id: null }).eq("id", userId);
+        const { error: storesErr } = await supabaseAdmin.from("stores").delete().in("id", storeIds) as any;
+        if (storesErr) stepErrors.push({ label: "stores", message: storesErr.message });
+      }
 
       const { error: profileError } = await supabaseAdmin.from("profiles").delete().eq("id", userId);
       if (profileError) {

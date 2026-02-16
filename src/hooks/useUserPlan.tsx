@@ -41,6 +41,11 @@ export const useUserPlan = () => {
   const hasNutritionAccess = isMaster || effectivePlan !== "FREE";
   const hasTelemedAccess = isMaster || effectivePlan === "ELITE";
 
+  const isFree = effectivePlan === "FREE";
+  const isAdvance = effectivePlan === "ADVANCE";
+  const isElite = effectivePlan === "ELITE";
+  const canAccessPremiumFeatures = isMaster || isAdvance || isElite;
+
   return {
     plan: effectivePlan,
     loading,
@@ -48,5 +53,9 @@ export const useUserPlan = () => {
     hasNutritionAccess,
     hasTelemedAccess,
     isMaster,
+    isFree,
+    isAdvance,
+    isElite,
+    canAccessPremiumFeatures,
   };
 };

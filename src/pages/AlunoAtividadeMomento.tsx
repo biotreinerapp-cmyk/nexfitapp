@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowLeft,
+  CircleDot,
   Dumbbell,
   Footprints,
   Bike,
@@ -12,8 +12,12 @@ import {
   Flame,
   Wind,
   Mountain,
-  CircleDot,
+  Lock,
+  ChevronRight,
+  Activity
 } from "lucide-react";
+import { BackIconButton } from "@/components/navigation/BackIconButton";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +26,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useActivityContext } from "@/hooks/useActivityContext";
 import { cacheActivityList, getCachedActivityList } from "@/lib/offlineQueue";
+import { getActivityTypeById, ACTIVITY_TYPES, ActivityType } from "@/lib/activityTypes";
+import { FloatingNavIsland } from "@/components/navigation/FloatingNavIsland";
+import { useUserPlan } from "@/hooks/useUserPlan";
 
 interface Atividade {
   id: string;
@@ -32,8 +39,6 @@ interface Atividade {
   intensidade: "Baixa" | "Moderada" | "Alta" | "Muito Alta";
   cor: string;
 }
-
-import { ACTIVITY_TYPES, ActivityType, getActivityTypeById } from "@/lib/activityTypes";
 
 const DEFAULT_ATIVIDADES: Atividade[] = [
   {
@@ -141,6 +146,7 @@ const AlunoAtividadeMomentoPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { plan } = useUserPlan();
   const { setCurrentActivity } = useActivityContext();
   const [startingActivityId, setStartingActivityId] = useState<string | null>(null);
   const [activityCards, setActivityCards] = useState<Atividade[]>(DEFAULT_ATIVIDADES);
@@ -265,90 +271,93 @@ const AlunoAtividadeMomentoPage = () => {
   };
 
   return (
-    <main className="min-h-screen bg-background pb-20">
-      {/* Header fixo */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-sm border-b border-border/40 px-4 py-3 shadow-md">
+    <main className="safe-bottom-main flex min-h-screen flex-col bg-background px-4 pb-24 pt-6">
+      <header className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate("/aluno/dashboard")}
-            className="h-9 w-9"
-            aria-label="Voltar"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+          <BackIconButton to="/aluno/dashboard" />
           <div>
-            <h1 className="page-title-gradient text-lg font-semibold">Escolher Atividade</h1>
-            <p className="text-xs text-muted-foreground">Selecione sua atividade do momento</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Explorar Atividades</p>
+            <h1 className="page-title-gradient text-2xl font-black tracking-tight uppercase leading-none">Qual seu foco agora?</h1>
           </div>
+        </div>
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/5 bg-white/5 text-primary">
+          <Activity className="h-5 w-5" />
         </div>
       </header>
 
-      {/* Conteúdo principal */}
-      <div className="pt-20 px-4 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {activityCards.map((atividade) => {
+      <div className="mt-2 space-y-6">
+        <div className="grid grid-cols-2 gap-3">
+          {activityCards.map((atividade, idx) => {
             const IconeAtividade = atividade.icone;
+            const isFreeAllowed = ["corrida", "musculacao", "ciclismo"].includes(atividade.id);
+            const isDisabled = plan === "FREE" && !isFreeAllowed;
+
             return (
-              <Card
+              <div
                 key={atividade.id}
-                className="relative group cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] border-border/60 bg-card/80 overflow-hidden"
+                className={cn(
+                  "group relative overflow-hidden rounded-[28px] border border-white/5 bg-gradient-to-br from-white/[0.05] to-transparent p-5 backdrop-blur-xl transition-all active:scale-[0.98]",
+                  "animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both",
+                  isDisabled ? "opacity-60 grayscale-[0.8]" : "cursor-pointer"
+                )}
+                style={{ animationDelay: `${idx * 50}ms` }}
                 onClick={() => {
+                  if (isDisabled) {
+                    toast({
+                      title: "Atividade Premium",
+                      description: "Faça upgrade para o plano Advance ou Elite para liberar esta atividade.",
+                    });
+                    return;
+                  }
                   if (startingActivityId === atividade.id) return;
                   iniciarAtividade(atividade);
                 }}
               >
-                <div
-                  className={`absolute inset-0 bg-gradient-to-br ${atividade.cor} opacity-50 group-hover:opacity-70 transition-opacity pointer-events-none`}
-                />
-                <CardContent className="relative z-10 p-4 space-y-3">
+                {/* Background Decorativo */}
+                <div className={`absolute -right-4 -top-4 h-24 w-24 bg-gradient-to-br ${atividade.cor} blur-2xl opacity-20 group-hover:opacity-40 transition-opacity`} />
+
+                <div className="relative z-10 space-y-4">
                   <div className="flex items-start justify-between">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-background/80 shadow-md">
-                      <IconeAtividade className="h-6 w-6 text-primary" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-primary">
+                      <IconeAtividade className="h-5 w-5" />
                     </div>
-                    <Badge variant={getIntensidadeBadgeVariant(atividade.intensidade)} className="text-[10px]">
-                      {atividade.intensidade}
-                    </Badge>
+                    {isDisabled && (
+                      <div className="rounded-full bg-black/40 p-1.5 border border-white/10 backdrop-blur-md">
+                        <Lock className="h-3 w-3 text-muted-foreground" />
+                      </div>
+                    )}
                   </div>
 
-                  <div>
-                    <h3 className="text-base font-semibold text-foreground mb-1">{atividade.nome}</h3>
-                    <p className="text-xs text-muted-foreground mb-2">{atividade.descricao}</p>
-                    <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                      <Flame className="h-3 w-3 text-orange-500" />
-                      {atividade.calorias}
-                    </p>
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-black text-foreground uppercase tracking-tight leading-none">{atividade.nome}</h3>
+                    <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">{atividade.intensidade}</p>
                   </div>
 
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="w-full relative z-20"
-                    loading={startingActivityId === atividade.id}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (startingActivityId === atividade.id) return;
-                      iniciarAtividade(atividade);
-                    }}
-                  >
-                    Iniciar
-                  </Button>
-                </CardContent>
-              </Card>
+                  <div className="flex items-center gap-1.5 pt-1">
+                    <Flame className="h-3 w-3 text-primary" />
+                    <span className="text-[10px] font-black text-primary uppercase tracking-widest">
+                      {atividade.calorias.split(' ')[0]}
+                    </span>
+                  </div>
+                </div>
+
+                {startingActivityId === atividade.id && (
+                  <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
 
-        <Card className="border border-accent/40 bg-card/80 mt-6">
-          <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground">
-              💡 <strong>Dica:</strong> Escolha a atividade que mais combina com seu objetivo e nível de energia atual.
-              Você pode alternar entre diferentes atividades ao longo da semana para resultados melhores.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="rounded-[32px] border border-white/5 bg-white/[0.02] p-6 text-center backdrop-blur-md">
+          <p className="text-[11px] font-medium leading-relaxed text-muted-foreground/80">
+            <span className="font-black text-primary uppercase tracking-widest">Dica:</span> Escolha a atividade que mais combina com seu objetivo. Rotacionar treinos acelera resultados.
+          </p>
+        </div>
       </div>
+      <FloatingNavIsland />
     </main>
   );
 };

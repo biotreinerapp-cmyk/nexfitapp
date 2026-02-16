@@ -15,6 +15,8 @@ import {
   Users,
   HeartPulse,
   Rocket,
+  MessageSquare,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -140,7 +142,7 @@ const AlunoDashboardPage = () => {
   const [sessoesSemana, setSessoesSemana] = useState<SessaoSemana[]>([]);
   const [consultas, setConsultas] = useState<any[]>([]);
 
-  const [isPlanosOpen, setIsPlanosOpen] = useState(false);
+
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [hasSentInsightNotification, setHasSentInsightNotification] = useState(false);
 
@@ -719,11 +721,11 @@ const AlunoDashboardPage = () => {
   const handleMarketplaceClick = () => {
     if (planLoading) return;
     if (plan === "FREE" && !isMaster) {
-      setIsPlanosOpen(true);
       toast({
         title: "Upgrade necessário",
         description: `Faça o upgrade para ${PLAN_LABEL.ADVANCE} para liberar o Marketplace.`,
       });
+      navigate("/aluno/planos");
       return;
     }
     navigate("/marketplace");
@@ -755,125 +757,41 @@ const AlunoDashboardPage = () => {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <Dialog open={isPlanosOpen} onOpenChange={setIsPlanosOpen}>
-              <DialogContent className="max-w-lg border border-accent/40 bg-card/95">
-                <DialogHeader>
-                  <DialogTitle className="text-lg">Planos Nexfit</DialogTitle>
-                  <DialogDescription className="text-xs text-muted-foreground">
-                    Compare os planos e faça o upgrade para desbloquear Nutricionista Virtual e Telemedicina.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-3 text-xs md:grid-cols-3">
-                  <Card className="border border-border/60 bg-background/60">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">{PLAN_LABEL.FREE}</CardTitle>
-                      <CardDescription className="text-[11px]">
-                        Acesso ao app e Hub de Serviços limitado.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="text-[11px] text-muted-foreground">
-                      <ul className="space-y-1">
-                        <li>• Dashboard de treino</li>
-                        <li>• Registro de atividades</li>
-                        <li>• Frequência semanal</li>
-                      </ul>
-                    </CardContent>
-                  </Card>
-                  <Card className="border border-primary/70 bg-background/80">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm text-primary">{PLAN_LABEL.ADVANCE}</CardTitle>
-                      <CardDescription className="text-[11px]">
-                        Desbloqueie assistência nutricional digital.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="text-[11px] text-muted-foreground">
-                      <ul className="space-y-1">
-                        <li>• Tudo do Básico</li>
-                        <li>• Nutricionista Virtual liberado</li>
-                        <li>• Insights avançados</li>
-                      </ul>
-                    </CardContent>
-                  </Card>
-                  <Card className="border border-accent/80 bg-background/80">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm text-accent">{PLAN_LABEL.ELITE}</CardTitle>
-                      <CardDescription className="text-[11px]">
-                        Telemedicina + suporte completo.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="text-[11px] text-muted-foreground">
-                      <ul className="space-y-1">
-                        <li>• Tudo do Premium</li>
-                        <li>• Telemedicina liberada</li>
-                        <li>• Prioridade em suporte</li>
-                      </ul>
-                    </CardContent>
-                  </Card>
-                </div>
-                <DialogFooter className="mt-2 flex flex-col items-stretch gap-2">
-                  <Button
-                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-                    onClick={() =>
-                      toast({
-                        title: "Upgrade de plano",
-                        description: "Fluxo de upgrade ainda será configurado.",
-                      })
-                    }
-                  >
-                    Quero fazer upgrade
-                  </Button>
-                  <p className="text-[10px] text-center text-muted-foreground">
-                    Essa tela é apenas ilustrativa. Em breve você poderá concluir o upgrade aqui pelo app.
-                  </p>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
             <Dialog open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
               <DialogTrigger asChild>
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="relative h-8 w-8"
+                  className="relative h-10 w-10 text-muted-foreground hover:bg-white/5 hover:text-white"
                   aria-label="Central de notificações"
                 >
-                  <Bell className="h-4 w-4" />
+                  <Bell className="h-5 w-5" />
                   {unreadCount > 0 && (
-                    <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+                    <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white shadow-sm ring-2 ring-black">
                       {unreadCount > 99 ? "99+" : unreadCount}
                     </span>
                   )}
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md border border-accent/40 bg-card/95">
-                <DialogHeader>
-                  <DialogTitle className="text-sm">Central de notificações</DialogTitle>
-                  <DialogDescription className="text-[11px] text-muted-foreground">
+              <DialogContent className="max-w-md border border-white/10 bg-black/90 backdrop-blur-2xl text-foreground sm:rounded-3xl">
+                <DialogHeader className="pb-4 border-b border-white/5">
+                  <DialogTitle className="text-lg font-black uppercase tracking-tight text-white flex items-center gap-2">
+                    <Bell className="h-5 w-5 text-primary" />
+                    Central de Notificações
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-muted-foreground">
                     Acompanhe avisos do sistema e atualizações de pagamentos.
                   </DialogDescription>
                 </DialogHeader>
-                <div className="space-y-2 text-xs">
-                  <Card className="border border-primary/60 bg-card/90">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-xs">Insight da IA Nexfit</CardTitle>
-                      <CardDescription className="text-[11px] text-muted-foreground">
-                        Gerado a partir do seu histórico recente de atividades.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="rounded-lg border border-primary/60 bg-gradient-to-r from-primary/10 via-background to-accent/20 p-3">
-                        {insightMensagem}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <div className="rounded-lg border border-border/60 bg-background/40">
-                    <div className="flex items-center justify-between border-b border-border/60 px-3 py-2">
-                      <p className="text-[11px] font-medium text-foreground">Notificações</p>
+                <div className="space-y-4 py-2">
+                  <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+                    <div className="flex items-center justify-between border-b border-white/10 bg-white/5 px-4 py-3">
+                      <p className="text-xs font-bold uppercase tracking-wider text-white">Últimas Mensagens</p>
                       <Button
                         type="button"
                         size="sm"
                         variant="ghost"
-                        className="h-7 px-2 text-[11px]"
+                        className="h-6 px-2 text-[10px] text-muted-foreground hover:text-white hover:bg-white/10"
                         disabled={unreadCount === 0 || markAllAsRead.isPending}
                         onClick={() => markAllAsRead.mutate()}
                       >
@@ -881,11 +799,17 @@ const AlunoDashboardPage = () => {
                       </Button>
                     </div>
 
-                    <div className="max-h-[280px] overflow-auto p-2">
+                    <div className="max-h-[300px] overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                       {notificationsLoading ? (
-                        <p className="px-2 py-3 text-[11px] text-muted-foreground">Carregando...</p>
+                        <div className="flex flex-col items-center justify-center py-8 gap-2">
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                          <p className="text-[10px] text-muted-foreground">Carregando...</p>
+                        </div>
                       ) : notifications.length === 0 ? (
-                        <p className="px-2 py-3 text-[11px] text-muted-foreground">Nenhuma notificação ainda.</p>
+                        <div className="flex flex-col items-center justify-center py-8 gap-2 opacity-50">
+                          <Bell className="h-6 w-6 text-muted-foreground" />
+                          <p className="text-[11px] text-muted-foreground">Nenhuma notificação ainda.</p>
+                        </div>
                       ) : (
                         <ul className="space-y-2">
                           {notifications.map((n) => {
@@ -893,39 +817,41 @@ const AlunoDashboardPage = () => {
                             return (
                               <li
                                 key={n.id}
-                                className={`rounded-md border border-border/60 p-2 ${unread ? "bg-muted/30" : "bg-background/40"}`}
+                                className={`rounded-xl border p-3 transition-colors ${unread ? "border-primary/20 bg-primary/5" : "border-white/5 bg-transparent hover:bg-white/5"}`}
                               >
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="min-w-0">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2">
-                                      {unread && <span className="h-2 w-2 rounded-full bg-destructive" aria-hidden />}
-                                      <p className="truncate text-[11px] font-semibold text-foreground">{n.title}</p>
+                                      {unread && <span className="flex h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />}
+                                      <p className={`truncate text-xs ${unread ? 'font-bold text-white' : 'font-medium text-muted-foreground'}`}>{n.title}</p>
                                     </div>
-                                    {n.body && <p className="mt-0.5 text-[11px] text-muted-foreground">{n.body}</p>}
-                                    <p className="mt-1 text-[10px] text-muted-foreground">
-                                      {new Date(n.created_at).toLocaleString("pt-BR")}
+                                    {n.body && <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground line-clamp-2">{n.body}</p>}
+                                    <p className="mt-2 text-[10px] font-medium text-white/20">
+                                      {new Date(n.created_at).toLocaleString("pt-BR", { dateStyle: 'short', timeStyle: 'short' })}
                                     </p>
                                   </div>
 
-                                  <div className="flex flex-col items-end gap-1">
+                                  <div className="flex shrink-0 flex-col gap-1">
                                     {unread && (
                                       <Button
                                         type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-7 px-2 text-[11px]"
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-6 w-6 text-primary hover:bg-primary/20 hover:text-primary rounded-full"
                                         disabled={markAsRead.isPending}
                                         onClick={() => markAsRead.mutate(n.id)}
+                                        title="Marcar como lida"
                                       >
-                                        Marcar lida
+                                        <div className="h-1.5 w-1.5 rounded-full bg-current" />
+                                        <span className="sr-only">Marcar</span>
                                       </Button>
                                     )}
                                     {n.type === "payment" && (
                                       <Button
                                         type="button"
                                         size="sm"
-                                        variant="ghost"
-                                        className="h-7 px-2 text-[11px]"
+                                        variant="outline"
+                                        className="h-6 text-[10px] border-white/10 bg-transparent hover:bg-white/5"
                                         onClick={() => navigate("/aluno/perfil/plano")}
                                       >
                                         Ver plano
@@ -976,26 +902,32 @@ const AlunoDashboardPage = () => {
         />
 
         <Dialog open={showSharePrompt} onOpenChange={setShowSharePrompt}>
-          <DialogContent className="max-w-sm border border-border/60 bg-card/95">
+          <DialogContent className="max-w-sm border border-white/10 bg-black/90 backdrop-blur-2xl text-foreground sm:rounded-3xl">
             <DialogHeader>
-              <DialogTitle className="text-sm">Parabéns por concluir mais uma atividade!</DialogTitle>
-              <DialogDescription className="text-[11px]">
-                Gostaria de compartilhar com seus amigos?
+              <DialogTitle className="text-lg font-black uppercase tracking-tight text-white">
+                Parabéns! <span className="text-primary">Atividade Concluída</span>
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                Compartilhe sua conquista com a comunidade do Running Club.
               </DialogDescription>
             </DialogHeader>
 
             {userClubs.length > 0 ? (
-              <div className="space-y-2 py-2">
-                <p className="text-[11px] text-muted-foreground">
-                  Escolha em qual clube deseja publicar esta atividade.
+              <div className="space-y-3 py-4">
+                <p className="text-xs font-medium text-white/80">
+                  Escolha o clube para publicar:
                 </p>
                 <Select value={selectedClubId} onValueChange={setSelectedClubId}>
-                  <SelectTrigger className="h-9 text-xs">
-                    <SelectValue placeholder="Selecione um clube" />
+                  <SelectTrigger className="h-12 w-full rounded-xl border-white/10 bg-white/5 text-sm text-white focus:ring-primary/50">
+                    <SelectValue placeholder="Selecione um clube..." />
                   </SelectTrigger>
-                  <SelectContent className="text-xs">
+                  <SelectContent className="border-white/10 bg-black/95 text-white backdrop-blur-xl">
                     {userClubs.map((club) => (
-                      <SelectItem key={club.id} value={club.id}>
+                      <SelectItem
+                        key={club.id}
+                        value={club.id}
+                        className="focus:bg-primary/20 focus:text-primary"
+                      >
                         {club.name}
                       </SelectItem>
                     ))}
@@ -1003,16 +935,21 @@ const AlunoDashboardPage = () => {
                 </Select>
               </div>
             ) : (
-              <p className="py-3 text-[11px] text-muted-foreground">
-                Você ainda não participa de nenhum clube de corrida. Acesse o Running Club para entrar em um grupo.
-              </p>
+              <div className="flex flex-col items-center justify-center gap-3 py-6 text-center">
+                <Users className="h-10 w-10 text-muted-foreground/30" />
+                <p className="text-xs text-muted-foreground">
+                  Você ainda não participa de nenhum clube.
+                  <br />
+                  Acesse o <strong>Running Club</strong> para entrar em um grupo.
+                </p>
+              </div>
             )}
 
-            <DialogFooter className="mt-2 flex flex-row justify-end gap-2">
+            <DialogFooter className="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button
                 type="button"
-                variant="outline"
-                size="sm"
+                variant="ghost"
+                className="h-12 rounded-xl text-xs font-bold uppercase tracking-widest text-muted-foreground hover:bg-white/5 hover:text-white"
                 onClick={() => setShowSharePrompt(false)}
               >
                 Agora não
@@ -1020,7 +957,7 @@ const AlunoDashboardPage = () => {
               {userClubs.length > 0 && (
                 <Button
                   type="button"
-                  size="sm"
+                  className="h-12 min-w-[140px] rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 text-xs font-bold uppercase tracking-widest text-white hover:from-orange-600 hover:to-amber-700 disabled:opacity-50"
                   onClick={handleShareToClub}
                   loading={isPublishingShare}
                   disabled={!selectedClubId}
@@ -1035,12 +972,12 @@ const AlunoDashboardPage = () => {
 
       {/* Frequência semanal e atalho */}
       <section className="space-y-3">
-        {/* White border (no purple) + neon green active day */}
-        <Card className="border border-border bg-card/80">
-          <CardHeader className="pb-1">
-            <CardTitle className="text-sm">Frequência semanal</CardTitle>
-          </CardHeader>
-          <CardContent className="flex gap-2 pt-1">
+        <div className="relative overflow-hidden rounded-[24px] border border-white/10 bg-black p-5 shadow-lg">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-black uppercase tracking-wider text-white">Frequência semanal</h2>
+          </div>
+
+          <div className="flex justify-between gap-1">
             {resumoSemanal.map((diaInfo) => {
               const inicial = diaInfo.dia.charAt(0);
               const ativo = diaInfo.minutos > 0;
@@ -1048,25 +985,17 @@ const AlunoDashboardPage = () => {
               return (
                 <div
                   key={diaInfo.dia}
-                  className={`flex h-8 w-8 items-center justify-center rounded-md border text-[11px] transition-colors ${ativo
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border text-muted-foreground"
+                  className={`flex h-10 w-10 items-center justify-center rounded-full text-xs font-bold transition-all duration-300 ${ativo
+                    ? "bg-[#00FF00] text-black shadow-[0_0_15px_rgba(0,255,0,0.4)] scale-110"
+                    : "border border-white/10 bg-white/5 text-zinc-500"
                     }`}
                 >
                   {inicial}
                 </div>
               );
             })}
-          </CardContent>
-        </Card>
-
-        <Button
-          size="lg"
-          className="w-full py-3"
-          onClick={handleIrParaAtividade}
-        >
-          Explorar Atividades
-        </Button>
+          </div>
+        </div>
       </section>
 
       {/* Conteúdo otimizado em acordes */}
@@ -1076,73 +1005,189 @@ const AlunoDashboardPage = () => {
       <DashboardOutdoorBillboard />
 
       {/* Hub de serviços */}
-      <section className="space-y-2 pb-4">
-        <h2 className="text-sm font-medium text-foreground">Hub de serviços Nexfit</h2>
-        <p className="text-[11px] text-muted-foreground">
-          Explore recursos complementares ao seu treino. Alguns serviços exigem upgrade de plano.
-        </p>
+      <section className="space-y-4 pb-10">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-black uppercase tracking-widest text-foreground">
+            Serviços Premium
+          </h2>
+          <div className="h-px flex-1 bg-gradient-to-r from-border/50 to-transparent ml-4" />
+        </div>
 
-        <div className="mt-2 grid gap-3">
-          <HubServiceButton
-            title="Marketplace"
-            icon={ShoppingBag}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Explorar Atividades */}
+          <button
+            onClick={handleIrParaAtividade}
+            className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-primary/20 bg-gradient-to-br from-primary/10 to-primary/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-primary shadow-inner">
+              <Dumbbell className="h-6 w-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-foreground leading-none">Atividades</h3>
+              <p className="text-[10px] text-muted-foreground font-medium opacity-70">Treinos & Frequência</p>
+            </div>
+            <div className="absolute top-4 right-4 opacity-5 transition-opacity group-hover:opacity-10">
+              <Dumbbell className="h-10 w-10 rotate-12" />
+            </div>
+          </button>
+
+          {/* Marketplace */}
+          <button
             onClick={handleMarketplaceClick}
-            rightSlot={
-              plan === "FREE" && !isMaster ? (
-                <Lock className="h-4 w-4 text-current/80" aria-label="Recurso bloqueado para o seu plano" />
-              ) : null
-            }
-          />
+            className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-blue-600/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-blue-400 shadow-inner">
+              <ShoppingBag className="h-6 w-6" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-foreground leading-none">Marketplace</h3>
+                {plan === "FREE" && !isMaster && <Lock className="h-3 w-3 text-muted-foreground/50" />}
+              </div>
+              <p className="text-[10px] text-muted-foreground font-medium opacity-70">Suplementos & Acessórios</p>
+            </div>
+            <div className="absolute top-4 right-4 opacity-5 transition-opacity group-hover:opacity-10">
+              <ShoppingBag className="h-10 w-10 rotate-12" />
+            </div>
+          </button>
 
-          <HubServiceButton
-            title="Nutricionista Virtual"
-            icon={UtensilsCrossed}
+          {/* Nutricionista Virtual */}
+          <button
             onClick={() => {
               if (!hasNutritionAccess && !isMaster) {
-                setIsPlanosOpen(true);
-                toast({
-                  title: "Upgrade necessário",
-                  description: `Nutricionista Virtual é liberado a partir do plano ${PLAN_LABEL.ADVANCE}.`,
-                });
+                navigate("/aluno/planos");
                 return;
               }
               navigate("/aluno/nutricionista");
             }}
-            rightSlot={
-              !hasNutritionAccess && !isMaster ? (
-                <Lock className="h-4 w-4 text-current/80" aria-label="Recurso bloqueado para o seu plano" />
-              ) : null
-            }
-          />
+            className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-emerald-400 shadow-inner">
+              <UtensilsCrossed className="h-6 w-6" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-foreground leading-none">Nutrição</h3>
+                {!hasNutritionAccess && !isMaster && <Lock className="h-3 w-3 text-muted-foreground/50" />}
+              </div>
+              <p className="text-[10px] text-muted-foreground font-medium opacity-70">Plano Alimentar IA</p>
+            </div>
+            <div className="absolute top-4 right-4 opacity-5 transition-opacity group-hover:opacity-10">
+              <UtensilsCrossed className="h-10 w-10 rotate-12" />
+            </div>
+          </button>
 
-          <HubServiceButton
-            title="Telemedicina"
-            icon={Stethoscope}
+          {/* Telemedicina */}
+          <button
             onClick={() => {
               if (!hasTelemedAccess && !isMaster) {
-                setIsPlanosOpen(true);
-                toast({
-                  title: `Exclusivo ${PLAN_LABEL.ELITE}`,
-                  description: `Telemedicina é liberada apenas no plano ${PLAN_LABEL.ELITE}.`,
-                });
+                navigate("/aluno/planos");
                 return;
               }
               navigate("/telemedicina");
             }}
-            rightSlot={
-              !hasTelemedAccess && !isMaster ? (
-                <Lock className="h-4 w-4 text-current/80" aria-label="Recurso bloqueado para o seu plano" />
-              ) : null
-            }
-          />
+            className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-purple-600/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-purple-400 shadow-inner">
+              <Stethoscope className="h-6 w-6" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-foreground leading-none">Telemedicina</h3>
+                {!hasTelemedAccess && !isMaster && <Lock className="h-3 w-3 text-muted-foreground/50" />}
+              </div>
+              <p className="text-[10px] text-muted-foreground font-medium opacity-70">Consultas Online</p>
+            </div>
+            <div className="absolute top-4 right-4 opacity-5 transition-opacity group-hover:opacity-10">
+              <Stethoscope className="h-10 w-10 rotate-12" />
+            </div>
+          </button>
 
-          <HubServiceButton
-            title="Modo Raiz"
-            icon={Skull}
+          {/* Modo Raiz */}
+          <button
             onClick={() => navigate("/aluno/modo-raiz")}
-          />
+            className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-red-500/20 bg-gradient-to-br from-red-500/10 to-red-600/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-red-500 shadow-inner">
+              <Skull className="h-6 w-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-foreground leading-none">Modo Raiz</h3>
+              <p className="text-[10px] text-muted-foreground font-medium opacity-70">Oldschool Training</p>
+            </div>
+            <div className="absolute top-4 right-4 opacity-5 transition-opacity group-hover:opacity-10">
+              <Skull className="h-10 w-10 rotate-12" />
+            </div>
+          </button>
 
-          <HubServiceButton title="Running Club" icon={Users} onClick={() => navigate("/aluno/running-club")} />
+          {/* Running Club */}
+          <button
+            onClick={() => navigate("/aluno/running-club")}
+            className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-orange-500/20 bg-gradient-to-br from-orange-500/10 to-orange-600/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-orange-400 shadow-inner">
+              <Users className="h-6 w-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-foreground leading-none">Running Club</h3>
+              <p className="text-[10px] text-muted-foreground font-medium opacity-70">Comunidade Global</p>
+            </div>
+            <div className="absolute top-4 right-4 opacity-5 transition-opacity group-hover:opacity-10">
+              <Users className="h-10 w-10 rotate-12" />
+            </div>
+          </button>
+
+          {/* Chat (Elite only) */}
+          <button
+            onClick={() => {
+              if (plan !== "ELITE" && !isMaster) {
+                navigate("/aluno/planos");
+                return;
+              }
+              navigate("/aluno/chat");
+            }}
+            className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-cyan-400 shadow-inner">
+              <MessageSquare className="h-6 w-6" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-foreground leading-none">Chat</h3>
+                {plan !== "ELITE" && !isMaster && <Lock className="h-3 w-3 text-muted-foreground/50" />}
+              </div>
+              <p className="text-[10px] text-muted-foreground font-medium opacity-70">Atendimento Direto</p>
+            </div>
+            <div className="absolute top-4 right-4 opacity-5 transition-opacity group-hover:opacity-10">
+              <MessageSquare className="h-10 w-10 rotate-12" />
+            </div>
+          </button>
+
+          {/* Agenda (Elite only) */}
+          <button
+            onClick={() => {
+              if (plan !== "ELITE" && !isMaster) {
+                navigate("/aluno/planos");
+                return;
+              }
+              navigate("/aluno/consultas");
+            }}
+            className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-pink-500/20 bg-gradient-to-br from-pink-500/10 to-pink-600/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-pink-400 shadow-inner">
+              <Calendar className="h-6 w-6" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-foreground leading-none">Agenda</h3>
+                {plan !== "ELITE" && !isMaster && <Lock className="h-3 w-3 text-muted-foreground/50" />}
+              </div>
+              <p className="text-[10px] text-muted-foreground font-medium opacity-70">Minhas Consultas</p>
+            </div>
+            <div className="absolute top-4 right-4 opacity-5 transition-opacity group-hover:opacity-10">
+              <Calendar className="h-10 w-10 rotate-12" />
+            </div>
+          </button>
         </div>
       </section>
 

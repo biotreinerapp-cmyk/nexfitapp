@@ -11,12 +11,29 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import OnboardingLoadingScreen from "@/components/onboarding/OnboardingLoadingScreen";
+import {
+  User,
+  Smartphone,
+  Ruler,
+  Weight,
+  Target,
+  Flame,
+  Zap,
+  Brain,
+  ChevronRight,
+  ChevronLeft,
+  Calendar,
+  Dumbbell
+} from "lucide-react";
+import { BackIconButton } from "@/components/navigation/BackIconButton";
+import { cn } from "@/lib/utils";
 
 const onboardingSchema = z.object({
   nome: z.string().min(2, "Informe pelo menos 2 caracteres"),
   genero: z.enum(["masculino", "feminino", "outro"], {
     errorMap: () => ({ message: "Selecione um gênero" }),
   }),
+  whatsapp: z.string().min(10, "Informe um WhatsApp válido (com DDD)"),
   altura_cm: z
     .string()
     .refine((val) => !Number.isNaN(parseFloat(val)) && parseFloat(val) > 0, "Informe uma altura válida"),
@@ -111,6 +128,7 @@ const AlunoOnboardingPage = () => {
     defaultValues: {
       nome: "",
       genero: undefined,
+      whatsapp: "",
       altura_cm: "",
       peso_kg: "",
       objetivo: "",
@@ -162,6 +180,7 @@ const AlunoOnboardingPage = () => {
         currentStep,
         nome: watch("nome"),
         genero: watch("genero"),
+        whatsapp: watch("whatsapp"),
         altura_cm: watch("altura_cm"),
         peso_kg: watch("peso_kg"),
         objetivo: watch("objetivo"),
@@ -233,6 +252,7 @@ const AlunoOnboardingPage = () => {
         display_name: values.nome,
         nome: values.nome,
         genero: values.genero,
+        whatsapp: values.whatsapp,
         altura_cm: altura,
         peso_kg: peso,
         objetivo: values.objetivo,
@@ -386,161 +406,189 @@ const AlunoOnboardingPage = () => {
     switch (currentStep) {
       case 0:
         return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="nome">Como podemos te chamar?</Label>
-              <Input id="nome" placeholder="Seu nome" {...register("nome")} />
-              {errors.nome && <p className="text-xs text-destructive">{errors.nome.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label>Gênero</Label>
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setValue("genero", "masculino", { shouldValidate: true })}
-                  className={`rounded-full border px-3 py-2 transition-colors ${
-                    selectedGenero === "masculino"
-                      ? "border-primary text-primary"
-                      : "border-border bg-background/60 hover:border-primary"
-                  }`}
-                >
-                  Masculino
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setValue("genero", "feminino", { shouldValidate: true })}
-                  className={`rounded-full border px-3 py-2 transition-colors ${
-                    selectedGenero === "feminino"
-                      ? "border-primary text-primary"
-                      : "border-border bg-background/60 hover:border-primary"
-                  }`}
-                >
-                  Feminino
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setValue("genero", "outro", { shouldValidate: true })}
-                  className={`rounded-full border px-3 py-2 transition-colors ${
-                    selectedGenero === "outro"
-                      ? "border-primary text-primary"
-                      : "border-border bg-background/60 hover:border-primary"
-                  }`}
-                >
-                  Outro
-                </button>
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="space-y-4">
+              <div className="relative group">
+                <Label htmlFor="nome" className="text-[10px] font-black uppercase tracking-widest text-primary/60 mb-2 block ml-1">Identificação</Label>
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
+                  <Input
+                    id="nome"
+                    placeholder="Como podemos te chamar?"
+                    className="h-14 pl-12 rounded-2xl border-white/10 bg-white/5 focus:bg-white/10 transition-all font-medium"
+                    {...register("nome")}
+                  />
+                </div>
+                {errors.nome && <p className="mt-1.5 text-[10px] font-bold text-destructive flex items-center gap-1 uppercase tracking-tight ml-1">{errors.nome.message}</p>}
               </div>
-              <div className="hidden">
-                <input id="genero_masculino" type="radio" value="masculino" {...register("genero")} />
-                <input id="genero_feminino" type="radio" value="feminino" {...register("genero")} />
-                <input id="genero_outro" type="radio" value="outro" {...register("genero")} />
+
+              <div className="space-y-3">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-primary/60 ml-1">Gênero</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setValue("genero", "masculino", { shouldValidate: true })}
+                    className={cn(
+                      "group relative flex flex-col items-center gap-2 rounded-2xl border p-4 transition-all duration-300",
+                      selectedGenero === "masculino"
+                        ? "border-primary bg-primary/10 shadow-[0_0_20px_rgba(var(--primary-rgb),0.2)]"
+                        : "border-white/5 bg-white/5 hover:bg-white/10"
+                    )}
+                  >
+                    <User className={cn("h-6 w-6 transition-transform group-active:scale-90", selectedGenero === "masculino" ? "text-primary" : "text-muted-foreground")} />
+                    <span className={cn("text-xs font-black uppercase tracking-widest", selectedGenero === "masculino" ? "text-primary" : "text-muted-foreground")}>Masculino</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setValue("genero", "feminino", { shouldValidate: true })}
+                    className={cn(
+                      "group relative flex flex-col items-center gap-2 rounded-2xl border p-4 transition-all duration-300",
+                      selectedGenero === "feminino"
+                        ? "border-primary bg-primary/10 shadow-[0_0_20px_rgba(var(--primary-rgb),0.2)]"
+                        : "border-white/5 bg-white/5 hover:bg-white/10"
+                    )}
+                  >
+                    <User className={cn("h-6 w-6 transition-transform group-active:scale-90", selectedGenero === "feminino" ? "text-primary" : "text-muted-foreground")} />
+                    <span className={cn("text-xs font-black uppercase tracking-widest", selectedGenero === "feminino" ? "text-primary" : "text-muted-foreground")}>Feminino</span>
+                  </button>
+                </div>
+                {errors.genero && <p className="text-[10px] font-bold text-destructive uppercase tracking-tight ml-1">{errors.genero.message}</p>}
               </div>
-              {errors.genero && <p className="text-xs text-destructive">{errors.genero.message}</p>}
+
+              <div className="space-y-2">
+                <Label htmlFor="whatsapp" className="text-[10px] font-black uppercase tracking-widest text-primary/60 ml-1 block mb-2">Contato</Label>
+                <div className="relative">
+                  <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
+                  <Input
+                    id="whatsapp"
+                    placeholder="WhatsApp (ex: 11999999999)"
+                    className="h-14 pl-12 rounded-2xl border-white/10 bg-white/5 focus:bg-white/10 transition-all font-medium"
+                    {...register("whatsapp")}
+                  />
+                </div>
+                {errors.whatsapp && <p className="text-[10px] font-bold text-destructive uppercase tracking-tight ml-1">{errors.whatsapp.message}</p>}
+              </div>
             </div>
           </div>
         );
       case 1:
         return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="altura_cm">Altura (cm)</Label>
-              <Input id="altura_cm" type="number" inputMode="decimal" placeholder="Ex: 175" {...register("altura_cm")} />
-              {errors.altura_cm && <p className="text-xs text-destructive">{errors.altura_cm.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="peso_kg">Peso atual (kg)</Label>
-              <Input id="peso_kg" type="number" inputMode="decimal" placeholder="Ex: 72" {...register("peso_kg")} />
-              {errors.peso_kg && <p className="text-xs text-destructive">{errors.peso_kg.message}</p>}
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="grid gap-4">
+              <div className="relative group">
+                <Label htmlFor="altura_cm" className="text-[10px] font-black uppercase tracking-widest text-primary/60 mb-2 block ml-1">Altura</Label>
+                <div className="relative">
+                  <Ruler className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
+                  <Input
+                    id="altura_cm"
+                    type="number"
+                    inputMode="decimal"
+                    placeholder="Altura em cm (ex: 175)"
+                    className="h-14 pl-12 rounded-2xl border-white/10 bg-white/5 focus:bg-white/10 transition-all font-medium"
+                    {...register("altura_cm")}
+                  />
+                </div>
+                {errors.altura_cm && <p className="mt-1.5 text-[10px] font-bold text-destructive uppercase tracking-tight ml-1">{errors.altura_cm.message}</p>}
+              </div>
+
+              <div className="relative group">
+                <Label htmlFor="peso_kg" className="text-[10px] font-black uppercase tracking-widest text-primary/60 mb-2 block ml-1">Peso Atual</Label>
+                <div className="relative">
+                  <Weight className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
+                  <Input
+                    id="peso_kg"
+                    type="number"
+                    inputMode="decimal"
+                    placeholder="Peso em kg (ex: 72)"
+                    className="h-14 pl-12 rounded-2xl border-white/10 bg-white/5 focus:bg-white/10 transition-all font-medium"
+                    {...register("peso_kg")}
+                  />
+                </div>
+                {errors.peso_kg && <p className="mt-1.5 text-[10px] font-bold text-destructive uppercase tracking-tight ml-1">{errors.peso_kg.message}</p>}
+              </div>
             </div>
           </div>
         );
       case 2:
         return (
-          <div className="space-y-3">
-            <Label>Qual é o foco principal agora?</Label>
-            <div className="grid gap-2 text-xs">
+          <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-primary/60 ml-1 block mb-4">Qual seu objetivo principal?</Label>
+            <div className="grid gap-3">
               {[
-                "Emagrecimento",
-                "Ganho de massa muscular",
-                "Resistência e condicionamento",
-                "Saúde geral e bem-estar",
-              ].map((label) => (
+                { label: "Emagrecimento", icon: Flame, color: "text-orange-500" },
+                { label: "Ganho de massa muscular", icon: Target, color: "text-red-500" },
+                { label: "Resistência e condicionamento", icon: Zap, color: "text-yellow-500" },
+                { label: "Saúde geral e bem-estar", icon: Brain, color: "text-indigo-400" },
+              ].map((opt) => (
                 <button
-                  key={label}
+                  key={opt.label}
                   type="button"
-                  onClick={() => setValue("objetivo", label, { shouldValidate: true })}
-                  className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors ${
-                    selectedObjetivo === label
-                      ? "border-primary text-primary"
-                      : "border-border bg-background/60 hover:border-primary"
-                  }`}
+                  onClick={() => setValue("objetivo", opt.label, { shouldValidate: true })}
+                  className={cn(
+                    "group relative flex items-center justify-between rounded-3xl border p-5 transition-all duration-300",
+                    selectedObjetivo === opt.label
+                      ? "border-primary bg-primary/10 shadow-lg"
+                      : "border-white/5 bg-white/5 hover:border-white/20"
+                  )}
                 >
-                  <span>{label}</span>
+                  <div className="flex items-center gap-4">
+                    <div className={cn("flex h-10 w-10 items-center justify-center rounded-2xl bg-white/5", opt.color)}>
+                      <opt.icon className="h-5 w-5" />
+                    </div>
+                    <span className={cn("text-sm font-bold", selectedObjetivo === opt.label ? "text-foreground" : "text-muted-foreground")}>{opt.label}</span>
+                  </div>
+                  {selectedObjetivo === opt.label && <div className="h-2 w-2 rounded-full bg-primary" />}
                 </button>
               ))}
             </div>
-            <input id="objetivo" type="hidden" {...register("objetivo")} />
-            {errors.objetivo && <p className="text-xs text-destructive">{errors.objetivo.message}</p>}
+            {errors.objetivo && <p className="text-[10px] font-bold text-destructive uppercase tracking-tight ml-1">{errors.objetivo.message}</p>}
           </div>
         );
       case 3:
         return (
-          <div className="space-y-3">
-            <Label>Qual seu nível atual em treinos?</Label>
-            <div className="grid gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => setValue("nivel", "iniciante", { shouldValidate: true })}
-                className={`rounded-xl border px-4 py-3 text-left transition-colors ${
-                  selectedNivel === "iniciante"
-                    ? "border-primary text-primary"
-                    : "border-border bg-background/60 hover:border-primary"
-                }`}
-              >
-                Iniciante
-                <p className="mt-1 text-[10px] text-muted-foreground">Treinando há menos de 6 meses ou de forma irregular.</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => setValue("nivel", "intermediario", { shouldValidate: true })}
-                className={`rounded-xl border px-4 py-3 text-left transition-colors ${
-                  selectedNivel === "intermediario"
-                    ? "border-primary text-primary"
-                    : "border-border bg-background/60 hover:border-primary"
-                }`}
-              >
-                Intermediário
-                <p className="mt-1 text-[10px] text-muted-foreground">Treina de forma consistente há 6-24 meses.</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => setValue("nivel", "avancado", { shouldValidate: true })}
-                className={`rounded-xl border px-4 py-3 text-left transition-colors ${
-                  selectedNivel === "avancado"
-                    ? "border-primary text-primary"
-                    : "border-border bg-background/60 hover:border-primary"
-                }`}
-              >
-                Avançado
-                <p className="mt-1 text-[10px] text-muted-foreground">Treino intenso e estruturado há mais de 2 anos.</p>
-              </button>
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-primary/60 ml-1 block mb-4">Qual seu nível atual?</Label>
+            <div className="grid gap-3 text-xs">
+              {[
+                { id: "iniciante", label: "Iniciante", desc: "Menos de 6 meses ou irregular.", level: 1 },
+                { id: "intermediario", label: "Intermediário", desc: "Consistente há 6-24 meses.", level: 2 },
+                { id: "avancado", label: "Avançado", desc: "Treino intenso há mais de 2 anos.", level: 3 },
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setValue("nivel", opt.id as any, { shouldValidate: true })}
+                  className={cn(
+                    "group relative flex flex-col rounded-3xl border p-5 transition-all duration-300",
+                    selectedNivel === opt.id
+                      ? "border-primary bg-primary/10"
+                      : "border-white/5 bg-white/5 hover:border-white/20"
+                  )}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={cn("text-base font-black uppercase tracking-widest", selectedNivel === opt.id ? "text-primary" : "text-foreground")}>{opt.label}</span>
+                    <div className="flex gap-0.5">
+                      {[1, 2, 3].map((s) => (
+                        <div key={s} className={cn("h-1.5 w-4 rounded-full", s <= opt.level ? (selectedNivel === opt.id ? "bg-primary" : "bg-muted-foreground") : "bg-white/5")} />
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground font-medium leading-tight">{opt.desc}</p>
+                </button>
+              ))}
             </div>
-            <div className="hidden">
-              <input id="nivel_iniciante" type="radio" value="iniciante" {...register("nivel")} />
-              <input id="nivel_intermediario" type="radio" value="intermediario" {...register("nivel")} />
-              <input id="nivel_avancado" type="radio" value="avancado" {...register("nivel")} />
-            </div>
-            {errors.nivel && <p className="text-xs text-destructive">{errors.nivel.message}</p>}
+            {errors.nivel && <p className="text-[10px] font-bold text-destructive uppercase tracking-tight ml-1">{errors.nivel.message}</p>}
           </div>
         );
       case 4:
         return (
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <Label>Em quais dias da semana você gostaria de treinar?</Label>
-              <p className="text-xs text-muted-foreground">Selecione de 2 a 6 dias</p>
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="mb-4">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-primary/60 ml-1">Frequência Semanal</Label>
+              <p className="text-xs text-muted-foreground ml-1">Selecione de 2 a 6 dias para seu protocolo.</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="grid grid-cols-2 gap-2">
               {TRAINING_DAYS.map((day) => {
                 const selected = Array.isArray(selectedTrainingDays) && selectedTrainingDays.includes(day);
                 return (
@@ -548,33 +596,31 @@ const AlunoOnboardingPage = () => {
                     key={day}
                     type="button"
                     onClick={() => toggleTrainingDay(day)}
-                    className={`rounded-xl border px-4 py-3 text-left transition-colors ${
+                    className={cn(
+                      "flex items-center justify-between rounded-2xl border p-4 transition-all duration-300",
                       selected
-                        ? "border-primary text-primary"
-                        : "border-border bg-background/60 hover:border-primary"
-                    }`}
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-white/5 bg-white/5 text-muted-foreground hover:bg-white/10"
+                    )}
                   >
-                    {TRAINING_DAYS_LABELS[day] ?? day}
+                    <span className="text-xs font-black uppercase tracking-widest">{TRAINING_DAYS_LABELS[day] ?? day}</span>
+                    {selected && <div className="h-1.5 w-1.5 rounded-full bg-primary" />}
                   </button>
                 );
               })}
             </div>
-
-            <input id="training_days" type="hidden" {...register("training_days")} />
-            {errors.training_days && (
-              <p className="text-xs text-destructive">{errors.training_days.message as any}</p>
-            )}
+            {errors.training_days && <p className="text-[10px] font-bold text-destructive uppercase tracking-tight ml-1">{(errors.training_days as any).message}</p>}
           </div>
         );
       case 5:
         return (
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <Label>Qual grupo muscular você gostaria de priorizar?</Label>
-              <p className="text-xs text-muted-foreground">Escolha o principal grupo muscular que deseja focar</p>
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="mb-4">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-primary/60 ml-1 font-black">Prioridade Muscular</Label>
+              <p className="text-xs text-muted-foreground ml-1">Escolha o principal foco para IA calibrar o volume.</p>
             </div>
 
-            <div className="grid gap-2 text-xs">
+            <div className="grid grid-cols-2 gap-2">
               {FOCUS_GROUPS.map((opt) => {
                 const selected = selectedFocusGroup === opt.value;
                 return (
@@ -582,25 +628,22 @@ const AlunoOnboardingPage = () => {
                     key={opt.value}
                     type="button"
                     onClick={() => setValue("focus_group", opt.value as any, { shouldValidate: true })}
-                    className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors ${
+                    className={cn(
+                      "group relative flex flex-col gap-1 rounded-2xl border p-4 transition-all duration-300",
                       selected
-                        ? "border-primary text-primary"
-                        : "border-border bg-background/60 hover:border-primary"
-                    }`}
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-white/5 bg-white/5 text-muted-foreground hover:bg-white/10"
+                    )}
                   >
-                    <span>{opt.label}</span>
-                    {(opt as any).tag ? (
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
-                        {(opt as any).tag}
-                      </span>
-                    ) : null}
+                    <span className="text-[11px] font-black uppercase tracking-[0.1em]">{opt.label}</span>
+                    {(opt as any).tag && (
+                      <span className="text-[8px] font-black uppercase tracking-wider text-primary/60">{(opt as any).tag}</span>
+                    )}
                   </button>
                 );
               })}
             </div>
-
-            <input id="focus_group" type="hidden" {...register("focus_group")} />
-            {errors.focus_group && <p className="text-xs text-destructive">{errors.focus_group.message}</p>}
+            {errors.focus_group && <p className="text-[10px] font-bold text-destructive uppercase tracking-tight ml-1">{errors.focus_group.message}</p>}
           </div>
         );
       default:
@@ -609,43 +652,56 @@ const AlunoOnboardingPage = () => {
   };
 
   return (
-    <main ref={containerRef as any} className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-sm border border-accent/40 bg-card/80 pb-4 pt-2 backdrop-blur">
-        <CardContent className="space-y-6 pt-4">
-          <header className="space-y-2 text-center">
-            <p className="text-[10px] uppercase tracking-[0.3em] text-accent-foreground/80">Primeiro acesso</p>
-            <h1 className="text-lg font-semibold text-foreground">Personalize seu plano Nexfit</h1>
-            <p className="text-xs text-muted-foreground">
-              Responda poucas perguntas e a IA monta sua rotina ideal de treinos e bem-estar.
+    <main ref={containerRef as any} className="flex min-h-screen items-center justify-center bg-background px-4 py-10 relative overflow-hidden">
+      {/* Background Decorations */}
+      <div className="absolute top-[-10%] right-[-10%] h-64 w-64 rounded-full bg-primary/10 blur-[100px]" />
+      <div className="absolute bottom-[-10%] left-[-10%] h-64 w-64 rounded-full bg-accent/10 blur-[100px]" />
+
+      <Card className="w-full max-w-sm border-white/10 bg-white/[0.03] backdrop-blur-2xl shadow-2xl rounded-[40px] overflow-hidden relative border">
+        <CardContent className="space-y-8 p-8 pt-10">
+          <header className="space-y-3 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-white/5 bg-white/5 text-primary mb-2">
+              <Brain className="h-6 w-6 animate-pulse" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-primary/60">AI Onboarding</p>
+              <h1 className="page-title-gradient text-3xl font-black tracking-tighter uppercase leading-none mt-1">Configuração</h1>
+            </div>
+            <p className="text-xs text-muted-foreground font-medium px-4">
+              A IA Nexfit montará seu protocolo personalizado em instantes.
             </p>
           </header>
 
-
-          <div className="flex h-1 w-full overflow-hidden rounded-full bg-muted">
+          {/* Premium Stepper */}
+          <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-white/5">
             <div
-              className="h-full bg-gradient-to-r from-primary to-accent transition-all"
+              className="h-full bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%] animate-shimmer transition-all duration-700"
               style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
             />
           </div>
 
-          <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
-            {renderStep()}
+          <form onSubmit={(e) => e.preventDefault()} className="space-y-8">
+            <div className="min-h-[320px]">
+              {renderStep()}
+            </div>
 
-            <div className="flex items-center justify-between gap-2 pt-2">
+            <div className="grid grid-cols-2 gap-3">
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
+                className="h-16 rounded-3xl border-white/5 bg-white/5 text-[10px] font-black uppercase tracking-widest hover:bg-white/10"
                 disabled={currentStep === 0}
                 onClick={() => setCurrentStep((prev) => Math.max(prev - 1, 0))}
               >
+                <ChevronLeft className="mr-2 h-4 w-4" />
                 Voltar
               </Button>
+
               {currentStep < steps.length - 1 ? (
                 <Button
                   type="button"
-                  size="sm"
-                  className="ml-auto"
+                  variant="premium"
+                  className="h-16 rounded-3xl text-[10px] font-black uppercase tracking-widest"
                   onClick={() => {
                     if (currentStep === 4) {
                       const days = (watch("training_days") ?? []) as string[];
@@ -662,17 +718,19 @@ const AlunoOnboardingPage = () => {
                   }}
                 >
                   Próximo
+                  <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
               ) : (
                 <Button
                   type="button"
-                  size="sm"
-                  className="ml-auto"
+                  variant="premium"
+                  className="h-16 rounded-3xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20"
                   onClick={() => handleFinalSubmit()}
                   disabled={isSaving}
                   loading={isSaving}
                 >
-                  Concluir e gerar plano
+                  Gerar Plano
+                  <Zap className="ml-2 h-4 w-4" />
                 </Button>
               )}
             </div>

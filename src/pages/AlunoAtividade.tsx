@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { Play, Pause, Timer, Activity, Flame, Zap, Navigation2, Dumbbell, Info, Target, ArrowLeft } from "lucide-react";
+import { FloatingNavIsland } from "@/components/navigation/FloatingNavIsland";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +12,8 @@ import { useConnectionStatus } from "@/hooks/useConnectionStatus";
 import { LocationTracker, type LocationIngestResult, type LocationPoint, type LocationTrackerMode } from "@/services/locationTracker";
 import { getMovementConfidenceParams } from "@/lib/movementConfidence";
 import { haversineMeters } from "@/lib/geoDistance";
+import { cn } from "@/lib/utils";
+import { BackIconButton } from "@/components/navigation/BackIconButton";
 
 const AlunoAtividadePage = () => {
   const navigate = useNavigate();
@@ -303,7 +307,7 @@ const AlunoAtividadePage = () => {
       console.error("Erro ao restaurar progresso da atividade", error);
     }
   }, [user, sessaoIdInicial, sessionId]);
- 
+
   useEffect(() => {
     let interval: number | undefined;
 
@@ -405,6 +409,7 @@ const AlunoAtividadePage = () => {
         }
 
         const canAccumulate =
+          !result.isStationary &&
           currentAcc <= 50 &&
           prevGood !== null &&
           prevGood.accuracy <= 50 &&
@@ -727,206 +732,199 @@ const AlunoAtividadePage = () => {
     return `${minutes}:${seconds} /km`;
   };
   return (
-    <main className="safe-bottom-content flex min-h-screen flex-col bg-background px-4 py-8">
-      <section className="flex flex-1 flex-col gap-6 animate-fade-in">
+    <main className="safe-bottom-main flex min-h-screen flex-col bg-background px-4 pb-24 pt-6">
+      <section className="flex flex-1 flex-col gap-8 animate-fade-in">
         {hasPendingFinalization && (
-          <div className="mb-3 rounded-md border border-accent/60 bg-card/80 px-3 py-2 text-[11px]">
-            <p className="text-xs font-semibold text-foreground">Você tem dados não salvos</p>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
-              Não atualize ou feche esta tela antes de concluir o salvamento da sua sessão. Toque em
-              &nbsp;
-              <span className="font-semibold">"Salvar atividade"</span> para finalizar o registro.
+          <div className="rounded-[24px] border border-accent/20 bg-accent/5 p-4 backdrop-blur-md">
+            <div className="flex items-center gap-2 mb-1">
+              <Info className="h-4 w-4 text-accent" />
+              <p className="text-xs font-black text-foreground uppercase tracking-tight">Finalização Pendente</p>
+            </div>
+            <p className="text-[10px] font-medium text-muted-foreground/80 leading-relaxed uppercase tracking-widest">
+              Sua sessão foi pausada. Toque em "Salvar" para registrar seus resultados permanentemente.
             </p>
           </div>
         )}
 
-        <header className="text-center space-y-2">
-          <div className="flex items-center justify-center gap-2">
-            <p className="text-xs uppercase tracking-[0.3em] text-accent-foreground/80">Monitoramento ativo</p>
+        <header className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <BackIconButton to="/aluno/dashboard" />
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Monitoramento Ativo</p>
+              <h1 className="page-title-gradient text-2xl font-black tracking-tight uppercase leading-none">{selectedActivity}</h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
             {!isOnline && (
-              <Badge variant="outline" className="border-warning/40 bg-warning/10 text-warning">
+              <Badge variant="outline" className="border-warning/40 bg-warning/10 text-warning text-[10px] font-black uppercase tracking-widest">
                 Offline
               </Badge>
             )}
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/5 bg-white/5 text-primary">
+              <Activity className={cn("h-5 w-5", isRunning && "animate-pulse")} />
+            </div>
           </div>
-          <div className="inline-flex items-center justify-center rounded-full border border-primary/40 bg-card/80 px-4 py-1 text-[10px] font-medium uppercase tracking-[0.25em] text-primary/90">
-            Sessão de treino
-          </div>
-          <h1 className="mt-1 bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-2xl font-semibold tracking-tight text-transparent">
-            {selectedActivity}
-          </h1>
-          <p className="text-xs text-muted-foreground">A IA Nexfit está lendo seus sinais em tempo real.</p>
         </header>
 
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative flex h-40 w-40 items-center justify-center rounded-full border border-accent/40 bg-card/80 shadow-[0_0_40px_rgba(0,0,0,0.6)]">
-            <div className="absolute inset-3 rounded-full border border-primary/40" />
-            <div className="absolute inset-6 rounded-full border border-accent/40 opacity-60" />
-            <span className="text-3xl font-semibold tabular-nums text-primary">{formatTime(elapsedSeconds)}</span>
+        {/* Immersive Timer Circle */}
+        <div className="flex flex-col items-center justify-center py-4">
+          <div className="relative group">
+            {/* Animated Rings */}
+            <div className={cn(
+              "absolute inset-[-20px] rounded-full border border-primary/5 transition-all duration-1000",
+              isRunning ? "scale-110 opacity-100 blur-[2px]" : "scale-100 opacity-0"
+            )} />
+            <div className={cn(
+              "absolute inset-[-40px] rounded-full border border-primary/5 transition-all duration-[2000ms] delay-500",
+              isRunning ? "scale-125 opacity-100 blur-[4px]" : "scale-100 opacity-0"
+            )} />
+
+            <div className="relative flex h-56 w-56 items-center justify-center rounded-full border border-white/5 bg-gradient-to-b from-white/[0.08] to-transparent shadow-2xl backdrop-blur-2xl">
+              <div className="absolute inset-4 rounded-full border border-primary/10" />
+              <div className="absolute inset-8 rounded-full border border-white/5 opacity-50" />
+
+              <div className="text-center space-y-1">
+                <p className="text-[11px] font-black uppercase tracking-[0.4em] text-primary/40">Duração</p>
+                <span className="text-5xl font-black tabular-nums text-foreground tracking-tighter">
+                  {formatTime(elapsedSeconds)}
+                </span>
+                <div className="pt-2">
+                  <span className={cn(
+                    "inline-block h-1 w-1 rounded-full",
+                    isRunning ? "bg-primary animate-ping" : "bg-muted-foreground/20"
+                  )} />
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
+        </div>
+
+        {/* High Performance Stats Grid */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="group relative overflow-hidden rounded-[28px] border border-white/5 bg-white/[0.03] p-5 backdrop-blur-xl">
+            <Activity className="absolute -right-2 -top-2 h-12 w-12 text-primary/5" />
+            <p className="text-[9px] font-black uppercase tracking-widest text-primary/60 mb-1">Batimento</p>
+            <div className="flex items-baseline gap-1">
+              <p className="text-xl font-black text-foreground tabular-nums">{bpm}</p>
+              <span className="text-[9px] font-bold text-muted-foreground uppercase">bpm</span>
+            </div>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-[28px] border border-white/5 bg-white/[0.03] p-5 backdrop-blur-xl">
+            <Flame className="absolute -right-2 -top-2 h-12 w-12 text-orange-500/5" />
+            <p className="text-[9px] font-black uppercase tracking-widest text-orange-500/60 mb-1">Energia</p>
+            <div className="flex items-baseline gap-1">
+              <p className="text-xl font-black text-foreground tabular-nums">{Math.round(calories)}</p>
+              <span className="text-[9px] font-bold text-muted-foreground uppercase">kcal</span>
+            </div>
+          </div>
+
+          <div className={cn(
+            "group relative overflow-hidden rounded-[28px] border border-white/5 bg-white/[0.03] p-5 backdrop-blur-xl transition-opacity",
+            !usesGps && "opacity-30"
+          )}>
+            <Navigation2 className="absolute -right-2 -top-2 h-12 w-12 text-blue-500/5" />
+            <p className="text-[9px] font-black uppercase tracking-widest text-blue-500/60 mb-1">Distância</p>
+            <div className="flex items-baseline gap-1">
+              <p className="text-xl font-black text-foreground tabular-nums">{distanceKm.toFixed(2)}</p>
+              <span className="text-[9px] font-bold text-muted-foreground uppercase">km</span>
+            </div>
+          </div>
+
+          <div className={cn(
+            "group relative overflow-hidden rounded-[28px] border border-white/5 bg-white/[0.03] p-5 backdrop-blur-xl transition-opacity",
+            !usesGps && "opacity-30"
+          )}>
+            <Zap className="absolute -right-2 -top-2 h-12 w-12 text-emerald-500/5" />
+            <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500/60 mb-1">Ritmo</p>
+            <p className="text-xl font-black text-emerald-400 tabular-nums uppercase tracking-tighter leading-none">
+              {formatPace(paceMinutesPerKm)}
+            </p>
+          </div>
+        </div>
+        {/* Rest Display if Active */}
+        {restSeconds !== null && (
+          <div className="relative mt-2 overflow-hidden rounded-[32px] border border-primary/20 bg-primary/5 p-6 animate-in zoom-in-95 duration-300">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Recuperação</p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-black tabular-nums text-foreground">{String(restSeconds).padStart(2, "0")}</span>
+                  <span className="text-sm font-bold text-muted-foreground">segundos</span>
+                </div>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-black">
+                <Timer className="h-6 w-6" />
+              </div>
+            </div>
+            {restFinished && (
+              <div className="mt-4 animate-bounce text-center text-xs font-black text-primary uppercase tracking-widest">
+                Próxima série agora! 🚀
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="mt-auto flex flex-col gap-3 pb-6">
+          <div className="grid grid-cols-2 gap-3">
             <Button
-              variant={isRunning ? "outline" : "default"}
+              variant={isRunning ? "outline-premium" : "premium"}
               size="lg"
-              className="px-8"
+              className="py-10 rounded-3xl"
               onClick={handleStartStop}
             >
-              {isRunning ? "Parar" : "Iniciar/Pausar"}
+              {isRunning ? <Pause className="mr-2 h-6 w-6" /> : <Play className="mr-2 h-6 w-6" />}
+              <span className="text-sm uppercase tracking-widest font-black leading-none">{isRunning ? "Pausar" : "Retomar"}</span>
             </Button>
+
             <Button
-              variant={restSeconds !== null ? "default" : "secondary"}
+              variant="outline-premium"
               size="lg"
-              className="px-6 font-semibold"
+              className="py-10 rounded-3xl"
               onClick={() => {
                 setRestFinished(false);
                 setRestSeconds(60);
               }}
             >
-              Descanso
+              <Timer className="mr-2 h-6 w-6" />
+              <span className="text-sm uppercase tracking-widest font-black leading-none">Descanso</span>
             </Button>
           </div>
-        </div>
 
-        {restSeconds !== null && (
-          <div className="mt-2 flex flex-col items-center gap-2">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-primary/40 bg-muted">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-background text-sm font-semibold tabular-nums">
-                {String(restSeconds).padStart(2, "0")}s
-              </div>
-            </div>
-            <p className="text-[11px] text-muted-foreground">Descanso entre séries</p>
-            {restFinished && <p className="text-xs font-semibold text-primary">Hora da próxima série!</p>}
-          </div>
-        )}
+          {!isRunning && elapsedSeconds > 0 && (
+            <Button
+              variant="premium"
+              className="py-10 rounded-3xl shadow-xl shadow-primary/20"
+              onClick={handleSave}
+              loading={isSaving}
+            >
+              <Zap className="mr-2 h-6 w-6" />
+              <span className="text-sm uppercase tracking-widest font-black leading-none">Salvar e Finalizar</span>
+            </Button>
+          )}
 
-        <div className="grid grid-cols-3 gap-3 text-xs">
-          <Card className="border border-primary/60 bg-card/80">
-            <CardContent className="flex flex-col items-center justify-center gap-1 py-3">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Frequência</p>
-              <div className="flex items-end gap-1 text-primary pulse">
-                <span className="text-xl font-semibold tabular-nums">{bpm}</span>
-                <span className="text-[10px]">bpm</span>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border border-accent/60 bg-card/80">
-            <CardContent className="flex flex-col items-center justify-center gap-1 py-3">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Calorias</p>
-              <span className="text-xl font-semibold tabular-nums text-accent">{Math.round(calories)}</span>
-            </CardContent>
-          </Card>
-          <Card className="border border-accent/40 bg-card/80">
-            <CardContent className="flex flex-col items-center justify-center gap-1 py-3">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Intensidade</p>
-              <span className="text-xs font-medium text-foreground">{intensity}</span>
-            </CardContent>
-          </Card>
-        </div>
-
-        {usesGps && (
-          <div className="mt-1 space-y-2 text-xs">
-            <div className="grid grid-cols-2 gap-3">
-              <Card className="border border-primary/50 bg-card/80">
-                <CardContent className="flex flex-col items-center justify-center gap-1 py-3">
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Distância (GPS)</p>
-                  <span className="text-xl font-semibold tabular-nums text-primary">
-                    {distanceKm.toFixed(2)} km
-                  </span>
-                </CardContent>
-              </Card>
-              <Card className="border border-primary/30 bg-card/80">
-                <CardContent className="flex flex-col items-center justify-center gap-1 py-3">
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Ritmo médio</p>
-                  <span className="text-xl font-semibold tabular-nums text-primary">
-                    {formatPace(paceMinutesPerKm)}
-                  </span>
-                </CardContent>
-              </Card>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Distância calculada automaticamente pelo GPS.
-            </p>
-          </div>
-        )}
-
-        {showSummary && (
-          <Card className="mt-2 border border-accent/50 bg-card/90 animate-fade-in">
-            <CardHeader>
-              <CardTitle className="text-sm">Resumo da sessão</CardTitle>
-              <CardDescription>Revise os dados simulados antes de salvar.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs">
-              <p>
-                Duração: <span className="font-semibold">{formatTime(elapsedSeconds)}</span>
-              </p>
-              <p>
-                Frequência média (simulada): <span className="font-semibold">{bpm} bpm</span>
-              </p>
-              <p>
-                Calorias estimadas: <span className="font-semibold">{Math.round(calories)} kcal</span>
-              </p>
-
-              {isDeslocamento && usesGps && (
-                <>
-                  <p>
-                    Distância (GPS): <span className="font-semibold">{distanceKm.toFixed(2)} km</span>
-                  </p>
-                  <p>
-                    Ritmo médio: <span className="font-semibold">{formatPace(paceMinutesPerKm)}</span>
-                  </p>
-                </>
-              )}
-
-              {isEstacionario && (
-                <p>
-                  Intensidade: <span className="font-semibold">{intensity}</span>
-                </p>
-              )}
-
-              <Button className="mt-2 w-full" size="sm" onClick={handleSave} loading={isSaving}>
-                Salvar atividade
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        <footer className="mt-auto flex justify-center gap-2 pt-4">
           <Button
             variant="ghost"
-            size="sm"
+            className="w-full text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground py-6"
             onClick={() => navigate("/aluno/dashboard")}
-            disabled={isRunning}
           >
-            Ir para o dashboard
+            Sair do Tracker
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate("/aluno/monitoramento")}
-            disabled={isRunning}
-          >
-            Trocar atividade
-          </Button>
-        </footer>
+        </div>
       </section>
 
       {gpsDebugEnabled && gpsDebug && (
-        <div className="fixed bottom-2 right-2 z-50 max-w-[92vw] rounded-md border border-border bg-background/90 p-2 text-[10px] text-foreground shadow-md backdrop-blur">
-          <div className="font-semibold">GPS debug</div>
-          <div>modalidade: {movementParams.mode}</div>
-          <div>movement: {movementState}</div>
-          <div>
-            counts: accepted {acceptedCountRef.current} / {movementParams.minAcceptedPointsToMove} | rejected {rejectedCountRef.current} / {movementParams.minRejectedPointsToStop}
+        <div className="fixed bottom-2 right-2 z-50 max-w-[92vw] rounded-[20px] border border-white/10 bg-black/80 p-4 text-[9px] text-muted-foreground shadow-2xl backdrop-blur-xl">
+          <div className="font-black text-primary uppercase tracking-widest mb-1">GPS Diagnostic</div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+            <div>MODE: {movementParams.mode}</div>
+            <div>STATUS: {movementState}</div>
+            <div>ACC: {Math.round(gpsPhysicsDebug?.accuracy ?? gpsDebug.point.accuracy)}m</div>
+            <div>DIST: {distanceKm.toFixed(3)}km</div>
           </div>
-          <div>reason: {gpsDebug.reason}</div>
-          <div>
-            thresholds: minSpeed {movementParams.trackerOverrides.minSpeedMps} m/s | minStep {movementParams.trackerOverrides.minStepMeters} m | minPaceDist {Math.round(minDistanceBeforePaceKm * 1000)} m
-          </div>
-          <div>acc: {Math.round(gpsPhysicsDebug?.accuracy ?? gpsDebug.point.accuracy)} m</div>
-          <div>Δd: {Math.round(gpsPhysicsDebug?.deltaDistMeters ?? gpsDebug.deltaDistMeters)} m</div>
-          <div>acumulado: {distanceKm.toFixed(3)} km</div>
         </div>
       )}
+      <FloatingNavIsland />
     </main>
   );
 };

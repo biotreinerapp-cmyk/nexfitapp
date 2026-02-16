@@ -24,6 +24,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { FloatingNavIsland } from "@/components/navigation/FloatingNavIsland";
 
 interface RunningClub {
   id: string;
@@ -543,13 +544,18 @@ const RunningClubDetailPage = () => {
   };
 
   if (!club) {
-    return <div className="flex min-h-screen items-center justify-center bg-background text-foreground">Carregando clube...</div>;
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background text-foreground pb-24">
+        <span>Carregando clube...</span>
+        <FloatingNavIsland />
+      </div>
+    );
   }
 
   const isMember = Boolean(membership);
 
   return (
-    <main className="safe-bottom-main flex min-h-screen flex-col gap-4 bg-background px-4 pt-4">
+    <main className="safe-bottom-main flex min-h-screen flex-col gap-4 bg-background px-4 pb-24 pt-4">
       <header className="mb-2 flex items-center gap-3">
         <Button
           variant="ghost"
@@ -856,72 +862,72 @@ const RunningClubDetailPage = () => {
                         </article>
                       );
                     })}
-                  </CardContent>
-                </Card>
-              </TabsContent>
- 
-              {/* Ranking tab content */}
-              <TabsContent value="ranking" className="mt-3 space-y-3">
-                <Card className="border border-border/60 bg-card/80">
-                  <CardHeader>
-                    <CardTitle className="text-sm flex items-center gap-2">Ranking semanal</CardTitle>
-                    <CardDescription className="text-[11px]">
-                      Distância total percorrida pelos membros nos últimos 7 dias.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-2">
-                    {myRankings.length === 0 ? (
-                      <p className="text-[11px] text-muted-foreground">Nenhuma corrida registrada nos últimos 7 dias.</p>
-                    ) : (
-                      <ol className="list-decimal list-inside space-y-1 text-[11px]">
-                        {myRankings.map((entry, index) => (
-                          <li key={entry.user_id} className="flex justify-between">
-                            <span>{entry.user_id}</span>
-                            <span>
-                              {entry.total_distance.toFixed(2)} km em {entry.runs} corrida{entry.runs > 1 ? "s" : ""}
-                            </span>
-                          </li>
-                        ))}
-                      </ol>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-              {/* Desafios tab content */}
-              <TabsContent value="desafios" className="mt-3 space-y-3">
-                <Card className="border border-border/60 bg-card/80">
-                  <CardHeader>
-                    <CardTitle className="text-sm flex items-center gap-2">Desafios</CardTitle>
-                    <CardDescription className="text-[11px]">
-                      Desafios ativos e passados do clube.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-2 space-y-2">
-                    {challenges.length === 0 ? (
-                      <p className="text-[11px] text-muted-foreground">Nenhum desafio criado ainda.</p>
-                    ) : (
-                      challenges.map((challenge) => (
-                        <div key={challenge.id} className="rounded border border-border/60 p-2 text-xs">
-                          <h3 className="font-semibold">{challenge.title}</h3>
-                          <p className="text-muted-foreground">{challenge.description}</p>
-                          <p className="mt-1 text-[11px]">
-                            Meta: {challenge.target_distance_km} km | De {new Date(challenge.start_date).toLocaleDateString()} até {new Date(challenge.end_date).toLocaleDateString()}
-                          </p>
-                          <p className="text-[11px] font-medium">
-                            Status: {challenge.active ? "Ativo" : "Inativo"}
-                          </p>
-                        </div>
-                      ))
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </section>
-        )}
+            {/* Ranking tab content */}
+            <TabsContent value="ranking" className="mt-3 space-y-3">
+              <Card className="border border-border/60 bg-card/80">
+                <CardHeader>
+                  <CardTitle className="text-sm flex items-center gap-2">Ranking semanal</CardTitle>
+                  <CardDescription className="text-[11px]">
+                    Distância total percorrida pelos membros nos últimos 7 dias.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  {myRankings.length === 0 ? (
+                    <p className="text-[11px] text-muted-foreground">Nenhuma corrida registrada nos últimos 7 dias.</p>
+                  ) : (
+                    <ol className="list-decimal list-inside space-y-1 text-[11px]">
+                      {myRankings.map((entry, index) => (
+                        <li key={entry.user_id} className="flex justify-between">
+                          <span>{entry.user_id}</span>
+                          <span>
+                            {entry.total_distance.toFixed(2)} km em {entry.runs} corrida{entry.runs > 1 ? "s" : ""}
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-        {/* Comments Dialog */}
+            {/* Desafios tab content */}
+            <TabsContent value="desafios" className="mt-3 space-y-3">
+              <Card className="border border-border/60 bg-card/80">
+                <CardHeader>
+                  <CardTitle className="text-sm flex items-center gap-2">Desafios</CardTitle>
+                  <CardDescription className="text-[11px]">
+                    Desafios ativos e passados do clube.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-2 space-y-2">
+                  {challenges.length === 0 ? (
+                    <p className="text-[11px] text-muted-foreground">Nenhum desafio criado ainda.</p>
+                  ) : (
+                    challenges.map((challenge) => (
+                      <div key={challenge.id} className="rounded border border-border/60 p-2 text-xs">
+                        <h3 className="font-semibold">{challenge.title}</h3>
+                        <p className="text-muted-foreground">{challenge.description}</p>
+                        <p className="mt-1 text-[11px]">
+                          Meta: {challenge.target_distance_km} km | De {new Date(challenge.start_date).toLocaleDateString()} até {new Date(challenge.end_date).toLocaleDateString()}
+                        </p>
+                        <p className="text-[11px] font-medium">
+                          Status: {challenge.active ? "Ativo" : "Inativo"}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </section>
+      )}
+
+      {/* Comments Dialog */}
       <Dialog open={Boolean(commentDialogPostId)} onOpenChange={(open) => !open && setCommentDialogPostId(null)}>
         <DialogContent className="max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -1036,7 +1042,7 @@ const RunningClubDetailPage = () => {
           }
         }}
       >
-        <DialogContent className="max-w-md bg-popover text-popover-foreground">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Detalhes do treino</DialogTitle>
             <DialogDescription>Resumo completo da sessão compartilhada com o clube.</DialogDescription>
@@ -1111,8 +1117,8 @@ const RunningClubDetailPage = () => {
                   <p className="text-[10px] text-muted-foreground">
                     {detailActivity?.iniciado_em && detailActivity?.finalizado_em
                       ? `Início: ${new Date(detailActivity.iniciado_em).toLocaleString("pt-BR")} • Fim: ${new Date(
-                          detailActivity.finalizado_em,
-                        ).toLocaleString("pt-BR")}`
+                        detailActivity.finalizado_em,
+                      ).toLocaleString("pt-BR")}`
                       : `Publicado em ${new Date(detailDialogPost.created_at).toLocaleString("pt-BR")}`}
                   </p>
                 </>
@@ -1256,6 +1262,7 @@ const RunningClubDetailPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <FloatingNavIsland />
     </main>
   );
 };

@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { useToast } from "@/hooks/use-toast";
 import { BackIconButton } from "@/components/navigation/BackIconButton";
+import { FloatingNavIsland } from "@/components/navigation/FloatingNavIsland";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +52,12 @@ export default function MarketplaceCartPage() {
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
   const [showCoupons, setShowCoupons] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [storeShippingCost, setStoreShippingCost] = useState(0);
+  const [couponsUsedThisMonth, setCouponsUsedThisMonth] = useState(0);
+  const [vipCouponInput, setVipCouponInput] = useState("");
+  const [isVipCouponApplied, setIsVipCouponApplied] = useState(false);
+  const [gpsCity, setGpsCity] = useState<string | null>(null);
+  const [fetchingGps, setFetchingGps] = useState(false);
 
   // Delivery
   const [deliveryCity, setDeliveryCity] = useState("");
@@ -74,14 +81,15 @@ export default function MarketplaceCartPage() {
       if (!user || !storeId) return;
 
       // Get store info
-      const { data: storeData } = await supabase
+      const { data: storeData } = await (supabase as any)
         .from("marketplace_stores")
-        .select("nome, city")
+        .select("nome, city, shipping_cost")
         .eq("id", storeId)
         .maybeSingle();
       if (storeData) {
         setStoreName(storeData.nome);
         setStoreCity((storeData as any).city ?? null);
+        setStoreShippingCost((storeData as any).shipping_cost ?? 0);
       }
 
       // Get cart order
@@ -138,6 +146,33 @@ export default function MarketplaceCartPage() {
         });
       }
 
+      // Fetch coupons used this month
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      const { count } = await (supabase as any)
+        .from("marketplace_coupons")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .gte("used_at", startOfMonth.toISOString());
+
+      setCouponsUsedThisMonth(count || 0);
+
+      // Attempt GPS check
+      if ("geolocation" in navigator) {
+        setFetchingGps(true);
+        navigator.geolocation.getCurrentPosition(async (position) => {
+          try {
+            // Simplified reverse geocoding approach or just use a placeholder
+            // In a real app, we'd call an API here. 
+            // For now, let's assume if the user is 0,0 it's a test, otherwise we'd need an API.
+            // I'll add a mock city based on existence of position for demo.
+            setGpsCity(null); // Will fill if we had an API
+          } catch (e) { } finally { setFetchingGps(false); }
+        }, () => setFetchingGps(false));
+      }
+
       setLoading(false);
     };
     void load();
@@ -152,6 +187,14 @@ export default function MarketplaceCartPage() {
       .update({ quantity: newQty, subtotal: newQty * item.unit_price })
       .eq("id", item.id);
 
+    // Update cart activity
+    if (orderId) {
+      await (supabase as any)
+        .from("marketplace_orders")
+        .update({ last_cart_activity: new Date().toISOString() })
+        .eq("id", orderId);
+    }
+
     setItems((prev) =>
       prev.map((i) =>
         i.id === item.id ? { ...i, quantity: newQty, subtotal: newQty * item.unit_price } : i
@@ -161,14 +204,28 @@ export default function MarketplaceCartPage() {
 
   const removeItem = async (item: CartItem) => {
     await (supabase as any).from("marketplace_order_items").delete().eq("id", item.id);
+
+    // Update cart activity
+    if (orderId) {
+      await (supabase as any)
+        .from("marketplace_orders")
+        .update({ last_cart_activity: new Date().toISOString() })
+        .eq("id", orderId);
+    }
     setItems((prev) => prev.filter((i) => i.id !== item.id));
   };
 
   const subtotal = items.reduce((sum, i) => sum + i.subtotal, 0);
   const discountAmount = selectedCoupon ? subtotal * (selectedCoupon.discount_percent / 100) : 0;
-  const isSameCity = storeCity && deliveryCity.trim().toLowerCase() === storeCity.toLowerCase();
-  const freeShipping = selectedCoupon?.free_shipping && isSameCity;
-  const shippingCost = freeShipping ? 0 : 0; // Shipping "a combinar" when not free
+
+  // Logic Improvements:
+  const isVipElite = selectedCoupon?.id === "VIPELITE";
+  const isSameCity = (storeCity && deliveryCity.trim().toLowerCase() === storeCity.toLowerCase()) ||
+    (storeCity && gpsCity && gpsCity.toLowerCase() === storeCity.toLowerCase());
+
+  const freeShipping = (isVipElite && plan === "ELITE") || (plan === "ELITE" && isSameCity);
+  const shippingCost = (plan === "FREE") ? storeShippingCost : (freeShipping ? 0 : storeShippingCost);
+
   const total = subtotal - discountAmount + shippingCost;
 
   const handleProceedToCheckout = () => {
@@ -191,7 +248,7 @@ export default function MarketplaceCartPage() {
         city: pixConfig.city,
       });
       setPixPayload(payload);
-      QRCodeLib.toDataURL(payload, { width: 256 }).then(setPixQrDataUrl).catch(() => {});
+      QRCodeLib.toDataURL(payload, { width: 256 }).then(setPixQrDataUrl).catch(() => { });
     }
 
     setCheckoutStep("checkout");
@@ -225,12 +282,24 @@ export default function MarketplaceCartPage() {
         })
         .eq("id", orderId);
 
-      // Mark coupon as used
-      if (selectedCoupon) {
+      // Mark coupon as used if NOT virtual VIP coupon
+      if (selectedCoupon && !isVipCouponApplied) {
         await (supabase as any)
           .from("marketplace_coupons")
           .update({ used_at: new Date().toISOString(), order_id: orderId })
           .eq("id", selectedCoupon.id);
+      } else if (isVipCouponApplied && selectedCoupon) {
+        // Log virtual coupon use
+        await (supabase as any)
+          .from("marketplace_coupons")
+          .insert({
+            user_id: user.id,
+            order_id: orderId,
+            used_at: new Date().toISOString(),
+            discount_percent: selectedCoupon.discount_percent,
+            free_shipping: selectedCoupon.free_shipping,
+            plan_at_issue: plan
+          });
       }
 
       toast({ title: "Pedido enviado!", description: "Aguarde a confirmação da loja." });
@@ -239,6 +308,26 @@ export default function MarketplaceCartPage() {
       toast({ title: "Erro ao finalizar pedido", variant: "destructive" });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const applyVipCoupon = () => {
+    if (couponsUsedThisMonth >= 10) {
+      toast({ title: "Limite atingido", description: "Você já usou seus 10 cupons mensais.", variant: "destructive" });
+      return;
+    }
+
+    const code = vipCouponInput.toUpperCase().trim();
+    if (code === "VIPADVANCE" && (plan === "ADVANCE" || plan === "ELITE")) {
+      setSelectedCoupon({ id: "VIPADVANCE", discount_percent: 5, free_shipping: false });
+      setIsVipCouponApplied(true);
+      toast({ title: "VIP ADVANCE aplicado! 5% OFF" });
+    } else if (code === "VIPELITE" && plan === "ELITE") {
+      setSelectedCoupon({ id: "VIPELITE", discount_percent: 10, free_shipping: true });
+      setIsVipCouponApplied(true);
+      toast({ title: "VIP ELITE aplicado! 10% OFF + Frete Grátis" });
+    } else {
+      toast({ title: "Cupom inválido", description: "Verifique o código ou seu plano.", variant: "destructive" });
     }
   };
 
@@ -251,7 +340,7 @@ export default function MarketplaceCartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background px-4 pb-8 pt-6">
+    <div className="min-h-screen bg-background px-4 pb-24 pt-6">
       <header className="mb-4 flex items-center gap-3">
         <BackIconButton to={checkoutStep === "checkout" ? undefined : `/marketplace/loja/${storeId}`} onClick={checkoutStep === "checkout" ? () => setCheckoutStep("cart") : undefined} />
         <div>
@@ -293,6 +382,15 @@ export default function MarketplaceCartPage() {
           storeCity={storeCity}
           onProceed={handleProceedToCheckout}
           toast={toast}
+          vipCouponInput={vipCouponInput}
+          setVipCouponInput={setVipCouponInput}
+          applyVipCoupon={applyVipCoupon}
+          couponsUsedThisMonth={couponsUsedThisMonth}
+          shippingCost={shippingCost}
+          gpsCity={gpsCity}
+          fetchingGps={fetchingGps}
+          plan={plan}
+          isVipCouponApplied={isVipCouponApplied}
         />
       ) : (
         <CheckoutView
@@ -311,8 +409,10 @@ export default function MarketplaceCartPage() {
           onConfirm={handleConfirmOrder}
           submitting={submitting}
           pixConfig={pixConfig}
+          shippingCost={shippingCost}
         />
       )}
+      <FloatingNavIsland />
     </div>
   );
 }
@@ -324,6 +424,8 @@ function CartView({
   subtotal, discountAmount, freeShipping, total,
   deliveryCity, setDeliveryCity, deliveryAddress, setDeliveryAddress,
   storeCity, onProceed, toast,
+  vipCouponInput, setVipCouponInput, applyVipCoupon, couponsUsedThisMonth,
+  shippingCost, gpsCity, fetchingGps, plan, isVipCouponApplied
 }: any) {
   return (
     <div className="space-y-4">
@@ -372,14 +474,59 @@ function CartView({
             <Input placeholder="Cidade" value={deliveryCity} onChange={(e: any) => setDeliveryCity(e.target.value)} />
           </div>
           {storeCity && deliveryCity.trim() && (
-            <p className={`text-xs ${deliveryCity.trim().toLowerCase() === storeCity.toLowerCase() ? "text-primary" : "text-muted-foreground"}`}>
+            <p className="text-xs text-primary">
               {deliveryCity.trim().toLowerCase() === storeCity.toLowerCase()
-                ? "✓ Mesma cidade da loja — frete grátis disponível com cupom Elite"
-                : `Loja em ${storeCity} — frete a combinar`}
+                ? "✓ Mesma cidade da loja — frete reduzido ou grátis disponível"
+                : `Loja em ${storeCity} — frete padrão aplicado`}
+            </p>
+          )}
+          {gpsCity && storeCity && (
+            <p className="text-[10px] text-primary flex items-center gap-1">
+              <CheckCircle2 className="h-3 w-3" /> GPS confirma: você está em {gpsCity}.
             </p>
           )}
         </CardContent>
       </Card>
+
+      {hasCouponAccess && (
+        <Card className="border-primary/30 bg-primary/5 shadow-inner">
+          <CardContent className="py-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Ticket className="h-4 w-4 text-primary animate-pulse" />
+                Cupom VIP Mensal ({10 - couponsUsedThisMonth} restantes)
+              </div>
+              <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">{plan}</Badge>
+            </div>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Ticket className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/40" />
+                <Input
+                  placeholder="VIPADVANCE ou VIPELITE"
+                  value={vipCouponInput}
+                  onChange={(e: any) => setVipCouponInput(e.target.value)}
+                  className="bg-background/50 h-9 pl-9 text-sm border-primary/20 focus:border-primary transition-all"
+                />
+              </div>
+              <Button size="sm" onClick={applyVipCoupon} className="font-bold shadow-md shadow-primary/20">
+                Aplicar
+              </Button>
+            </div>
+
+            {isVipCouponApplied && selectedCoupon && (
+              <div className="flex items-center gap-2 rounded-lg bg-primary/20 p-2 border border-primary/40 animate-in fade-in zoom-in duration-300">
+                <div className="bg-primary rounded-full p-1">
+                  <CheckCircle2 className="h-3 w-3 text-background" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold text-primary leading-tight">CUPOM {selectedCoupon.id} ATIVADO!</p>
+                  <p className="text-[10px] text-primary/80">-{selectedCoupon.discount_percent}% OFF {selectedCoupon.free_shipping ? "+ Frete Grátis" : ""}</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Coupon Section */}
       <Card className="border-border/50 bg-card/30">
@@ -412,9 +559,8 @@ function CartView({
                     key={c.id}
                     type="button"
                     onClick={() => { setSelectedCoupon(selectedCoupon?.id === c.id ? null : c); setShowCoupons(false); }}
-                    className={`flex w-full items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors ${
-                      selectedCoupon?.id === c.id ? "border-primary bg-primary/10" : "border-border/50 hover:border-primary/50"
-                    }`}
+                    className={`flex w-full items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors ${selectedCoupon?.id === c.id ? "border-primary bg-primary/10" : "border-border/50 hover:border-primary/50"
+                      }`}
                   >
                     <ShieldCheck className="h-4 w-4 text-primary" />
                     <span className="font-semibold text-foreground">{c.discount_percent}% OFF</span>
@@ -446,7 +592,7 @@ function CartView({
           )}
           <div className="flex justify-between text-muted-foreground">
             <span>Frete</span>
-            <span>{freeShipping ? "Grátis" : "A combinar"}</span>
+            <span>{shippingCost > 0 ? `R$ ${shippingCost.toFixed(2)}` : "Grátis"}</span>
           </div>
           <div className="flex justify-between border-t border-border/50 pt-2 text-base font-bold text-foreground">
             <span>Total</span>
@@ -467,6 +613,7 @@ function CheckoutView({
   items, subtotal, discountAmount, selectedCoupon, freeShipping, total,
   deliveryAddress, deliveryCity,
   pixPayload, pixQrDataUrl, copied, onCopyPix, onConfirm, submitting, pixConfig,
+  shippingCost
 }: any) {
   return (
     <div className="space-y-4">
@@ -491,7 +638,7 @@ function CheckoutView({
               </div>
             )}
             <div className="flex justify-between text-muted-foreground">
-              <span>Frete</span><span>{freeShipping ? "Grátis" : "A combinar"}</span>
+              <span>Frete</span><span>{shippingCost > 0 ? `R$ ${shippingCost.toFixed(2)}` : "Grátis"}</span>
             </div>
             <div className="flex justify-between font-bold text-foreground text-base pt-1 border-t border-border/50">
               <span>Total</span><span>R$ {total.toFixed(2)}</span>
