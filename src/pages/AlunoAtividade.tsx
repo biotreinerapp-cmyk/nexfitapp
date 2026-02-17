@@ -14,6 +14,7 @@ import { getMovementConfidenceParams } from "@/lib/movementConfidence";
 import { haversineMeters } from "@/lib/geoDistance";
 import { cn } from "@/lib/utils";
 import { BackIconButton } from "@/components/navigation/BackIconButton";
+import { SpotifyButton } from "@/components/ui/SpotifyButton";
 
 const AlunoAtividadePage = () => {
   const navigate = useNavigate();
@@ -760,6 +761,9 @@ const AlunoAtividadePage = () => {
                 Offline
               </Badge>
             )}
+
+            <SpotifyButton className={cn(isRunning && "animate-pulse border-[#1DB954]/40 shadow-[0_0_15px_rgba(29,185,84,0.2)]")} />
+
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/5 bg-white/5 text-primary">
               <Activity className={cn("h-5 w-5", isRunning && "animate-pulse")} />
             </div>

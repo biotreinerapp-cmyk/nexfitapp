@@ -11,6 +11,7 @@ import { BackIconButton } from "@/components/navigation/BackIconButton";
 import { SecureVideo } from "@/components/ui/SecureVideo";
 import { FloatingNavIsland } from "@/components/navigation/FloatingNavIsland";
 import { cn } from "@/lib/utils";
+import { SpotifyButton } from "@/components/ui/SpotifyButton";
 
 const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY || "7abffdb721mshe6edf9169775d83p1212ffjsn4c407842489b";
 
@@ -309,8 +310,11 @@ const AlunoTreinoAtivoPage = () => {
             <h1 className="page-title-gradient text-2xl font-black tracking-tight uppercase leading-none">{exercicio?.nome || "Série Ativa"}</h1>
           </div>
         </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/5 bg-white/5 text-primary">
-          <Activity className="h-5 w-5 animate-pulse" />
+        <div className="flex items-center gap-2">
+          <SpotifyButton className={cn(isRunning && "animate-pulse border-[#1DB954]/40 shadow-[0_0_15px_rgba(29,185,84,0.2)]")} />
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/5 bg-white/5 text-primary">
+            <Activity className="h-5 w-5 animate-pulse" />
+          </div>
         </div>
       </header>
 
