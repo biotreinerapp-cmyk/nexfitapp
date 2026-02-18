@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -8,15 +8,58 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Store, Briefcase, Loader2, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { Store, Briefcase, Loader2, ArrowLeft, Eye, EyeOff, ShieldCheck, RefreshCw, Mail } from "lucide-react";
 import { checkEmailExists, isValidEmail, validatePassword } from "@/lib/emailValidation";
 import logoNexfit from "@/assets/nexfit-logo.png";
+
+// --- OTP Input (6 digits) ---
+const OtpInputEntrepreneur = ({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) => {
+    const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+    const digits = value.padEnd(6, "").split("").slice(0, 6);
+    const handleChange = (idx: number, char: string) => {
+        const digit = char.replace(/\D/g, "").slice(-1);
+        const next = [...digits]; next[idx] = digit; onChange(next.join(""));
+        if (digit && idx < 5) inputRefs.current[idx + 1]?.focus();
+    };
+    const handleKeyDown = (idx: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Backspace" && !digits[idx] && idx > 0) {
+            const next = [...digits]; next[idx - 1] = ""; onChange(next.join(""));
+            inputRefs.current[idx - 1]?.focus();
+        }
+    };
+    const handlePaste = (e: React.ClipboardEvent) => {
+        const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+        if (pasted) { onChange(pasted.padEnd(6, "").slice(0, 6)); inputRefs.current[Math.min(pasted.length, 5)]?.focus(); }
+        e.preventDefault();
+    };
+    return (
+        <div className="flex gap-2 justify-center">
+            {digits.map((d, i) => (
+                <input key={i} ref={el => { inputRefs.current[i] = el; }} type="text" inputMode="numeric" maxLength={1}
+                    value={d} disabled={disabled}
+                    onChange={e => handleChange(i, e.target.value)}
+                    onKeyDown={e => handleKeyDown(i, e)}
+                    onPaste={handlePaste}
+                    className="w-11 h-14 text-center text-xl font-black rounded-xl bg-white/5 border-2 border-white/10 text-white focus:border-primary focus:outline-none transition-all disabled:opacity-50"
+                />
+            ))}
+        </div>
+    );
+};
 
 export default function EntrepreneurPortalPage() {
     const navigate = useNavigate();
     const { toast } = useToast();
     const [activeTab, setActiveTab] = useState<"store" | "professional">("store");
     const [loading, setLoading] = useState(false);
+
+    // OTP state
+    const [otpEmail, setOtpEmail] = useState<string | null>(null);
+    const [otpCode, setOtpCode] = useState("");
+    const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+    const [isResendingOtp, setIsResendingOtp] = useState(false);
+    const [resendCooldown, setResendCooldown] = useState(0);
+    const [pendingRole, setPendingRole] = useState<"store" | "professional">("store");
 
     // Form state
     const [formData, setFormData] = useState({
@@ -68,53 +111,82 @@ export default function EntrepreneurPortalPage() {
         setLoading(true);
         try {
             const isValid = await validateForm();
-            if (!isValid) {
-                setLoading(false);
-                return;
-            }
+            if (!isValid) { setLoading(false); return; }
 
             const role = activeTab === "store" ? "store_owner" : "professional";
 
-            // Create auth user
+            // Create auth user (email NOT confirmed yet — OTP will confirm)
             const { data: authData, error: authError } = await supabase.auth.signUp({
                 email: formData.email.trim().toLowerCase(),
                 password: formData.password,
-                options: {
-                    data: {
-                        name: formData.name.trim(),
-                        role: role,
-                    },
-                },
+                options: { data: { name: formData.name.trim(), role } },
             });
 
             if (authError) throw authError;
             if (!authData.user) throw new Error("Falha ao criar usuário");
 
-            const userId = authData.user.id;
-
-            // Simplified: The database trigger 'on_auth_user_created_registration' 
-            // now handles creating entries in 'lojas'/'professionals' and 'user_roles'
-            // based on the auth metadata (role).
-
-            toast({
-                title: "Cadastro realizado!",
-                description: "Bem-vindo ao Nexfit! Vamos completar seu perfil.",
+            // Send custom OTP email
+            const { error: otpError } = await supabase.functions.invoke("send-email-otp", {
+                body: { email: formData.email.trim().toLowerCase(), name: formData.name.trim() },
             });
+            if (otpError) throw otpError;
 
-            if (activeTab === "store") {
+            // Show OTP verification screen
+            setPendingRole(activeTab);
+            setOtpEmail(formData.email.trim().toLowerCase());
+            setOtpCode("");
+            setResendCooldown(60);
+        } catch (error: any) {
+            console.error("Registration error:", error);
+            toast({ title: "Erro no cadastro", description: error.message || "Ocorreu um erro. Tente novamente.", variant: "destructive" });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleResendOtp = async () => {
+        if (!otpEmail || isResendingOtp || resendCooldown > 0) return;
+        setIsResendingOtp(true);
+        try {
+            await supabase.functions.invoke("send-email-otp", { body: { email: otpEmail } });
+            setOtpCode("");
+            setResendCooldown(60);
+            toast({ title: "Código reenviado!", description: "Verifique sua caixa de entrada." });
+        } catch (err: any) {
+            toast({ title: "Erro ao reenviar", description: err?.message, variant: "destructive" });
+        } finally {
+            setIsResendingOtp(false);
+        }
+    };
+
+    const handleVerifyOtp = async () => {
+        if (!otpEmail || otpCode.length !== 6) {
+            toast({ title: "Código incompleto", description: "Digite os 6 dígitos.", variant: "destructive" });
+            return;
+        }
+        setIsVerifyingOtp(true);
+        try {
+            const { data, error } = await supabase.functions.invoke("verify-email-otp", {
+                body: { email: otpEmail, otp_code: otpCode },
+            });
+            if (error) throw error;
+            if (data?.error) throw new Error(data.error);
+
+            if (data?.autoLogin && data?.access_token && data?.refresh_token) {
+                await supabase.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token });
+            }
+
+            toast({ title: "E-mail confirmado!", description: "Bem-vindo ao NexFit! 🎉" });
+
+            if (pendingRole === "store") {
                 navigate("/loja/onboarding");
             } else {
                 navigate("/professional/onboarding");
             }
-        } catch (error: any) {
-            console.error("Registration error:", error);
-            toast({
-                title: "Erro no cadastro",
-                description: error.message || "Ocorreu um erro. Tente novamente.",
-                variant: "destructive",
-            });
+        } catch (err: any) {
+            toast({ title: "Código inválido", description: err?.message ?? "Verifique o código.", variant: "destructive" });
         } finally {
-            setLoading(false);
+            setIsVerifyingOtp(false);
         }
     };
 
@@ -134,57 +206,102 @@ export default function EntrepreneurPortalPage() {
                     <img src={logoNexfit} alt="Nexfit" className="h-8" />
                 </div>
 
-                <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
-                    <CardHeader className="text-center">
-                        <CardTitle className="text-2xl font-bold text-white">
-                            Portal do Empreendedor
-                        </CardTitle>
-                        <CardDescription className="text-white/60">
-                            Cadastre-se e comece a vender ou oferecer seus serviços
-                        </CardDescription>
-                    </CardHeader>
+                {otpEmail ? (
+                    /* OTP Verification Screen */
+                    <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+                        <CardHeader className="text-center">
+                            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/20 mb-3">
+                                <ShieldCheck className="h-8 w-8 text-primary" />
+                            </div>
+                            <CardTitle className="text-xl font-bold text-white">Confirme seu e-mail</CardTitle>
+                            <CardDescription className="text-white/60 flex items-center justify-center gap-1.5">
+                                <Mail className="h-3.5 w-3.5" />
+                                Código enviado para <span className="font-semibold text-white ml-1">{otpEmail}</span>
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="space-y-3">
+                                <p className="text-xs text-center text-zinc-500">Digite o código de 6 dígitos</p>
+                                <OtpInputEntrepreneur value={otpCode} onChange={setOtpCode} disabled={isVerifyingOtp} />
+                            </div>
+                            <div className="space-y-2">
+                                <Button
+                                    onClick={handleVerifyOtp}
+                                    disabled={otpCode.length !== 6 || isVerifyingOtp}
+                                    className="w-full bg-primary text-black hover:bg-primary/90 font-bold"
+                                >
+                                    {isVerifyingOtp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    Verificar e Continuar
+                                </Button>
+                                <button
+                                    type="button"
+                                    onClick={handleResendOtp}
+                                    disabled={isResendingOtp || resendCooldown > 0}
+                                    className="w-full text-xs text-zinc-500 hover:text-primary transition-colors flex items-center justify-center gap-1.5 py-2 disabled:opacity-40"
+                                >
+                                    <RefreshCw className={`h-3 w-3 ${isResendingOtp ? "animate-spin" : ""}`} />
+                                    {resendCooldown > 0 ? `Reenviar em ${resendCooldown}s` : "Reenviar código"}
+                                </button>
+                                <Button variant="ghost" className="w-full text-white/40 text-xs" onClick={() => { setOtpEmail(null); setOtpCode(""); }}>
+                                    Voltar
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    /* Registration Form */
+                    <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+                        <CardHeader className="text-center">
+                            <CardTitle className="text-2xl font-bold text-white">
+                                Portal do Empreendedor
+                            </CardTitle>
+                            <CardDescription className="text-white/60">
+                                Cadastre-se e comece a vender ou oferecer seus serviços
+                            </CardDescription>
+                        </CardHeader>
 
-                    <CardContent>
-                        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-                            <TabsList className="grid w-full grid-cols-2 mb-6">
-                                <TabsTrigger value="store" className="flex items-center gap-2">
-                                    <Store className="h-4 w-4" />
-                                    Lojista
-                                </TabsTrigger>
-                                <TabsTrigger value="professional" className="flex items-center gap-2">
-                                    <Briefcase className="h-4 w-4" />
-                                    Profissional
-                                </TabsTrigger>
-                            </TabsList>
+                        <CardContent>
+                            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+                                <TabsList className="grid w-full grid-cols-2 mb-6">
+                                    <TabsTrigger value="store" className="flex items-center gap-2">
+                                        <Store className="h-4 w-4" />
+                                        Lojista
+                                    </TabsTrigger>
+                                    <TabsTrigger value="professional" className="flex items-center gap-2">
+                                        <Briefcase className="h-4 w-4" />
+                                        Profissional
+                                    </TabsTrigger>
+                                </TabsList>
 
-                            <TabsContent value="store" className="space-y-4">
-                                <p className="text-sm text-white/60 mb-4">
-                                    Venda produtos fitness, suplementos e equipamentos
-                                </p>
-                                <RegistrationForm
-                                    formData={formData}
-                                    setFormData={setFormData}
-                                    errors={errors}
-                                    loading={loading}
-                                    onSubmit={handleRegister}
-                                />
-                            </TabsContent>
+                                <TabsContent value="store" className="space-y-4">
+                                    <p className="text-sm text-white/60 mb-4">
+                                        Venda produtos fitness, suplementos e equipamentos
+                                    </p>
+                                    <RegistrationForm
+                                        formData={formData}
+                                        setFormData={setFormData}
+                                        errors={errors}
+                                        loading={loading}
+                                        onSubmit={handleRegister}
+                                    />
+                                </TabsContent>
 
-                            <TabsContent value="professional" className="space-y-4">
-                                <p className="text-sm text-white/60 mb-4">
-                                    Ofereça serviços de personal, nutrição, fisioterapia e mais
-                                </p>
-                                <RegistrationForm
-                                    formData={formData}
-                                    setFormData={setFormData}
-                                    errors={errors}
-                                    loading={loading}
-                                    onSubmit={handleRegister}
-                                />
-                            </TabsContent>
-                        </Tabs>
-                    </CardContent>
-                </Card>
+                                <TabsContent value="professional" className="space-y-4">
+                                    <p className="text-sm text-white/60 mb-4">
+                                        Ofereça serviços de personal, nutrição, fisioterapia e mais
+                                    </p>
+                                    <RegistrationForm
+                                        formData={formData}
+                                        setFormData={setFormData}
+                                        errors={errors}
+                                        loading={loading}
+                                        onSubmit={handleRegister}
+                                    />
+                                </TabsContent>
+                            </Tabs>
+                        </CardContent>
+                    </Card>
+                )}
 
                 <p className="text-center text-sm text-white/40 mt-4">
                     Já tem uma conta?{" "}

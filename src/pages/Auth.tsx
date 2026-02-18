@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
-import { Eye, EyeOff, Smartphone, Dumbbell, ArrowRight, Check, Droplets, Briefcase } from "lucide-react";
+import { Eye, EyeOff, Smartphone, Check, Briefcase, ShieldCheck, RefreshCw, Mail } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import logoNexfit from "@/assets/nexfit-logo.png";
@@ -13,11 +13,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFeedback } from "@/hooks/useFeedback";
-import { PwaInstallBanner } from "@/components/PwaInstallBanner";
 import { usePwaInstallPrompt } from "@/hooks/usePwaInstallPrompt";
 import { mapLoginError } from "@/lib/authErrors";
 import { PremiumBackground } from "@/components/ui/premium-background";
-
 import { IOSInstallModal } from "@/components/modals/IOSInstallModal";
 
 // --- Types & Schemas ---
@@ -53,25 +51,76 @@ type FormValues = z.infer<typeof schema> & {
 
 type UpdatePasswordValues = z.infer<typeof updatePasswordSchema>;
 
+// --- OTP Input Component ---
+const OtpInput = ({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) => {
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const digits = value.padEnd(6, "").split("").slice(0, 6);
+
+  const handleChange = (idx: number, char: string) => {
+    const digit = char.replace(/\D/g, "").slice(-1);
+    const next = [...digits];
+    next[idx] = digit;
+    onChange(next.join(""));
+    if (digit && idx < 5) inputRefs.current[idx + 1]?.focus();
+  };
+
+  const handleKeyDown = (idx: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !digits[idx] && idx > 0) {
+      const next = [...digits];
+      next[idx - 1] = "";
+      onChange(next.join(""));
+      inputRefs.current[idx - 1]?.focus();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (pasted) { onChange(pasted.padEnd(6, "").slice(0, 6)); inputRefs.current[Math.min(pasted.length, 5)]?.focus(); }
+    e.preventDefault();
+  };
+
+  return (
+    <div className="flex gap-2 justify-center">
+      {digits.map((d, i) => (
+        <input
+          key={i}
+          ref={el => { inputRefs.current[i] = el; }}
+          type="text"
+          inputMode="numeric"
+          maxLength={1}
+          value={d}
+          disabled={disabled}
+          onChange={e => handleChange(i, e.target.value)}
+          onKeyDown={e => handleKeyDown(i, e)}
+          onPaste={handlePaste}
+          className="w-11 h-14 text-center text-xl font-black rounded-xl bg-white/5 border-2 border-white/10 text-white focus:border-primary focus:outline-none focus:bg-white/10 transition-all disabled:opacity-50"
+        />
+      ))}
+    </div>
+  );
+};
+
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [isResetMode, setIsResetMode] = useState(false);
   const [isUpdatePasswordMode, setIsUpdatePasswordMode] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [verifyEmail, setVerifyEmail] = useState<string | null>(null);
-  const [isResendingConfirmation, setIsResendingConfirmation] = useState(false);
   const [showIOSModal, setShowIOSModal] = useState(false);
 
-  // Background Image State
-  const [bgImage, setBgImage] = useState<string>("");
+  // OTP state
+  const [otpEmail, setOtpEmail] = useState<string | null>(null);
+  const [otpCode, setOtpCode] = useState("");
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [isResendingOtp, setIsResendingOtp] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   const navigate = useNavigate();
   const { toast } = useToast();
   const { withFeedback } = useFeedback();
   const { user } = useAuth();
   const { isAdmin, loading: roleLoading } = useAdminRole();
-  const { showInstallBanner, handleInstallClick, handleCloseBanner, isIOS, deferredPrompt } = usePwaInstallPrompt();
+  const { isIOS, deferredPrompt, handleInstallClick } = usePwaInstallPrompt();
 
   const {
     register,
@@ -88,19 +137,12 @@ const AuthPage = () => {
     formState: { errors: updateErrors, isSubmitting: isUpdatingPassword },
   } = useForm<UpdatePasswordValues>({ resolver: zodResolver(updatePasswordSchema) });
 
-  // Load the generated background image
+  // Resend cooldown timer
   useEffect(() => {
-    // We try to load the artifact image if available, otherwise fallback
-    // In a real scenario we might have a fixed path, for now we look for the artifact
-    // This is a dynamic check during dev, you might want a static import in prod
-    const loadBg = async () => {
-      // Using a specific high-quality placeholder or the artifact if known
-      // For now, let's use a nice gradient provided by PremiumBackground but
-      // we can overlay an image if we have the URL.
-      // We will rely on PremiumBackground's default for now, or inject the artifact URL if known.
-    };
-    loadBg();
-  }, []);
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
 
   useEffect(() => {
     const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
@@ -155,42 +197,64 @@ const AuthPage = () => {
     checkUserRoleAndRedirect();
   }, [user, isAdmin, roleLoading, navigate, isUpdatePasswordMode]);
 
-  const handleResendConfirmation = async (emailOverride?: string) => {
-    const email = (emailOverride ?? verifyEmail ?? watch("email"))?.trim();
-    const successMsg = "Se o e-mail existir e ainda não estiver confirmado, enviamos um novo link.";
+  // --- OTP helpers ---
+  const sendOtp = async (email: string, name?: string) => {
+    const { data, error } = await supabase.functions.invoke("send-email-otp", {
+      body: { email, name },
+    });
+    if (error) throw error;
+    return data;
+  };
 
-    if (!email) {
-      toast({ title: "Informe seu e-mail", description: "Digite o e-mail usado no cadastro.", variant: "destructive" });
-      return;
-    }
-
-    const parsed = z.string().trim().email().safeParse(email);
-    if (!parsed.success) {
-      toast({ title: "E-mail inválido", description: "Verifique o formato do e-mail e tente novamente.", variant: "destructive" });
-      return;
-    }
-
-    if (isResendingConfirmation) return;
-
-    setIsResendingConfirmation(true);
+  const handleResendOtp = async () => {
+    if (!otpEmail || isResendingOtp || resendCooldown > 0) return;
+    setIsResendingOtp(true);
     try {
-      const redirectUrl = `${window.location.origin}/`;
-      const { error } = await (supabase.auth as any).resend({
-        type: "signup",
-        email,
-        options: { emailRedirectTo: redirectUrl },
-      });
-
-      if (error) throw error;
-      toast({ title: "E-mail reenviado", description: successMsg });
+      await sendOtp(otpEmail);
+      setOtpCode("");
+      setResendCooldown(60);
+      toast({ title: "Código reenviado!", description: "Verifique sua caixa de entrada." });
     } catch (err: any) {
-      toast({
-        title: "Não foi possível reenviar",
-        description: err?.message ?? "Tente novamente em instantes.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro ao reenviar", description: err?.message ?? "Tente novamente.", variant: "destructive" });
     } finally {
-      setIsResendingConfirmation(false);
+      setIsResendingOtp(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpEmail || otpCode.length !== 6) {
+      toast({ title: "Código incompleto", description: "Digite os 6 dígitos do código.", variant: "destructive" });
+      return;
+    }
+    setIsVerifyingOtp(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("verify-email-otp", {
+        body: { email: otpEmail, otp_code: otpCode },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      if (data?.autoLogin && data?.access_token && data?.refresh_token) {
+        // Set session directly — user is now confirmed and logged in
+        await supabase.auth.setSession({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+        });
+        toast({ title: "E-mail confirmado!", description: "Bem-vindo ao NexFit! 🎉" });
+        setOtpEmail(null);
+        setOtpCode("");
+        // Navigation handled by the user effect below
+      } else {
+        // Email confirmed but no auto-login — ask user to login manually
+        toast({ title: "E-mail confirmado!", description: "Agora faça login com suas credenciais." });
+        setOtpEmail(null);
+        setOtpCode("");
+        setIsLogin(true);
+      }
+    } catch (err: any) {
+      toast({ title: "Código inválido", description: err?.message ?? "Verifique o código e tente novamente.", variant: "destructive" });
+    } finally {
+      setIsVerifyingOtp(false);
     }
   };
 
@@ -277,25 +341,27 @@ const AuthPage = () => {
     } else {
       await withFeedback(
         async () => {
-          const redirectUrl = `${window.location.origin}/`;
           const { data, error } = await supabase.auth.signUp({
             email: values.email,
             password: values.password,
-            options: { emailRedirectTo: redirectUrl },
           });
 
           if (error) throw error;
           if (data.user) {
             await (supabase as any).from("user_roles").insert({ user_id: data.user.id, role: "aluno" });
           }
+
+          // Send custom OTP email instead of Supabase's built-in confirmation
+          await sendOtp(values.email);
         },
-        { loading: "Criando conta...", success: "Cadastro realizado!", error: undefined }
+        { loading: "Criando conta...", success: "Código enviado!", error: undefined }
       ).catch((error) => {
         if (error) toast({ title: "Erro ao cadastrar", description: error.message, variant: "destructive" });
       });
 
-      setVerifyEmail(values.email);
-      setIsLogin(true);
+      setOtpEmail(values.email);
+      setOtpCode("");
+      setResendCooldown(60);
     }
   };
 
@@ -396,32 +462,44 @@ const AuthPage = () => {
                   </Button>
                 </form>
               </section>
-            ) : verifyEmail ? (
+            ) : otpEmail ? (
               <section className="space-y-6 text-center animate-in fade-in zoom-in-95 duration-300">
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/20">
-                  <Droplets className="h-8 w-8 text-primary" />
+                  <ShieldCheck className="h-8 w-8 text-primary" />
                 </div>
-                <div className="space-y-2">
-                  <h2 className="text-lg font-bold text-white">Verifique seu e-mail</h2>
-                  <p className="text-xs text-zinc-400 leading-relaxed">
-                    Enviamos um link para <br /><span className="font-semibold text-white">{verifyEmail}</span>
+                <div className="space-y-1">
+                  <h2 className="text-lg font-bold text-white">Confirme seu e-mail</h2>
+                  <p className="text-xs text-zinc-400 leading-relaxed flex items-center justify-center gap-1.5">
+                    <Mail className="h-3.5 w-3.5" />
+                    Código enviado para <span className="font-semibold text-white">{otpEmail}</span>
                   </p>
                 </div>
 
-                <div className="rounded-2xl bg-white/5 p-4 text-xs text-left text-zinc-400 border border-white/5">
-                  <p className="font-semibold text-zinc-300 mb-2">Não encontrou?</p>
-                  <ul className="space-y-1 list-none">
-                    <li className="flex gap-2 items-center"><Check className="h-3 w-3 text-primary" /> Verifique Spam/Lixo Eletrônico</li>
-                    <li className="flex gap-2 items-center"><Check className="h-3 w-3 text-primary" /> Aguarde alguns minutos</li>
-                  </ul>
+                <div className="space-y-4">
+                  <p className="text-xs text-zinc-500">Digite o código de 6 dígitos</p>
+                  <OtpInput value={otpCode} onChange={setOtpCode} disabled={isVerifyingOtp} />
                 </div>
 
                 <div className="space-y-2">
-                  <Button className="w-full h-12 rounded-xl bg-white/10 text-white font-semibold hover:bg-white/20 border border-white/5" loading={isResendingConfirmation} onClick={() => handleResendConfirmation(verifyEmail)}>
-                    Reenviar Email
+                  <Button
+                    className="w-full h-12 rounded-xl bg-gradient-to-r from-primary to-green-600 text-black font-black text-sm uppercase tracking-widest"
+                    onClick={handleVerifyOtp}
+                    disabled={otpCode.length !== 6 || isVerifyingOtp}
+                    loading={isVerifyingOtp}
+                  >
+                    Verificar Código
                   </Button>
-                  <Button variant="ghost" className="w-full text-white/50" onClick={() => { setVerifyEmail(null); setIsLogin(true); setIsResetMode(false); }}>
-                    Voltar
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={isResendingOtp || resendCooldown > 0}
+                    className="w-full text-xs text-zinc-500 hover:text-primary transition-colors flex items-center justify-center gap-1.5 py-2 disabled:opacity-40"
+                  >
+                    <RefreshCw className={`h-3 w-3 ${isResendingOtp ? "animate-spin" : ""}`} />
+                    {resendCooldown > 0 ? `Reenviar em ${resendCooldown}s` : "Reenviar código"}
+                  </button>
+                  <Button variant="ghost" className="w-full text-white/40 text-xs" onClick={() => { setOtpEmail(null); setOtpCode(""); setIsLogin(true); }}>
+                    Voltar ao login
                   </Button>
                 </div>
               </section>
