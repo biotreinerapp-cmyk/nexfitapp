@@ -156,12 +156,20 @@ serve(async (req) => {
 
             if (mpData.point_of_interaction?.transaction_data) {
                 const txData = mpData.point_of_interaction.transaction_data;
+                // qr_code = the text payload (copia e cola)
+                // qr_code_base64 = raw base64 PNG image from MP
+                const qrBase64 = txData.qr_code_base64 || '';
+                const qrDataUrl = qrBase64
+                    ? (qrBase64.startsWith('data:') ? qrBase64 : `data:image/png;base64,${qrBase64}`)
+                    : '';
+
                 updateData.pix_payload = txData.qr_code;
-                updateData.pix_qr_code = txData.qr_code_base64;
+                updateData.pix_qr_code = qrDataUrl; // Store as complete data URL
                 updateData.payment_url = txData.ticket_url;
 
                 responseData.qr_code = txData.qr_code;
-                responseData.qr_code_base64 = txData.qr_code_base64;
+                responseData.qr_code_base64 = qrBase64;   // Raw base64 for backward compat
+                responseData.qr_code_data_url = qrDataUrl; // Complete data URL for frontend
                 responseData.ticket_url = txData.ticket_url;
             }
         }

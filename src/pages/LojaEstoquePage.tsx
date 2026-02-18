@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Warehouse, AlertTriangle, Plus, Minus, Crown, Search, Package, Lock, ImagePlus, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useStorePlanModules } from "@/hooks/useStorePlanModules";
 
 interface ProductStock {
   id: string;
@@ -25,7 +26,8 @@ const LojaEstoquePage = () => {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
-  const [isPro, setIsPro] = useState(true); // Default to true to avoid flash
+  const { hasModule, isLoading: isPlanLoading } = useStorePlanModules();
+  const isPro = hasModule("estoque");
   const [products, setProducts] = useState<ProductStock[]>([]);
   const [storeId, setStoreId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -63,9 +65,6 @@ const LojaEstoquePage = () => {
 
       if (!store) return;
       setStoreId(store.id);
-
-      const isStorePro = true; // Always unlocked
-      setIsPro(isStorePro);
 
       const { data } = await (supabase as any)
         .from("marketplace_products")
@@ -203,10 +202,33 @@ const LojaEstoquePage = () => {
 
   const lowStockCount = products.filter(p => p.stock <= p.min_stock_alert).length;
 
-  if (loading) {
+  if (loading || isPlanLoading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-black">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </main>
+    );
+  }
+
+  if (!isPro) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-black px-4 text-center">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 border border-primary/20">
+          <Lock className="h-10 w-10 text-primary" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-2xl font-black uppercase tracking-tighter text-white">Módulo Bloqueado</h1>
+          <p className="text-sm text-zinc-400 max-w-xs">
+            O módulo de <strong>Estoque</strong> não está incluído no seu plano atual.
+          </p>
+        </div>
+        <button
+          onClick={() => navigate("/loja/plano")}
+          className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-xs font-bold uppercase tracking-widest text-black hover:bg-primary/90 transition-colors"
+        >
+          <Crown className="h-4 w-4" /> Ver Planos
+        </button>
+        <LojaFloatingNavIsland />
       </main>
     );
   }

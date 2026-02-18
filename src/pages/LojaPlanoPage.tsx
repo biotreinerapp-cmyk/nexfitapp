@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { createPixPayment, checkPixPaymentStatus, getUserPixPayments } from "@/lib/pixPaymentTracking";
+import { subscribeToPaymentStatus } from "@/lib/mercadoPagoService";
 
 type StoreBillingInfo = {
     id: string;
@@ -30,7 +31,13 @@ type PixConfig = {
     receiver_name: string | null;
 };
 
-const PLAN_PRICE = 39.90; // R$ 39,90
+type ActivePlan = {
+    id: string;
+    name: string;
+    price_cents: number;
+};
+
+const DEFAULT_PLAN_PRICE = 39.90; // Fallback if no plan found
 
 export default function LojaPlanoPage() {
     const { user } = useAuth();
@@ -40,6 +47,7 @@ export default function LojaPlanoPage() {
     const [store, setStore] = useState<StoreBillingInfo | null>(null);
     const [pixData, setPixData] = useState<any>(null);
     const [activePayment, setActivePayment] = useState<any>(null);
+    const [activePlan, setActivePlan] = useState<ActivePlan | null>(null);
 
     const [isOpen, setIsOpen] = useState(false);
     const [verifying, setVerifying] = useState(false);
@@ -62,15 +70,34 @@ export default function LojaPlanoPage() {
             if (storeData) {
                 setStore(storeData as StoreBillingInfo);
 
+                // Fetch the active LOJISTA plan from admin-created plans
+                const { data: plan } = await supabase
+                    .from("app_access_plans")
+                    .select("id, name, price_cents")
+                    .eq("user_type", "LOJISTA")
+                    .eq("is_active", true)
+                    .order("price_cents", { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                if (plan) {
+                    setActivePlan(plan as ActivePlan);
+                }
+
                 // Check for existing pending payments
                 const payments = await getUserPixPayments(user.id, "store_plan");
                 const pending = payments?.find(p => p.status === "pending");
                 if (pending) {
                     setActivePayment(pending);
+                    // Normalize QR code from DB: may be raw base64 or already a data URL
+                    const rawQr = pending.pix_qr_code || '';
+                    const qrDataUrl = rawQr
+                        ? (rawQr.startsWith('data:') ? rawQr : `data:image/png;base64,${rawQr}`)
+                        : '';
                     setPixData({
                         paymentId: pending.id,
                         pixPayload: pending.pix_payload,
-                        pixQrCode: pending.pix_qr_code,
+                        pixQrCode: qrDataUrl,
                         expiresAt: new Date(pending.expires_at)
                     });
                 }
@@ -83,6 +110,18 @@ export default function LojaPlanoPage() {
     }, [user]);
 
     useEffect(() => { void loadData(); }, [loadData]);
+
+    // Realtime subscription for automatic payment confirmation
+    useEffect(() => {
+        if (!pixData?.paymentId) return;
+        return subscribeToPaymentStatus(pixData.paymentId, (status) => {
+            if (status === 'paid' || status === 'approved') {
+                setPaymentStatus('paid');
+                toast({ title: "Pagamento Confirmado!", description: "Seu plano foi ativado!" });
+                setTimeout(() => { setIsOpen(false); void loadData(); }, 2500);
+            }
+        });
+    }, [pixData?.paymentId, toast, loadData]);
 
     const handleInitiateUpgrade = async () => {
         if (!user || !store) return;
@@ -98,29 +137,22 @@ export default function LojaPlanoPage() {
 
         setVerifying(true);
         try {
-            // Get Admin PIX Config
-            const { data: adminPix } = await supabase
-                .from("pix_configs")
-                .select("pix_key, receiver_name")
-                .is("marketplace_store_id", null)
-                .order("updated_at", { ascending: false })
-                .limit(1)
-                .maybeSingle();
+            const planPrice = activePlan ? activePlan.price_cents / 100 : DEFAULT_PLAN_PRICE;
+            const planName = activePlan?.name || "PRO";
 
-            if (!adminPix?.pix_key) throw new Error("Configuração PIX não encontrada. Contate o admin.");
-
-            console.log("[LojaPlano] Criando novo pagamento PIX...");
+            console.log("[LojaPlano] Criando pagamento via Mercado Pago...");
             const result = await createPixPayment({
                 userId: user.id,
-                amount: PLAN_PRICE,
+                userEmail: user.email || "lojista@nexfit.com",
+                userName: user.user_metadata?.full_name || user.user_metadata?.nome || store.nome || "Lojista Nexfit",
+                amount: planPrice,
                 paymentType: "store_plan",
                 referenceId: store.id,
-                pixKey: adminPix.pix_key,
-                receiverName: adminPix.receiver_name || "NEXFIT",
-                description: `Upgrade PRO - ${store.nome}`
+                description: `Plano ${planName} - ${store.nome}`,
+                paymentMethod: "pix",
             });
 
-            console.log("[LojaPlano] Pagamento criado com sucesso:", result.paymentId);
+            console.log("[LojaPlano] Pagamento criado:", result.paymentId);
             setPixData(result);
             setIsOpen(true);
         } catch (error: any) {
@@ -169,7 +201,9 @@ export default function LojaPlanoPage() {
         }
     }, [pixData, toast]);
 
-    const isPro = store?.subscription_plan === "PRO";
+    const isPro = !!(store?.subscription_plan && store.subscription_plan !== "FREE" && store.subscription_plan !== "");
+    const planPrice = activePlan ? activePlan.price_cents / 100 : DEFAULT_PLAN_PRICE;
+    const planDisplayName = activePlan?.name?.toUpperCase() || "PRO";
 
     if (loading) {
         return (
@@ -207,7 +241,7 @@ export default function LojaPlanoPage() {
                             </div>
                         </div>
                         <Badge variant="outline" className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border-primary/20 ${isPro ? "bg-primary text-black" : "bg-zinc-900 text-zinc-400"}`}>
-                            {isPro ? "ELITE PRO" : "PLANO FREE"}
+                            {isPro ? planDisplayName : "PLANO FREE"}
                         </Badge>
                     </div>
 
@@ -235,7 +269,7 @@ export default function LojaPlanoPage() {
                             >
                                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
                                 <span className="relative z-10 flex items-center justify-center gap-2">
-                                    {verifying ? <Loader2 className="animate-spin h-5 w-5" /> : `Mudar para ELITE PRO - R$ ${PLAN_PRICE.toFixed(2)}`}
+                                    {verifying ? <Loader2 className="animate-spin h-5 w-5" /> : `Mudar para ${planDisplayName} - R$ ${planPrice.toFixed(2)}`}
                                 </span>
                             </Button>
                         )}

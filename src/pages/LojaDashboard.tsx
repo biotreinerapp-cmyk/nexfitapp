@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { LojaFloatingNavIsland } from "@/components/navigation/LojaFloatingNavIsland";
 import { StoreNotificationCenter } from "@/components/store/StoreNotificationCenter";
 import { Package, DollarSign, TrendingUp, ShoppingBag, LogOut, Clock, CheckCircle2, XCircle, ChevronRight, User } from "lucide-react";
+import { useStorePlanModules } from "@/hooks/useStorePlanModules";
 
 interface StoreInfo {
   id: string;
@@ -41,7 +42,8 @@ const LojaDashboardPage = () => {
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [monthRevenue, setMonthRevenue] = useState(0);
   const [abandonedCarts, setAbandonedCarts] = useState<any[]>([]);
-  const [isPro, setIsPro] = useState(false);
+  const { hasModule, isLoading: isPlanLoading } = useStorePlanModules();
+  const isPro = hasModule("relatorios") || hasModule("financeiro") || hasModule("estoque");
 
   useEffect(() => {
     document.title = "Painel do Lojista - Nexfit";
@@ -51,7 +53,7 @@ const LojaDashboardPage = () => {
     const load = async () => {
       if (!user) return;
 
-      const { data: storeData, error } = await supabase
+      const { data: storeData, error } = await (supabase as any)
         .from("marketplace_stores")
         .select("id, nome, profile_image_url, banner_image_url, subscription_plan")
         .eq("owner_user_id", user.id)
@@ -69,7 +71,6 @@ const LojaDashboardPage = () => {
       }
 
       setStore(storeData as StoreInfo);
-      setIsPro(true); // Always unlocked
 
       // Count products
       const { count: pCount } = await supabase
@@ -129,7 +130,7 @@ const LojaDashboardPage = () => {
     void load();
   }, [user, toast]);
 
-  if (loading) {
+  if (loading || isPlanLoading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-black">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />

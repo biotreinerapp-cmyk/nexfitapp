@@ -119,10 +119,8 @@ async function handlePostPaymentActions(supabase: any, payment: any) {
 
         case 'subscription':
             if (payment.user_id) {
-                // Find existing plan or set default
                 const expiresAt = new Date()
                 expiresAt.setMonth(expiresAt.getMonth() + 1)
-
                 await supabase
                     .from('profiles')
                     .update({
@@ -133,6 +131,33 @@ async function handlePostPaymentActions(supabase: any, payment: any) {
             }
             break;
 
-        // Add other cases as needed (store_plan, lp_unlock, professional_service)
+        case 'store_plan':
+            if (payment.reference_id) {
+                const now = new Date()
+                const expiresAt = new Date(now)
+                expiresAt.setDate(now.getDate() + 30)
+
+                // Get the plan name from app_access_plans
+                const { data: plan } = await supabase
+                    .from('app_access_plans')
+                    .select('name')
+                    .eq('user_type', 'LOJISTA')
+                    .eq('is_active', true)
+                    .order('price_cents', { ascending: false })
+                    .limit(1)
+                    .maybeSingle()
+
+                const planName = plan?.name || 'PRO'
+                console.log(`[MP Webhook] Activating store plan '${planName}' for store: ${payment.reference_id}`)
+
+                await supabase
+                    .from('marketplace_stores')
+                    .update({
+                        subscription_plan: planName,
+                        plan_expires_at: expiresAt.toISOString(),
+                    })
+                    .eq('id', payment.reference_id)
+            }
+            break;
     }
 }

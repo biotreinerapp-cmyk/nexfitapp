@@ -56,8 +56,9 @@ export async function createPixPayment(
 
     console.log("[PixTracking] Creating payment:", { paymentType, amount });
 
-    // ONLY use Mercado Pago for subscriptions as requested by priorities
-    if (paymentType === 'subscription' || (paymentMethod === 'card' && paymentType === 'subscription')) {
+    // Use Mercado Pago for subscriptions AND store plans
+    // MP uses its own registered PIX key — no manual pix_configs needed
+    if (paymentType === 'subscription' || paymentType === 'store_plan') {
         try {
             const [firstName = "Cliente", lastName = "Nexfit"] = (params.userName || "").split(" ");
             const email = params.userEmail || "atendimento@nexfit.com";
@@ -91,7 +92,13 @@ export async function createPixPayment(
             return {
                 paymentId: result.payment_id,
                 pixPayload: result.qr_code || "",
-                pixQrCode: result.qr_code_base64 || "",
+                // Prefer complete data URL; fall back to converting raw base64
+                pixQrCode: result.qr_code_data_url ||
+                    (result.qr_code_base64
+                        ? (result.qr_code_base64.startsWith('data:')
+                            ? result.qr_code_base64
+                            : `data:image/png;base64,${result.qr_code_base64}`)
+                        : ""),
                 expiresAt,
                 paymentUrl: result.ticket_url || result.checkout_url,
             };
@@ -135,6 +142,12 @@ export async function createPixPayment(
                 width: 400,
                 margin: 2
             });
+
+            // Persist payload and QR code to the database so they survive page reloads
+            await supabase
+                .from('pix_payments')
+                .update({ pix_payload: payload, pix_qr_code: qrCodeImage })
+                .eq('id', localPayment.id);
 
             return {
                 paymentId: localPayment.id,
