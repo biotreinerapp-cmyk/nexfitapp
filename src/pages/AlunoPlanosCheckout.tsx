@@ -162,7 +162,7 @@ const AlunoPlanosCheckout = () => {
     };
 
     return (
-        <main className="relative min-h-screen overflow-hidden bg-background px-4 pb-24 pt-6">
+        <main className="relative min-h-screen overflow-hidden bg-background px-4 pb-32 pt-6">
             {/* Premium Background */}
             <div className="absolute inset-0 z-0">
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/20 via-background to-background" />

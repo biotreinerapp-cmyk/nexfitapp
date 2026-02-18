@@ -305,7 +305,7 @@ const AlunoTreinosHojePage = () => {
   const hojeLabel = diasSemanaLabel[diaIndex];
 
   return (
-    <main className="safe-bottom-main flex min-h-screen flex-col bg-background px-4 pb-24 pt-6">
+    <main className="safe-bottom-main flex min-h-screen flex-col bg-background px-4 pb-32 pt-6">
       <header className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <BackIconButton to="/aluno/dashboard" />

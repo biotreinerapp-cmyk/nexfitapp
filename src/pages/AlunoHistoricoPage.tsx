@@ -238,7 +238,7 @@ const AlunoHistoricoPage = () => {
   };
 
   return (
-    <main className="safe-bottom-main flex min-h-screen flex-col bg-background px-4 pt-6 pb-24">
+    <main className="safe-bottom-main flex min-h-screen flex-col bg-background px-4 pt-6 pb-32">
       <header className="mb-4 flex items-center gap-3">
         <BackIconButton to="/aluno/perfil" />
         <div>

@@ -482,7 +482,7 @@ export default function MarketplaceCartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background px-4 pb-24 pt-6">
+    <div className="min-h-screen bg-background px-4 pb-32 pt-6">
       <header className="mb-4 flex items-center gap-3">
         <BackIconButton to={checkoutStep === "checkout" ? undefined : `/marketplace/loja/${storeId}`} onClick={checkoutStep === "checkout" ? () => setCheckoutStep("cart") : undefined} />
         <div>

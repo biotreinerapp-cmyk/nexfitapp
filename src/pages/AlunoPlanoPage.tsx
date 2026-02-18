@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 
 const AlunoPlanoPage = () => {
   return (
-    <main className="safe-bottom-main flex min-h-screen flex-col bg-background px-4 pb-24 pt-6 relative overflow-hidden">
+    <main className="safe-bottom-main flex min-h-screen flex-col bg-background px-4 pb-32 pt-6 relative overflow-hidden">
       {/* Premium Background Decorations */}
       <div className="absolute inset-0 z-0">
         <div className="absolute -top-[10%] -right-[10%] h-96 w-96 rounded-full bg-primary/10 blur-[120px] filter animate-pulse" />

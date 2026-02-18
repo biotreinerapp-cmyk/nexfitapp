@@ -226,7 +226,7 @@ const TelemedicinaPage = () => {
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-background pb-24">
+    <main className="flex min-h-screen flex-col bg-background pb-32">
       {/* Premium Header */}
       <div className="sticky top-0 z-50 border-b border-white/5 bg-background/80 px-4 py-4 backdrop-blur-xl">
         <div className="flex items-center gap-3">

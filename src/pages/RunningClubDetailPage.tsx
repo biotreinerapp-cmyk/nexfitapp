@@ -545,7 +545,7 @@ const RunningClubDetailPage = () => {
 
   if (!club) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background text-foreground pb-24">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background text-foreground pb-32">
         <span>Carregando clube...</span>
         <FloatingNavIsland />
       </div>
@@ -555,7 +555,7 @@ const RunningClubDetailPage = () => {
   const isMember = Boolean(membership);
 
   return (
-    <main className="safe-bottom-main flex min-h-screen flex-col gap-4 bg-background px-4 pb-24 pt-4">
+    <main className="safe-bottom-main flex min-h-screen flex-col gap-4 bg-background px-4 pb-32 pt-4">
       <header className="mb-2 flex items-center gap-3">
         <Button
           variant="ghost"

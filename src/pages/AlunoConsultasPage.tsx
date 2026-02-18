@@ -127,7 +127,7 @@ export default function AlunoConsultasPage() {
     }
 
     return (
-        <main className="flex flex-col min-h-screen bg-zinc-950 text-white pb-24">
+        <main className="flex flex-col min-h-screen bg-zinc-950 text-white pb-32">
             {/* Header */}
             <header className="p-6 border-b border-white/5 bg-black/40 backdrop-blur-md sticky top-0 z-20">
                 <div className="flex items-center justify-between mb-6">

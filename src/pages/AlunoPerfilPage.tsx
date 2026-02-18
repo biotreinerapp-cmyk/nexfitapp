@@ -156,7 +156,7 @@ const AlunoPerfilPage = () => {
   };
 
   return (
-    <main className="safe-bottom-main flex min-h-screen flex-col bg-background px-4 pb-24 pt-6">
+    <main className="safe-bottom-main flex min-h-screen flex-col bg-background px-4 pb-32 pt-6">
       {shouldShowPlanExpiryBanner && daysLeftToExpire != null && (
         <div className="mb-4">
           <PlanExpiryBanner daysLeft={daysLeftToExpire} onRenew={() => navigate("/aluno/perfil/plano")} />

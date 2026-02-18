@@ -77,6 +77,7 @@ import AlunoProgressoPage from "./pages/AlunoProgressoPage";
 import ModoRaizPage from "./pages/ModoRaizPage";
 import ModoRaizFormPage from "./pages/ModoRaizFormPage";
 import ModoRaizViewPage from "./pages/ModoRaizViewPage";
+import ModoRaizTreinoPage from "./pages/ModoRaizTreinoPage";
 import { useConnectionStatus } from "@/hooks/useConnectionStatus";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import AdminMasterPage from "./pages/AdminMaster";
@@ -468,6 +469,16 @@ const AppRoutes = () => (
           <AlunoRoute>
             <RequireOnboarding>
               <AlunoTreinoAtivoPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/modo-raiz/:id/treino/:dayIndex"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <ModoRaizTreinoPage />
             </RequireOnboarding>
           </AlunoRoute>
         }
@@ -973,7 +984,7 @@ const ScrollToTopOnDashboard = () => {
 
 const App = () => (
   <AuthProvider>
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <UserPreferencesProvider>
         <ActivityProvider>
           <ScrollToTopOnDashboard />

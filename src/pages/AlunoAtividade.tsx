@@ -784,7 +784,7 @@ const AlunoAtividadePage = () => {
     return `${minutes}:${seconds} /km`;
   };
   return (
-    <main className="safe-bottom-main flex min-h-screen flex-col bg-background px-4 pb-24 pt-6">
+    <main className="safe-bottom-main flex min-h-screen flex-col bg-background px-4 pb-32 pt-6">
       <section className="flex flex-1 flex-col gap-8 animate-fade-in">
         {hasPendingFinalization && (
           <div className="rounded-[24px] border border-accent/20 bg-accent/5 p-4 backdrop-blur-md">

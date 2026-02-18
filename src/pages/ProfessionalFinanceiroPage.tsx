@@ -64,16 +64,7 @@ export default function ProfessionalFinanceiroPage() {
             // 1. Check if professional has access to financial module
             const { data: prof, error: profError } = await supabase
                 .from("professionals")
-                .select(`
-                    id, 
-                    balance,
-                    current_plan_id,
-                    app_access_plans (
-                        plan_modules (
-                            access_modules (key)
-                        )
-                    )
-                `)
+                .select("id, balance")
                 .eq("user_id", user.id)
                 .single();
 

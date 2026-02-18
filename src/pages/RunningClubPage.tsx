@@ -506,7 +506,7 @@ const RunningClubPage = () => {
 
   if (isFree) {
     return (
-      <main className="safe-bottom-main flex min-h-screen flex-col gap-4 bg-background px-4 pb-24 pt-4">
+      <main className="safe-bottom-main flex min-h-screen flex-col gap-4 bg-background px-4 pb-32 pt-4">
         <header className="mb-2 flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate("/aluno/dashboard")} className="mr-1 text-foreground">
             <ArrowLeft className="h-4 w-4" />
@@ -536,7 +536,7 @@ const RunningClubPage = () => {
   }
 
   return (
-    <main className="safe-bottom-main flex min-h-screen flex-col gap-4 bg-background px-4 pb-24 pt-4">
+    <main className="safe-bottom-main flex min-h-screen flex-col gap-4 bg-background px-4 pb-32 pt-4">
       <header className="mb-2 flex items-center gap-3">
         <Button
           variant="ghost"

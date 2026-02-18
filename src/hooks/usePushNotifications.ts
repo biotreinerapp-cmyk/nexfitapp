@@ -28,7 +28,6 @@ export function usePushNotifications() {
 
     const subscribeUser = async () => {
         if (!user || !VAPID_PUBLIC_KEY) {
-            console.warn("[Push] User not logged in or VAPID key missing.");
             return;
         }
 
