@@ -1,7 +1,6 @@
 services:
-  - type: web
+  - type: static
     name: nexfit-frontend
-    runtime: static
     buildCommand: npm run build
     publishPath: dist
     envVars:
