@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: nexfit-frontend
+    runtime: static
+    buildCommand: npm run build
+    publishPath: dist
+    envVars:
+      - key: VITE_SUPABASE_URL
+        value: https://afffyfsmcvphrhbtxrgt.supabase.co
+      - key: VITE_SUPABASE_ANON_KEY
+        fromContext: SUPABASE_ANON_KEY
+      - key: VITE_RAPIDAPI_KEY
+        fromContext: RAPIDAPI_KEY
+      - key: VITE_VAPID_PUBLIC_KEY
+        fromContext: VAPID_PUBLIC_KEY
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
