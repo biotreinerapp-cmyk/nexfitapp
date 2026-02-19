@@ -45,72 +45,10 @@ export function useStorePlanModules(): StorePlanInfo {
                 setStoreId(store.id);
                 setSubscriptionPlan(store.subscription_plan);
 
-                const planName = store.subscription_plan as string | null;
+                // BYPASS: Grant full access to all modules regardless of plan
+                // This is a temporary measure requested to unblock the LOJISTA access on Render
+                setModules(new Set(['treinos', 'nutricao', 'telemedicina', 'marketplace', 'agenda', 'chat', 'financeiro', 'loja', 'estoque', 'relatorios']));
 
-                if (!planName) {
-                    // No plan assigned at all
-                    setModules(new Set());
-                    setIsLoading(false);
-                    return;
-                }
-
-                // 2. Find the matching plan in app_access_plans for LOJISTA
-                const { data: plan } = await supabase
-                    .from("app_access_plans")
-                    .select(`
-                        id,
-                        name,
-                        plan_modules (
-                            module_id,
-                            access_modules (key)
-                        )
-                    `)
-                    .eq("user_type", "LOJISTA")
-                    .eq("is_active", true)
-                    .ilike("name", planName)
-                    .maybeSingle();
-
-                if (plan) {
-                    const moduleKeys = (plan as any).plan_modules
-                        ?.map((pm: any) => pm.access_modules?.key)
-                        .filter(Boolean) as string[];
-                    setModules(new Set(moduleKeys || []));
-                } else {
-                    // Check if ANY plans exist for LOJISTA. If zero, grant all as fallback (Setup Mode)
-                    const { count } = await supabase
-                        .from("app_access_plans")
-                        .select("id", { count: 'exact', head: true })
-                        .eq("user_type", "LOJISTA")
-                        .eq("is_active", true);
-
-                    if (count === 0) {
-                        // Grant all common modules
-                        setModules(new Set(['treinos', 'nutricao', 'telemedicina', 'marketplace', 'agenda', 'chat', 'financeiro', 'loja', 'estoque', 'relatorios']));
-                    } else {
-                        // If plans exist but none match, try fallback to highest plan
-                        const { data: anyPlan } = await supabase
-                            .from("app_access_plans")
-                            .select(`
-                                id,
-                                plan_modules (
-                                    module_id,
-                                    access_modules (key)
-                                )
-                            `)
-                            .eq("user_type", "LOJISTA")
-                            .eq("is_active", true)
-                            .order("price_cents", { ascending: false })
-                            .limit(1)
-                            .maybeSingle();
-
-                        if (anyPlan) {
-                            const moduleKeys = (anyPlan as any).plan_modules
-                                ?.map((pm: any) => pm.access_modules?.key)
-                                .filter(Boolean) as string[];
-                            setModules(new Set(moduleKeys || []));
-                        }
-                    }
-                }
             } catch (error) {
                 console.error("[useStorePlanModules] Error loading plan modules:", error);
             } finally {
