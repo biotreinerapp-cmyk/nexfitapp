@@ -24,6 +24,7 @@ export interface MercadoPagoPaymentResult {
     qr_code_base64?: string;
     ticket_url?: string;
     checkout_url?: string;
+    qr_code_data_url?: string;
     error?: string;
 }
 

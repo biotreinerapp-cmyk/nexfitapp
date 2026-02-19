@@ -58,108 +58,52 @@ export async function createPixPayment(
 
     // Use Mercado Pago for automated payments
     // MP uses its own registered PIX key — no manual pix_configs needed
-    // Enable automated payments for subscriptions, store plans, and marketplace orders
-    if (paymentType === 'subscription' || paymentType === 'store_plan' || paymentType === 'marketplace_order') {
-        try {
-            const [firstName = "Cliente", lastName = "Nexfit"] = (params.userName || "").split(" ");
-            const email = params.userEmail || "atendimento@nexfit.com";
+    // Route ALL payment types through Mercado Pago for consistency and Card support
+    try {
+        const [firstName = "Cliente", lastName = "Nexfit"] = (params.userName || "").split(" ");
+        const email = params.userEmail || "atendimento@nexfit.com";
 
-            // Create payment via Mercado Pago Service
-            const result = await createMercadoPagoPayment({
-                transaction_amount: amount,
-                description: description || `Pagamento Nexfit - ${paymentType}`,
-                payment_method_id: paymentMethod,
-                payer: {
-                    email,
-                    first_name: firstName,
-                    last_name: lastName,
-                },
-                metadata: {
-                    payment_type: paymentType,
-                    reference_id: referenceId || "",
-                    user_id: userId,
-                }
-            });
-
-            if (!result.success || !result.payment_id) {
-                throw new Error(result.error || "Erro ao criar pagamento no Mercado Pago");
+        // Create payment via Mercado Pago Service
+        const result = await createMercadoPagoPayment({
+            transaction_amount: amount,
+            description: description || `Pagamento Nexfit - ${paymentType}`,
+            payment_method_id: paymentMethod,
+            payer: {
+                email,
+                first_name: firstName,
+                last_name: lastName,
+            },
+            metadata: {
+                payment_type: paymentType,
+                reference_id: referenceId || "",
+                user_id: userId,
             }
+        });
 
-            // Expiration is handled by Edge Function (24h default)
-            const expiresAt = new Date();
-            expiresAt.setHours(expiresAt.getHours() + 24);
-
-            return {
-                paymentId: result.payment_id,
-                pixPayload: result.qr_code || "",
-                // Prefer complete data URL; fall back to converting raw base64
-                pixQrCode: result.qr_code_data_url ||
-                    (result.qr_code_base64
-                        ? (result.qr_code_base64.startsWith('data:')
-                            ? result.qr_code_base64
-                            : `data:image/png;base64,${result.qr_code_base64}`)
-                        : ""),
-                expiresAt,
-                paymentUrl: result.ticket_url || result.checkout_url,
-            };
-        } catch (error: any) {
-            console.error("[PixTracking] Error creating automated payment:", error);
-            throw new Error(error.message || "Falha ao criar pagamento automático. Tente novamente.");
+        if (!result.success || !result.payment_id) {
+            throw new Error(result.error || "Erro ao criar pagamento no Mercado Pago");
         }
-    } else {
 
-        // MANUAL PIX SYSTEM - Now generating actual payloads
-        try {
-            // First, insert local record
-            const { data: localPayment, error: localError } = await supabase
-                .from('pix_payments')
-                .insert({
-                    user_id: userId,
-                    amount,
-                    payment_type: paymentType,
-                    reference_id: referenceId,
-                    status: 'pending',
-                    expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-                })
-                .select()
-                .single();
+        // Expiration is handled by Edge Function (24h default)
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 24);
 
-            if (localError) throw localError;
-
-            // Generate payload locally if manual PIX config is provided or defaults used
-            const finalPixKey = params.pixKey || "admin@nexfit.com";
-            const finalReceiverName = params.receiverName || "NEXFIT TECNOLOGIA";
-
-            const payload = buildPixPayload({
-                pixKey: finalPixKey,
-                receiverName: finalReceiverName,
-                amount,
-                description: description || `Pagamento Nexfit: ${paymentType}`,
-                txid: localPayment.id.substring(0, 25) // Keep TXID short as per EMVCo
-            });
-
-            // Generate QR Code Image (Data URL)
-            const qrCodeImage = await QRCode.toDataURL(payload, {
-                width: 400,
-                margin: 2
-            });
-
-            // Persist payload and QR code to the database so they survive page reloads
-            await supabase
-                .from('pix_payments')
-                .update({ pix_payload: payload, pix_qr_code: qrCodeImage })
-                .eq('id', localPayment.id);
-
-            return {
-                paymentId: localPayment.id,
-                pixPayload: payload,
-                pixQrCode: qrCodeImage,
-                expiresAt: new Date(localPayment.expires_at),
-            };
-        } catch (error: any) {
-            console.error("[PixTracking] Error creating manual payment:", error);
-            throw new Error(error.message || "Erro ao gerar pagamento manual.");
-        }
+        return {
+            paymentId: result.payment_id,
+            pixPayload: result.qr_code || "",
+            // Prefer complete data URL; fall back to converting raw base64
+            pixQrCode: result.qr_code_data_url ||
+                (result.qr_code_base64
+                    ? (result.qr_code_base64.startsWith('data:')
+                        ? result.qr_code_base64
+                        : `data:image/png;base64,${result.qr_code_base64}`)
+                    : ""),
+            expiresAt,
+            paymentUrl: result.ticket_url || result.checkout_url,
+        };
+    } catch (error: any) {
+        console.error("[PixTracking] Error creating automated payment:", error);
+        throw new Error(error.message || "Falha ao criar pagamento automático. Tente novamente.");
     }
 }
 

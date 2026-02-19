@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Check, Zap, TrendingUp, Users, Loader2 } from "lucide-react";
+import { Sparkles, Check, Zap, TrendingUp, Users, Loader2, CheckCircle2, CreditCard, QrCode } from "lucide-react";
 import { createPixPayment } from "@/lib/pixPaymentTracking";
+import { subscribeToPaymentStatus } from "@/lib/mercadoPagoService";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -19,7 +20,9 @@ export function LPOfferCard({ userType, userId, onSkip, onPurchaseComplete }: LP
     const [showPayment, setShowPayment] = useState(false);
     const [pixData, setPixData] = useState<any>(null);
     const [loading, setLoading] = useState(false);
-    const [polling, setPolling] = useState(false);
+    const [paymentStatus, setPaymentStatus] = useState<"pending" | "paid" | "expired">("pending");
+    const [paymentMethod, setPaymentMethod] = useState<"pix" | "card">("pix");
+    const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
 
     const isStore = userType === "store";
 
@@ -48,10 +51,10 @@ export function LPOfferCard({ userType, userId, onSkip, onPurchaseComplete }: LP
 
     const currentContent = content[userType];
 
-    const handlePurchase = async () => {
+    const handlePurchase = async (method: "pix" | "card" = "pix") => {
         setLoading(true);
+        setPaymentMethod(method);
         try {
-            const tableName = isStore ? "lojas" : "professionals";
             const referenceId = userId;
 
             const result = await createPixPayment({
@@ -59,11 +62,12 @@ export function LPOfferCard({ userType, userId, onSkip, onPurchaseComplete }: LP
                 amount: 89.9,
                 paymentType: "lp_unlock",
                 referenceId,
+                paymentMethod: method,
             });
 
             setPixData(result);
+            setPaymentUrl(result.paymentUrl || null);
             setShowPayment(true);
-            startPaymentPolling(result.paymentId);
         } catch (error: any) {
             console.error("Payment error:", error);
             toast({
@@ -76,36 +80,25 @@ export function LPOfferCard({ userType, userId, onSkip, onPurchaseComplete }: LP
         }
     };
 
-    const startPaymentPolling = (paymentId: string) => {
-        setPolling(true);
-        const interval = setInterval(async () => {
-            const { data } = await supabase
-                .from("pix_payments")
-                .select("status")
-                .eq("id", paymentId)
-                .single();
+    useEffect(() => {
+        if (!pixData?.paymentId || !showPayment) return;
 
-            if (data?.status === "completed") {
-                clearInterval(interval);
-                setPolling(false);
-                await handlePaymentConfirmed();
+        return subscribeToPaymentStatus(pixData.paymentId, (status) => {
+            if (status === 'paid' || status === 'approved') {
+                void handlePaymentConfirmed();
             }
-        }, 3000);
-
-        // Stop polling after 10 minutes
-        setTimeout(() => {
-            clearInterval(interval);
-            setPolling(false);
-        }, 600000);
-    };
+        });
+    }, [pixData?.paymentId, showPayment]);
 
     const handlePaymentConfirmed = async () => {
         try {
             const tableName = isStore ? "lojas" : "professionals";
+
+            // @ts-ignore - Dynamic table name
             const { error } = await supabase
-                .from(tableName)
-                .update({ lp_unlocked: true })
-                .eq("user_id", userId);
+                .from(tableName as any)
+                .update({ lp_unlocked: true } as any)
+                .eq("id", userId);
 
             if (error) throw error;
 
@@ -135,38 +128,71 @@ export function LPOfferCard({ userType, userId, onSkip, onPurchaseComplete }: LP
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="flex justify-center">
-                        <img src={pixData.pixQrCode} alt="QR Code PIX" className="w-64 h-64 rounded-lg" />
-                    </div>
-
-                    <div className="bg-black/20 p-4 rounded-lg">
-                        <p className="text-xs text-white/60 mb-2">Código PIX (Copia e Cola):</p>
-                        <p className="text-xs text-white break-all font-mono">{pixData.pixPayload}</p>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full mt-2"
-                            onClick={() => {
-                                navigator.clipboard.writeText(pixData.pixPayload);
-                                toast({ title: "Código copiado!" });
-                            }}
-                        >
-                            Copiar Código
-                        </Button>
-                    </div>
-
-                    <div className="text-center">
-                        <p className="text-sm text-white/60 mb-2">Valor: R$ 89,90</p>
-                        {polling && (
-                            <div className="flex items-center justify-center gap-2 text-primary">
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                <span className="text-sm">Aguardando pagamento...</span>
+                    {paymentStatus === "paid" ? (
+                        <div className="text-center py-8 space-y-4">
+                            <div className="flex justify-center">
+                                <div className="h-20 w-20 rounded-full bg-primary/20 flex items-center justify-center">
+                                    <CheckCircle2 className="h-10 w-10 text-primary" />
+                                </div>
                             </div>
-                        )}
-                    </div>
+                            <h3 className="text-xl font-bold text-white">Pagamento Confirmado!</h3>
+                            <p className="text-sm text-white/70">Sua Landing Page foi desbloqueada.</p>
+                        </div>
+                    ) : (
+                        <>
+                            {paymentMethod === "pix" ? (
+                                <>
+                                    <div className="flex justify-center">
+                                        <img src={pixData.pixQrCode} alt="QR Code PIX" className="w-64 h-64 rounded-lg bg-white p-2" />
+                                    </div>
+
+                                    <div className="bg-black/20 p-4 rounded-lg">
+                                        <p className="text-xs text-white/60 mb-2">Código PIX (Copia e Cola):</p>
+                                        <p className="text-xs text-white break-all font-mono">{pixData.pixPayload}</p>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-full mt-2"
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(pixData.pixPayload);
+                                                toast({ title: "Código copiado!" });
+                                            }}
+                                        >
+                                            Copiar Código
+                                        </Button>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="py-8 space-y-6">
+                                    <div className="flex justify-center">
+                                        <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
+                                            <CreditCard className="h-10 w-10 text-primary" />
+                                        </div>
+                                    </div>
+                                    <p className="text-center text-sm text-white/70">
+                                        O pagamento será processado em ambiente seguro do Mercado Pago.
+                                    </p>
+                                    <Button
+                                        className="w-full h-12 bg-primary text-black font-bold uppercase"
+                                        onClick={() => paymentUrl && window.open(paymentUrl, '_blank')}
+                                    >
+                                        Finalizar no Mercado Pago
+                                    </Button>
+                                </div>
+                            )}
+
+                            <div className="text-center">
+                                <p className="text-sm text-white/60 mb-2">Valor: R$ 89,90</p>
+                                <div className="flex items-center justify-center gap-2 text-primary">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    <span className="text-sm">Aguardando confirmação...</span>
+                                </div>
+                            </div>
+                        </>
+                    )}
 
                     <Button variant="ghost" onClick={onSkip} className="w-full text-white/60">
-                        Pagar depois
+                        Voltar
                     </Button>
                 </CardContent>
             </Card>
@@ -229,23 +255,24 @@ export function LPOfferCard({ userType, userId, onSkip, onPurchaseComplete }: LP
 
                 {/* CTA Buttons */}
                 <div className="space-y-3">
-                    <Button
-                        onClick={handlePurchase}
-                        disabled={loading}
-                        className="w-full h-12 bg-gradient-to-r from-primary to-green-600 hover:from-primary/90 hover:to-green-700 text-black font-black text-sm"
-                    >
-                        {loading ? (
-                            <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Gerando pagamento...
-                            </>
-                        ) : (
-                            <>
-                                <Zap className="mr-2 h-4 w-4" />
-                                Garantir Minha LP - R$ 89,90
-                            </>
-                        )}
-                    </Button>
+                    <div className="grid grid-cols-2 gap-3">
+                        <Button
+                            onClick={() => handlePurchase("pix")}
+                            disabled={loading}
+                            className="h-12 bg-white/5 border border-white/10 text-white font-bold gap-2"
+                        >
+                            {loading && paymentMethod === "pix" ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
+                            Pagar com PIX
+                        </Button>
+                        <Button
+                            onClick={() => handlePurchase("card")}
+                            disabled={loading}
+                            className="h-12 bg-white/5 border border-white/10 text-white font-bold gap-2"
+                        >
+                            {loading && paymentMethod === "card" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                            Pagar com Cartão
+                        </Button>
+                    </div>
 
                     <Button
                         variant="ghost"

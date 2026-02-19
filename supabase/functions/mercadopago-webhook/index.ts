@@ -137,7 +137,6 @@ async function handlePostPaymentActions(supabase: any, payment: any) {
                 const expiresAt = new Date(now)
                 expiresAt.setDate(now.getDate() + 30)
 
-                // Get the plan name from app_access_plans
                 const { data: plan } = await supabase
                     .from('app_access_plans')
                     .select('name')
@@ -157,6 +156,89 @@ async function handlePostPaymentActions(supabase: any, payment: any) {
                         plan_expires_at: expiresAt.toISOString(),
                     })
                     .eq('id', payment.reference_id)
+            }
+            break;
+
+        case 'lp_unlock':
+            if (payment.reference_id && payment.user_id) {
+                const { data: prof } = await supabase
+                    .from('professionals')
+                    .select('id')
+                    .eq('id', payment.reference_id)
+                    .maybeSingle()
+
+                if (prof) {
+                    await supabase
+                        .from('professionals')
+                        .update({
+                            lp_unlocked: true,
+                            lp_payment_id: payment.id,
+                            lp_unlocked_at: new Date().toISOString(),
+                        })
+                        .eq('id', payment.reference_id)
+                } else {
+                    await supabase
+                        .from('marketplace_stores')
+                        .update({
+                            lp_unlocked: true,
+                        })
+                        .eq('id', payment.reference_id)
+                }
+            }
+            break;
+
+        case 'professional_service':
+            if (payment.reference_id) {
+                const { data: hire } = await supabase
+                    .from('professional_hires')
+                    .select('professional_id, paid_amount')
+                    .eq('id', payment.reference_id)
+                    .single()
+
+                if (hire) {
+                    const amount = Number(hire.paid_amount || 0)
+                    const platformFee = amount * 0.15
+                    const professionalNet = amount - platformFee
+
+                    await supabase
+                        .from('professional_hires')
+                        .update({
+                            is_paid: true,
+                            payment_status: 'paid',
+                            platform_fee: platformFee
+                        })
+                        .eq('id', payment.reference_id)
+
+                    const { data: prof } = await supabase
+                        .from('professionals')
+                        .select('balance')
+                        .eq('id', hire.professional_id)
+                        .single()
+
+                    await supabase
+                        .from('professionals')
+                        .update({
+                            balance: (Number(prof?.balance || 0)) + professionalNet
+                        })
+                        .eq('id', hire.professional_id)
+
+                    const { data: existingRoom } = await supabase
+                        .from('professional_chat_rooms')
+                        .select('id')
+                        .eq('professional_id', hire.professional_id)
+                        .eq('student_id', payment.user_id)
+                        .maybeSingle()
+
+                    if (!existingRoom) {
+                        await supabase
+                            .from('professional_chat_rooms')
+                            .insert({
+                                professional_id: hire.professional_id,
+                                student_id: payment.user_id,
+                                last_message_at: new Date().toISOString()
+                            })
+                    }
+                }
             }
             break;
     }

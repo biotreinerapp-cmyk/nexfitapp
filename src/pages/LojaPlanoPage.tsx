@@ -51,7 +51,8 @@ export default function LojaPlanoPage() {
 
     const [isOpen, setIsOpen] = useState(false);
     const [verifying, setVerifying] = useState(false);
-    const [paymentStatus, setPaymentStatus] = useState<"pending" | "paid" | "expired">("pending");
+    const [paymentMethod, setPaymentMethod] = useState<"pix" | "card">("pix");
+    const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
 
     useEffect(() => {
         document.title = "Meu Plano - Nexfit Lojista";
@@ -123,13 +124,14 @@ export default function LojaPlanoPage() {
         });
     }, [pixData?.paymentId, toast, loadData]);
 
-    const handleInitiateUpgrade = async () => {
+    const handleInitiateUpgrade = async (method: "pix" | "card" = "pix") => {
         if (!user || !store) return;
 
-        console.log("[LojaPlano] Iniciando upgrade para loja:", store.id);
+        setPaymentMethod(method);
+        console.log(`[LojaPlano] Iniciando upgrade (${method}) para loja:`, store.id);
 
-        // If already have a pending payment, just show it
-        if (pixData) {
+        // If already have a pending payment of SAME method, just show it
+        if (pixData && paymentMethod === method) {
             console.log("[LojaPlano] Pagamento pendente já existe:", pixData.paymentId);
             setIsOpen(true);
             return;
@@ -140,7 +142,7 @@ export default function LojaPlanoPage() {
             const planPrice = activePlan ? activePlan.price_cents / 100 : DEFAULT_PLAN_PRICE;
             const planName = activePlan?.name || "PRO";
 
-            console.log("[LojaPlano] Criando pagamento via Mercado Pago...");
+            console.log(`[LojaPlano] Criando pagamento ${method} via Mercado Pago...`);
             const result = await createPixPayment({
                 userId: user.id,
                 userEmail: user.email || "lojista@nexfit.com",
@@ -149,15 +151,16 @@ export default function LojaPlanoPage() {
                 paymentType: "store_plan",
                 referenceId: store.id,
                 description: `Plano ${planName} - ${store.nome}`,
-                paymentMethod: "pix",
+                paymentMethod: method,
             });
 
             console.log("[LojaPlano] Pagamento criado:", result.paymentId);
             setPixData(result);
+            setPaymentUrl(result.paymentUrl || null);
             setIsOpen(true);
         } catch (error: any) {
-            console.error("[LojaPlano] Erro ao gerar PIX:", error);
-            toast({ title: "Erro ao gerar PIX", description: error.message, variant: "destructive" });
+            console.error(`[LojaPlano] Erro ao gerar ${method}:`, error);
+            toast({ title: `Erro ao gerar ${method.toUpperCase()}`, description: error.message, variant: "destructive" });
         } finally {
             setVerifying(false);
         }
@@ -262,16 +265,27 @@ export default function LojaPlanoPage() {
                         </div>
 
                         {!isPro && (
-                            <Button
-                                onClick={handleInitiateUpgrade}
-                                disabled={verifying}
-                                className="group relative w-full h-16 rounded-[1.8rem] bg-primary text-black font-black uppercase tracking-[0.15em] text-xs hover:bg-primary/90 shadow-2xl shadow-primary/20 transition-all overflow-hidden"
-                            >
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-                                <span className="relative z-10 flex items-center justify-center gap-2">
-                                    {verifying ? <Loader2 className="animate-spin h-5 w-5" /> : `Mudar para ${planDisplayName} - R$ ${planPrice.toFixed(2)}`}
-                                </span>
-                            </Button>
+                            <div className="space-y-4 pt-4 border-t border-white/5">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-center mb-2">Selecione o Método de Pagamento</p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <Button
+                                        onClick={() => handleInitiateUpgrade("pix")}
+                                        disabled={verifying}
+                                        className="h-14 rounded-2xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 transition-all gap-2"
+                                    >
+                                        {verifying && paymentMethod === "pix" ? <Loader2 className="animate-spin h-5 w-5" /> : <QrCode className="h-5 w-5" />}
+                                        PIX
+                                    </Button>
+                                    <Button
+                                        onClick={() => handleInitiateUpgrade("card")}
+                                        disabled={verifying}
+                                        className="h-14 rounded-2xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 transition-all gap-2"
+                                    >
+                                        {verifying && paymentMethod === "card" ? <Loader2 className="animate-spin h-5 w-5" /> : <CreditCard className="h-5 w-5" />}
+                                        Cartão
+                                    </Button>
+                                </div>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -302,46 +316,67 @@ export default function LojaPlanoPage() {
                                             <h2 className="text-xl font-black uppercase tracking-tight text-white">Upgrade Nexfit PRO</h2>
                                         </div>
                                         <p className="text-zinc-400 text-xs font-medium">
-                                            Escaneie o QR Code abaixo para ativar seu plano instantaneamente.
+                                            {paymentMethod === "pix"
+                                                ? "Escaneie o QR Code abaixo para ativar seu plano instantaneamente."
+                                                : "Finalize seu pagamento através do Mercado Pago seguro."}
                                         </p>
                                     </div>
 
-                                    {/* QR Code Container - Fixed size, no positioning tricks */}
-                                    <div className="w-48 h-48 rounded-2xl bg-white p-3 shadow-xl flex items-center justify-center">
-                                        {pixData?.pixQrCode ? (
-                                            <img
-                                                src={pixData.pixQrCode}
-                                                alt="QR Code"
-                                                className="w-full h-full object-contain"
-                                                onLoad={() => console.log("[LojaPlano] Imagem do QR Code carregada")}
-                                                onError={(e) => console.error("[LojaPlano] Erro ao carregar imagem do QR Code", e)}
-                                            />
-                                        ) : (
-                                            <div className="flex flex-col items-center gap-3">
-                                                <Loader2 className="h-8 w-8 animate-spin text-black" />
-                                                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-tighter">Gerando código...</p>
+                                    {paymentMethod === "pix" ? (
+                                        <>
+                                            {/* QR Code Container */}
+                                            <div className="w-48 h-48 rounded-2xl bg-white p-3 shadow-xl flex items-center justify-center">
+                                                {pixData?.pixQrCode ? (
+                                                    <img
+                                                        src={pixData.pixQrCode}
+                                                        alt="QR Code"
+                                                        className="w-full h-full object-contain"
+                                                    />
+                                                ) : (
+                                                    <div className="flex flex-col items-center gap-3">
+                                                        <Loader2 className="h-8 w-8 animate-spin text-black" />
+                                                        <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-tighter">Gerando código...</p>
+                                                    </div>
+                                                )}
                                             </div>
-                                        )}
-                                    </div>
 
-                                    {/* PIX Copy & Paste */}
-                                    <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-4">
-                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 mb-2">Pix Copia e Cola</p>
-                                        <div className="flex items-center gap-3">
-                                            <p className="text-[11px] text-zinc-400 truncate flex-1 font-mono tracking-tight">
-                                                {pixData?.pixPayload || "Carregando payload..."}
+                                            {/* PIX Copy & Paste */}
+                                            <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-4">
+                                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 mb-2">Pix Copia e Cola</p>
+                                                <div className="flex items-center gap-3">
+                                                    <p className="text-[11px] text-zinc-400 truncate flex-1 font-mono tracking-tight">
+                                                        {pixData?.pixPayload || "Carregando payload..."}
+                                                    </p>
+                                                    <Button size="icon" variant="ghost" className="h-10 w-10 text-primary hover:bg-primary/10 shrink-0" onClick={handleCopyPix}>
+                                                        <Copy className="h-5 w-5" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="w-full space-y-4 py-8">
+                                            <div className="flex justify-center">
+                                                <div className="p-6 rounded-full bg-primary/10 ring-1 ring-primary/20">
+                                                    <CreditCard className="h-12 w-12 text-primary" />
+                                                </div>
+                                            </div>
+                                            <p className="text-center text-sm text-zinc-400">
+                                                O pagamento será processado em ambiente seguro do Mercado Pago.
                                             </p>
-                                            <Button size="icon" variant="ghost" className="h-10 w-10 text-primary hover:bg-primary/10 shrink-0" onClick={handleCopyPix}>
-                                                <Copy className="h-5 w-5" />
+                                            <Button
+                                                className="w-full h-14 rounded-2xl bg-primary text-black font-black uppercase tracking-widest text-[11px] shadow-lg shadow-primary/20"
+                                                onClick={() => paymentUrl && window.open(paymentUrl, '_blank')}
+                                            >
+                                                Ir para Pagamento Seguro
                                             </Button>
                                         </div>
-                                    </div>
+                                    )}
 
                                     {/* Payment Check Button */}
                                     <Button
                                         onClick={handleCheckPayment}
                                         disabled={verifying}
-                                        className="w-full h-14 bg-primary text-black font-black uppercase tracking-widest text-[11px] rounded-2xl shadow-[0_0_20px_rgba(86,255,2,0.1)] hover:bg-primary/90"
+                                        className="w-full h-14 bg-white/5 border border-white/10 text-white font-black uppercase tracking-widest text-[11px] rounded-2xl hover:bg-white/10"
                                     >
                                         {verifying ? <Loader2 className="animate-spin h-5 w-5 mr-3" /> : <QrCode className="h-5 w-5 mr-3" />}
                                         Já realizei o pagamento

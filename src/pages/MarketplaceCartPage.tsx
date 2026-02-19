@@ -14,6 +14,7 @@ import { Minus, Plus, Trash2, Ticket, ShieldCheck, Truck, MapPin, QrCode, Copy, 
 import { buildPixPayload } from "@/lib/pix";
 import * as QRCodeLib from "qrcode";
 import { createPixPayment, checkPixPaymentStatus } from "@/lib/pixPaymentTracking";
+import { subscribeToPaymentStatus } from "@/lib/mercadoPagoService";
 import mercadoPagoLogo from "@/assets/mercado-pago.png";
 
 interface CartItem {
@@ -414,6 +415,27 @@ export default function MarketplaceCartPage() {
       setSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    if (!pixPaymentId || paymentStatus !== "pending") return;
+
+    return subscribeToPaymentStatus(pixPaymentId, (status) => {
+      if (status === 'paid' || status === 'approved') {
+        setPaymentStatus("paid");
+
+        // No need to manually update order status here if webhook is working, 
+        // but we'll reflect it in UI and maybe navigate
+        toast({
+          title: "Pagamento confirmado!",
+          description: "Seu pedido está sendo processado.",
+        });
+
+        setTimeout(() => {
+          navigate("/marketplace/pedidos");
+        }, 2000);
+      }
+    });
+  }, [pixPaymentId, paymentStatus, navigate]);
 
   const handleVerifyPayment = async () => {
     if (!pixPaymentId || !orderId) return;

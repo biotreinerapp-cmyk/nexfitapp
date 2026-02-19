@@ -13,12 +13,14 @@ import {
   CheckCircle2,
   DollarSign,
   Loader2,
+  CreditCard,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { useToast } from "@/hooks/use-toast";
 import { createPixPayment, checkPixPaymentStatus, PixPaymentResult } from "@/lib/pixPaymentTracking";
+import { subscribeToPaymentStatus } from "@/lib/mercadoPagoService";
 import { HubServiceButton } from "@/components/dashboard/HubServiceButton";
 import { FloatingNavIsland } from "@/components/navigation/FloatingNavIsland";
 import { Button } from "@/components/ui/button";
@@ -81,6 +83,8 @@ const TelemedicinaPage = () => {
   const [pixData, setPixData] = useState<PixPaymentResult | null>(null);
   const [checkingPayment, setCheckingPayment] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<"pending" | "paid" | "expired">("pending");
+  const [paymentMethod, setPaymentMethod] = useState<"pix" | "card">("pix");
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const podeAcessar = isMaster || hasTelemedAccess;
@@ -116,13 +120,14 @@ const TelemedicinaPage = () => {
     setProfissionalSelecionado(null);
   };
 
-  const handleContratar = async (profissional: TelemedProfissional) => {
+  const handleContratar = async (profissional: TelemedProfissional, method: "pix" | "card" = "pix") => {
     if (!user) {
       toast({ title: "Erro", description: "Você precisa estar logado para contratar.", variant: "destructive" });
       return;
     }
 
     setSubmitting(true);
+    setPaymentMethod(method);
     try {
       const { data: hire, error }: any = await (supabase as any).from("professional_hires").insert({
         professional_id: profissional.id,
@@ -141,10 +146,12 @@ const TelemedicinaPage = () => {
           amount: profissional.base_price,
           paymentType: "professional_service",
           referenceId: hire.id,
-          description: `Telemedicina: ${profissional.name}`
+          description: `Telemedicina: ${profissional.name}`,
+          paymentMethod: method,
         });
 
         setPixData(result);
+        setPaymentUrl(result.paymentUrl || null);
         setShowPixDialog(true);
         setAgendaOpen(false);
       } else {
@@ -155,9 +162,9 @@ const TelemedicinaPage = () => {
         setAgendaOpen(false);
       }
     } catch (error: any) {
-      console.error("Hire error:", error);
+      console.error(`[Telemedicina] Erro ao iniciar contratação (${method}):`, error);
       toast({
-        title: "Erro ao iniciar contratação",
+        title: `Erro ao gerar ${method.toUpperCase()}`,
         description: error.message,
         variant: "destructive",
       });
@@ -165,6 +172,23 @@ const TelemedicinaPage = () => {
       setSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    if (!pixData?.paymentId || !showPixDialog) return;
+
+    return subscribeToPaymentStatus(pixData.paymentId, (status) => {
+      if (status === 'paid' || status === 'approved') {
+        setPaymentStatus("paid");
+        toast({
+          title: "Pagamento confirmado!",
+          description: "Sua conexão com o profissional foi liberada.",
+        });
+        setTimeout(() => setShowPixDialog(false), 2000);
+      } else if (status === 'cancelled' || status === 'expired') {
+        setPaymentStatus("expired");
+      }
+    });
+  }, [pixData?.paymentId, showPixDialog]);
 
   const handleCheckPayment = async () => {
     if (!pixData) return;
@@ -177,7 +201,7 @@ const TelemedicinaPage = () => {
           title: "Pagamento confirmado!",
           description: "Sua conexão com o profissional foi liberada.",
         });
-        setShowPixDialog(false);
+        setTimeout(() => setShowPixDialog(false), 2000);
       } else if (status === "expired") {
         setPaymentStatus("expired");
       } else {
@@ -474,20 +498,32 @@ const TelemedicinaPage = () => {
                     <p className="text-xs font-bold text-white uppercase tracking-tighter">50 Minutos</p>
                   </div>
                 </div>
-
-                <div className="space-y-3">
-                  <Button
-                    onClick={() => handleContratar(profissionalSelecionado)}
-                    disabled={submitting}
-                    className="h-14 w-full rounded-2xl bg-primary text-black font-black uppercase tracking-widest hover:bg-primary/90 hover:scale-[1.02] transition-all shadow-xl shadow-primary/10"
-                  >
-                    {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Contratar Sessão"}
-                  </Button>
-                  <p className="text-center text-[9px] font-bold uppercase tracking-widest text-white/20">
-                    Clique para gerar o código PIX de pagamento
-                  </p>
-                </div>
               </div>
+              <DialogFooter className="flex flex-col gap-3 sm:flex-col p-6 pt-0">
+                <div className="grid grid-cols-2 gap-3 w-full">
+                  <Button
+                    variant="default"
+                    className="h-12 bg-white/5 border border-white/10 text-white font-bold gap-2"
+                    onClick={() => handleContratar(profissionalSelecionado!, "pix")}
+                    disabled={submitting}
+                  >
+                    {submitting && paymentMethod === "pix" ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
+                    Pagar com PIX
+                  </Button>
+                  <Button
+                    variant="default"
+                    className="h-12 bg-white/5 border border-white/10 text-white font-bold gap-2"
+                    onClick={() => handleContratar(profissionalSelecionado!, "card")}
+                    disabled={submitting}
+                  >
+                    {submitting && paymentMethod === "card" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                    Pagar com Cartão
+                  </Button>
+                </div>
+                <Button variant="ghost" onClick={() => setAgendaOpen(false)} className="text-muted-foreground">
+                  Cancelar
+                </Button>
+              </DialogFooter>
             </div>
           )}
         </DialogContent>
@@ -499,62 +535,94 @@ const TelemedicinaPage = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-2xl font-black">
               <QrCode className="h-6 w-6 text-primary" />
-              Pagamento via PIX
+              Pagamento
             </DialogTitle>
             <DialogDescription className="text-white/60 text-xs">
-              Escaneie o QR Code ou copie a chave para confirmar sua contratação.
+              Finalize o pagamento para confirmar sua contratação.
             </DialogDescription>
           </DialogHeader>
 
           {pixData && (
-            <div className="flex flex-col items-center gap-6 py-4">
-              <div className="relative overflow-hidden rounded-3xl border-8 border-white bg-white p-2 shadow-2xl animate-in zoom-in-90 duration-500">
-                <img src={pixData.pixQrCode} alt="QR Code PIX" className="h-64 w-64" />
-                {paymentStatus === "paid" && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm">
-                    <CheckCircle2 className="h-16 w-16 text-primary animate-bounce" />
-                    <p className="mt-2 font-bold text-primary">PAGAMENTO CONFIRMADO!</p>
+            <div className="flex flex-col items-center space-y-6 py-6">
+              {paymentStatus === "paid" ? (
+                <div className="flex flex-col items-center gap-4 text-center">
+                  <div className="h-20 w-20 rounded-full bg-primary/20 flex items-center justify-center">
+                    <CheckCircle2 className="h-10 w-10 text-primary" />
                   </div>
-                )}
-              </div>
-
-              <div className="w-full space-y-3">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Valor a pagar</p>
-                    <p className="text-2xl font-black text-primary">
-                      R$ {profissionalSelecionado?.base_price?.toFixed(2)}
-                    </p>
-                  </div>
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <DollarSign className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-bold">Pagamento Confirmado!</h3>
+                    <p className="text-sm text-zinc-400">Sua consulta foi agendada.</p>
                   </div>
                 </div>
+              ) : (
+                <>
+                  <div className="text-center space-y-2">
+                    <h3 className="text-lg font-bold">
+                      {paymentMethod === "pix" ? "Pagar com PIX" : "Pagar com Cartão"}
+                    </h3>
+                    <p className="text-sm text-zinc-400">
+                      {paymentMethod === "pix"
+                        ? "Escaneie o QR Code ou copie o código abaixo."
+                        : "Clique no botão abaixo para pagar com segurança."}
+                    </p>
+                  </div>
 
-                <Button
-                  variant="outline"
-                  className="h-14 w-full gap-2 rounded-2xl border-white/10 bg-white/5 font-bold hover:bg-white/10"
-                  onClick={() => {
-                    navigator.clipboard.writeText(pixData.pixPayload);
-                    toast({ title: "Copiado!", description: "Código PIX copiado." });
-                  }}
-                >
-                  <Copy className="h-4 w-4" />
-                  Copiar Código PIX
-                </Button>
+                  {paymentMethod === "pix" ? (
+                    <>
+                      <div className="flex justify-center bg-white p-3 rounded-2xl">
+                        <img src={pixData?.pixQrCode} alt="QR Code PIX" className="h-48 w-48" />
+                      </div>
 
-                <Button
-                  className="h-14 w-full gap-2 rounded-2xl bg-primary font-black uppercase tracking-widest text-black shadow-lg shadow-primary/20 hover:bg-primary/90"
-                  onClick={handleCheckPayment}
-                  disabled={checkingPayment || paymentStatus === "paid"}
-                >
-                  {checkingPayment ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
+                      <div className="w-full space-y-2">
+                        <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                          <span>Código Copia e Cola</span>
+                        </div>
+                        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl p-3">
+                          <p className="text-[10px] font-mono text-zinc-400 truncate flex-1">
+                            {pixData?.pixPayload}
+                          </p>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-primary"
+                            onClick={() => {
+                              navigator.clipboard.writeText(pixData?.pixPayload || "");
+                              toast({ title: "Copiado!" });
+                            }}
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </>
                   ) : (
-                    "Já realizei o pagamento"
+                    <div className="w-full space-y-6 py-4">
+                      <div className="flex justify-center">
+                        <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
+                          <CreditCard className="h-10 w-10 text-primary" />
+                        </div>
+                      </div>
+                      <Button
+                        className="w-full h-14 bg-primary text-black font-black uppercase tracking-widest text-xs rounded-xl"
+                        onClick={() => paymentUrl && window.open(paymentUrl, '_blank')}
+                      >
+                        Ir para Mercado Pago
+                      </Button>
+                    </div>
                   )}
-                </Button>
-              </div>
+
+                  <div className="w-full space-y-3 pt-4">
+                    <Button
+                      onClick={handleCheckPayment}
+                      disabled={checkingPayment}
+                      className="w-full h-12 bg-white/5 border border-white/10 text-white font-bold"
+                    >
+                      {checkingPayment ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <QrCode className="h-4 w-4 mr-2" />}
+                      Já realizei o pagamento
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </DialogContent>
