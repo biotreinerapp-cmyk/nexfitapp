@@ -51,18 +51,18 @@ export function usePushNotifications() {
             setSubscription(sub);
 
             // Save to Supabase
-//              // const { error } =  // await supabase.from("push_subscriptions" as any).upsert({
-//                 user_id: user.id,
-//                 subscription: sub.toJSON(),
-//                 device_info: {
-//                     userAgent: navigator.userAgent,
-//                     platform: navigator.platform
-//                 }
-//             }, { onConflict: 'user_id,subscription' });
-// 
-//             if (error) throw error;
-// 
-//             console.log("[Push] Subscribed successfully.");
+// //              // const { error } =  // await supabase.from("push_subscriptions" as any).upsert({
+// //                 user_id: user.id,
+// //                 subscription: sub.toJSON(),
+// //                 device_info: {
+// //                     userAgent: navigator.userAgent,
+// //                     platform: navigator.platform
+// //                 }
+// //             }, { onConflict: 'user_id,subscription' });
+// // 
+// //             if (error) throw error;
+// // 
+// //             console.log("[Push] Subscribed successfully.");
         } catch (error) {
             console.error("[Push] Error subscribing:", error);
         }
