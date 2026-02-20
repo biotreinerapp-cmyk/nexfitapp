@@ -51,7 +51,7 @@ export function usePushNotifications() {
             setSubscription(sub);
 
             // Save to Supabase
-            const { error } = await supabase.from("push_subscriptions" as any).upsert({
+            const { error } =  // await supabase.from("push_subscriptions" as any).upsert({
                 user_id: user.id,
                 subscription: sub.toJSON(),
                 device_info: {
@@ -76,7 +76,7 @@ export function usePushNotifications() {
                 setSubscription(null);
 
                 if (user) {
-                    await supabase.from("push_subscriptions" as any).delete().eq("user_id", user.id).eq("subscription->>endpoint", sub.endpoint);
+                     // await supabase.from("push_subscriptions" as any).delete().eq("user_id", user.id).eq("subscription->>endpoint", sub.endpoint);
                 }
             }
         } catch (error) {
