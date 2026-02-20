@@ -522,7 +522,7 @@ const AlunoDashboardPage = () => {
       // Remove token local imediatamente para evitar "loop" de redirect no /auth.
       if (typeof window !== "undefined") {
         try {
-          const authTokenKey = "sb-afffyfsmcvphrhbtxrgt-auth-token";
+          const authTokenKey = "sb-affyffsmcvphrhbtxrgt-auth-token";
           window.localStorage.removeItem(authTokenKey);
         } catch {
           // ignore
