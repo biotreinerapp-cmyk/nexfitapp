@@ -28,6 +28,7 @@ interface Plan {
     price_cents: number;
     validity_days: number;
     is_active: boolean;
+    checkout_link?: string;
     modules?: string[]; // Simplified for the component state
 }
 
@@ -58,7 +59,7 @@ export const PlanManagementSection = ({ userType, title }: PlanManagementSection
     const { data: plans = [], isLoading: isLoadingPlans } = useQuery({
         queryKey: ["app-access-plans", userType],
         queryFn: async () => {
-            const { data, error } = await supabase
+            const { data, error } = await (supabase as any)
                 .from("app_access_plans")
                 .select(`
                     *,
@@ -83,7 +84,7 @@ export const PlanManagementSection = ({ userType, title }: PlanManagementSection
     const { data: modules = [] } = useQuery({
         queryKey: ["access-modules"],
         queryFn: async () => {
-            const { data, error } = await supabase.from("access_modules").select("*").order("label");
+            const { data, error } = await (supabase as any).from("access_modules").select("*").order("label");
             if (error) throw error;
             return data as Module[];
         },
@@ -100,20 +101,21 @@ export const PlanManagementSection = ({ userType, title }: PlanManagementSection
                 price_cents: Math.round(Number(editingPlan.price_cents || 0) * 100),
                 validity_days: Number(editingPlan.validity_days || 30),
                 is_active: true,
+                checkout_link: editingPlan.checkout_link || null,
             };
 
             let planId = editingPlan.id;
 
             if (planId) {
                 // Update
-                const { error } = await supabase
+                const { error } = await (supabase as any)
                     .from("app_access_plans")
                     .update(planData)
                     .eq("id", planId);
                 if (error) throw error;
             } else {
                 // Insert
-                const { data, error } = await supabase
+                const { data, error } = await (supabase as any)
                     .from("app_access_plans")
                     .insert(planData)
                     .select()
@@ -124,7 +126,7 @@ export const PlanManagementSection = ({ userType, title }: PlanManagementSection
 
             // Sync Modules
             // 1. Delete existing modules for this plan
-            await supabase.from("plan_modules").delete().eq("plan_id", planId);
+            await (supabase as any).from("plan_modules").delete().eq("plan_id", planId);
 
             // 2. Insert new modules
             if (selectedModules.length > 0) {
@@ -132,7 +134,7 @@ export const PlanManagementSection = ({ userType, title }: PlanManagementSection
                     const mod = modules.find(m => m.key === moduleKey);
                     return { plan_id: planId, module_id: mod?.id };
                 });
-                const { error: moduleError } = await supabase.from("plan_modules").insert(moduleInserts);
+                const { error: moduleError } = await (supabase as any).from("plan_modules").insert(moduleInserts);
                 if (moduleError) throw moduleError;
             }
 
@@ -149,7 +151,7 @@ export const PlanManagementSection = ({ userType, title }: PlanManagementSection
     const handleDeletePlan = async (id: string) => {
         setIsDeleting(true);
         try {
-            const { error } = await supabase.from("app_access_plans").delete().eq("id", id);
+            const { error } = await (supabase as any).from("app_access_plans").delete().eq("id", id);
             if (error) throw error;
             toast({ title: "Excluído", description: "Plano removido com sucesso." });
             queryClient.invalidateQueries({ queryKey: ["app-access-plans", userType] });
@@ -162,7 +164,7 @@ export const PlanManagementSection = ({ userType, title }: PlanManagementSection
     };
 
     const openCreateDialog = () => {
-        setEditingPlan({ name: "", price_cents: 0, validity_days: 30 });
+        setEditingPlan({ name: "", price_cents: 0, validity_days: 30, checkout_link: "" });
         setSelectedModules([]);
         setIsDialogOpen(true);
     };
@@ -245,6 +247,13 @@ export const PlanManagementSection = ({ userType, title }: PlanManagementSection
                                             )}
                                         </div>
                                     </div>
+
+                                    {plan.checkout_link && (
+                                        <div className="pt-2">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Checkout Link</p>
+                                            <p className="text-[10px] text-primary truncate font-medium">Link configurado</p>
+                                        </div>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>
@@ -299,6 +308,17 @@ export const PlanManagementSection = ({ userType, title }: PlanManagementSection
                                     disabled={userType === 'ALUNO' && !!editingPlan?.id && (editingPlan?.name?.toUpperCase().includes('ADVANCE') || editingPlan?.name?.toUpperCase().includes('ELITE'))}
                                 />
                             </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Link de Checkout Externo</Label>
+                            <Input
+                                value={editingPlan?.checkout_link || ""}
+                                onChange={(e) => setEditingPlan({ ...editingPlan, checkout_link: e.target.value })}
+                                placeholder="https://perfectpay.com.br/checkout/..."
+                                className="bg-black/40 border-white/10 h-11 rounded-xl text-white font-medium text-xs"
+                            />
+                            <p className="text-[9px] text-zinc-500 font-medium uppercase italic tracking-tighter">O usuário será redirecionado para este link ao tentar contratar o plano.</p>
                         </div>
 
                         <div className="space-y-3">

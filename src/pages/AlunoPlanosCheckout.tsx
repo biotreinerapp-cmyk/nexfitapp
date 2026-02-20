@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,40 +5,24 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { BackIconButton } from "@/components/navigation/BackIconButton";
 import { FloatingNavIsland } from "@/components/navigation/FloatingNavIsland";
 import { PLAN_LABEL, type SubscriptionPlan } from "@/lib/subscriptionPlans";
-import { createPixPayment } from "@/lib/pixPaymentTracking";
-import { subscribeToPaymentStatus } from "@/lib/mercadoPagoService";
-import { CheckCircle2, Copy, CreditCard, ExternalLink, Loader2, QrCode, Zap } from "lucide-react";
-import * as QRCodeLib from "qrcode";
-import mercadoPagoLogo from "@/assets/mercado-pago.png";
+import { CheckCircle2, ExternalLink, Loader2, ShieldCheck, Zap } from "lucide-react";
 
 const AlunoPlanosCheckout = () => {
     const { planType } = useParams<{ planType: string }>();
-    const navigate = useNavigate();
     const { user } = useAuth();
     const { toast } = useToast();
 
     const desiredPlan = (planType?.toUpperCase() as SubscriptionPlan) || "ADVANCE";
-    const [submitting, setSubmitting] = useState(false);
-    const [paymentMethod, setPaymentMethod] = useState<"pix" | "card">("pix");
-    const [paymentStatus, setPaymentStatus] = useState<"pending" | "paid" | null>(null);
-    const [pixPayload, setPixPayload] = useState<string | null>(null);
-    const [pixQrDataUrl, setPixQrDataUrl] = useState<string | null>(null);
-    const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
-    const [copied, setCopied] = useState(false);
-    const [verifyingPayment, setVerifyingPayment] = useState(false);
-    const [pixPaymentId, setPixPaymentId] = useState<string | null>(null);
 
-    const { data: planConfig, refetch: refetchPlan } = useQuery({
+    const { data: planConfig, isLoading: isLoadingConfig } = useQuery({
         queryKey: ["admin", "plan-configs-basic", desiredPlan],
         queryFn: async () => {
-            const { data, error } = await supabase
+            const { data, error } = await (supabase as any)
                 .from("plan_configs")
-                .select("price_cents")
+                .select("price_cents, checkout_link")
                 .eq("plan", desiredPlan)
                 .maybeSingle();
             if (error) throw error;
@@ -49,117 +32,36 @@ const AlunoPlanosCheckout = () => {
         gcTime: 0,
     });
 
-    // Load admin PIX config - aligned with GeneralSettingsPixPanel.tsx
-    const { data: pixConfig } = useQuery({
-        queryKey: ["admin", "pix-config"],
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from("pix_configs")
-                .select("pix_key, receiver_name")
-                .is("store_id", null)
-                .order("updated_at", { ascending: false })
-                .limit(1)
-                .maybeSingle();
-            if (error) throw error;
-            return data;
-        },
-        staleTime: 0,
-        gcTime: 0,
-    });
-
-    // Subscription to payment status
-    useEffect(() => {
-        if (!pixPaymentId) return;
-        return subscribeToPaymentStatus(pixPaymentId, (status) => {
-            if (status === 'paid' || status === 'approved') {
-                setPaymentStatus('paid');
-                toast({ title: "Pagamento Confirmado!", description: "Seu plano foi atualizado com sucesso!" });
-                setTimeout(() => navigate("/aluno/dashboard"), 2000);
-            }
-        });
-    }, [pixPaymentId, navigate, toast]);
-
-    const handleCopyPix = async () => {
-        if (!pixPayload) return;
-        await navigator.clipboard.writeText(pixPayload);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-        toast({ title: "Código Pix copiado!" });
-    };
-
-    const handleConfirmOrder = async () => {
-        if (!user || !planConfig) return;
-        setSubmitting(true);
-
-        try {
-            const amount = planConfig.price_cents / 100;
-            const result = await createPixPayment({
-                userId: user.id,
-                userEmail: user.email,
-                userName: user.user_metadata?.full_name || user.user_metadata?.nome || "Aluno Nexfit",
-                amount,
-                paymentType: "subscription",
-                description: `Assinatura ${PLAN_LABEL[desiredPlan]}`,
-                desiredPlan,
-                paymentMethod,
-            });
-
-            setPixPaymentId(result.paymentId);
-            setPixPayload(result.pixPayload);
-
-            // Handle QR Code: Use API returned image OR generate locally from payload
-            let qrCodeUrl = result.pixQrCode;
-            if (qrCodeUrl && !qrCodeUrl.startsWith('data:image')) {
-                qrCodeUrl = `data:image/png;base64,${qrCodeUrl}`;
-            }
-
-            if (!qrCodeUrl && result.pixPayload) {
-                try {
-                    qrCodeUrl = await QRCodeLib.toDataURL(result.pixPayload, { width: 256 });
-                } catch (e) {
-                    console.error("Failed to generate QR Code locally:", e);
-                }
-            }
-
-            setPixQrDataUrl(qrCodeUrl);
-            setPaymentUrl(result.paymentUrl || null);
-            setPaymentStatus("pending");
-
+    const handleConfirmOrder = () => {
+        if (!planConfig?.checkout_link) {
             toast({
-                title: paymentMethod === 'pix' ? "Pagamento Pix Gerado!" : "Link de Pagamento Gerado!",
-                description: paymentMethod === 'pix' ? "Escaneie o QR Code para ativar seu plano." : "Siga as instruções para pagar com cartão."
+                title: "Erro de Configuração",
+                description: "O link de checkout para este plano ainda não foi configurado pela administração.",
+                variant: "destructive"
             });
-        } catch (error: any) {
-            toast({ title: "Erro ao processar", description: error.message, variant: "destructive" });
-        } finally {
-            setSubmitting(false);
+            return;
         }
+
+        // Add user info as query params if needed by Perfect Pay (optional but helpful)
+        const checkoutUrl = new URL(planConfig.checkout_link);
+        if (user?.email) checkoutUrl.searchParams.append("email", user.email);
+        if (user?.user_metadata?.full_name) checkoutUrl.searchParams.append("name", user.user_metadata.full_name);
+
+        window.open(checkoutUrl.toString(), '_blank');
+
+        toast({
+            title: "Redirecionando...",
+            description: "Você está sendo levado para o checkout seguro da Perfect Pay."
+        });
     };
 
-    const handleVerifyStatus = async () => {
-        if (!pixPaymentId) return;
-        setVerifyingPayment(true);
-        try {
-            const { data, error } = await supabase
-                .from('pix_payments')
-                .select('status')
-                .eq('id', pixPaymentId)
-                .single();
-
-            if (error) throw error;
-            if (data.status === 'paid') {
-                setPaymentStatus('paid');
-                toast({ title: "Confirmado!", description: "Seu plano já está ativo." });
-                setTimeout(() => navigate("/aluno/dashboard"), 1500);
-            } else {
-                toast({ title: "Pendente", description: "O pagamento ainda não foi processado pelo banco." });
-            }
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setVerifyingPayment(false);
-        }
-    };
+    if (isLoadingConfig) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-background">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     return (
         <main className="relative min-h-screen overflow-hidden bg-background px-4 pb-32 pt-6">
@@ -219,12 +121,6 @@ const AlunoPlanosCheckout = () => {
                                                 </div>
                                                 Nutricionista & Personal Dedicados
                                             </li>
-                                            <li className="flex items-center gap-3 text-xs font-medium text-muted-foreground px-2">
-                                                <div className="flex h-4 w-4 items-center justify-center rounded-full bg-white/10">
-                                                    <CheckCircle2 className="h-2.5 w-2.5" />
-                                                </div>
-                                                Prioridade Máxima no Suporte
-                                            </li>
                                         </>
                                     ) : (
                                         <>
@@ -233,12 +129,6 @@ const AlunoPlanosCheckout = () => {
                                                     <CheckCircle2 className="h-3 w-3" />
                                                 </div>
                                                 IA de Treino & Nutrição 24/7
-                                            </li>
-                                            <li className="flex items-center gap-3 text-xs font-medium text-muted-foreground px-2">
-                                                <div className="flex h-4 w-4 items-center justify-center rounded-full bg-white/10">
-                                                    <CheckCircle2 className="h-2.5 w-2.5" />
-                                                </div>
-                                                Evolução Acelerada Garantida
                                             </li>
                                             <li className="flex items-center gap-3 text-xs font-medium text-muted-foreground px-2">
                                                 <div className="flex h-4 w-4 items-center justify-center rounded-full bg-white/10">
@@ -256,140 +146,52 @@ const AlunoPlanosCheckout = () => {
                     <Card className="border-primary/20 bg-card/60 backdrop-blur-3xl ring-1 ring-primary/10 shadow-2xl">
                         <CardHeader className="text-center pb-2 border-b border-white/5">
                             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20 shadow-[0_0_15px_rgba(var(--primary),0.3)]">
-                                <CreditCard className="h-6 w-6 text-primary" />
+                                <ShieldCheck className="h-6 w-6 text-primary" />
                             </div>
                             <CardTitle className="text-lg font-black italic text-foreground uppercase tracking-widest">Pagamento Seguro</CardTitle>
-                            <CardDescription className="text-xs font-medium">Escolha como deseja realizar o upgrade</CardDescription>
+                            <CardDescription className="text-xs font-medium">Contratação via Perfect Pay</CardDescription>
                         </CardHeader>
 
-                        <CardContent className="space-y-6 pt-6">
-                            <div className="grid grid-cols-2 gap-3">
+                        <CardContent className="space-y-6 pt-6 text-center">
+                            <div className="space-y-4">
+                                <div className="rounded-xl border border-primary/20 bg-primary/5 p-6 ring-1 ring-primary/10">
+                                    <Zap className="mx-auto h-10 w-10 text-primary mb-4 animate-pulse" />
+                                    <p className="text-sm text-foreground font-bold leading-relaxed mb-1">
+                                        VOCÊ SERÁ REDIRECIONADO
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        A contratação do plano é realizada em um ambiente externo 100% criptografado e seguro.
+                                    </p>
+                                </div>
+
                                 <Button
-                                    variant={paymentMethod === "pix" ? "default" : "outline"}
-                                    className={`flex-col h-auto py-4 gap-2 transition-all duration-300 ${paymentMethod === 'pix' ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : 'hover:bg-primary/5'}`}
-                                    onClick={() => setPaymentMethod("pix")}
-                                    disabled={paymentStatus === "pending" || paymentStatus === "paid"}
+                                    variant="premium"
+                                    className="w-full py-8 text-xl font-black uppercase tracking-wider shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+                                    onClick={handleConfirmOrder}
                                 >
-                                    <QrCode className="h-6 w-6" />
-                                    <span className="text-[10px] uppercase font-black tracking-widest">PIX</span>
+                                    IR PARA O CHECKOUT
+                                    <ExternalLink className="h-6 w-6" />
                                 </Button>
-                                <Button
-                                    variant={paymentMethod === "card" ? "default" : "outline"}
-                                    className={`flex-col h-auto py-4 gap-2 transition-all duration-300 ${paymentMethod === 'card' ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : 'hover:bg-primary/5'}`}
-                                    onClick={() => setPaymentMethod("card")}
-                                    disabled={paymentStatus === "pending" || paymentStatus === "paid"}
-                                >
-                                    <CreditCard className="h-6 w-6" />
-                                    <span className="text-[10px] uppercase font-black tracking-widest">Cartão</span>
-                                </Button>
+
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-black">
+                                    ATIVAÇÃO IMEDIATA APÓS O PAGAMENTO
+                                </p>
                             </div>
 
-                            {paymentStatus === "paid" ? (
-                                <div className="py-8 text-center space-y-4 animate-in zoom-in duration-500">
-                                    <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-500/20 animate-bounce ring-1 ring-green-500/40">
-                                        <CheckCircle2 className="h-10 w-10 text-green-500" />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <h3 className="text-2xl font-black italic text-white tracking-tight">PAGAMENTO APROVADO!</h3>
-                                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Redirecionando para seu painel...</p>
-                                    </div>
+                            <div className="pt-4 flex items-center justify-center gap-4 opacity-70 grayscale hover:opacity-100 hover:grayscale-0 transition-all">
+                                <div className="flex items-center gap-1.5">
+                                    <CheckCircle2 className="h-3 w-3 text-primary" />
+                                    <span className="text-[9px] font-black uppercase tracking-tighter text-white">PIX</span>
                                 </div>
-                            ) : paymentStatus === "pending" ? (
-                                <div className="space-y-6 pt-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                    {paymentMethod === 'pix' ? (
-                                        <>
-                                            <div className="relative mx-auto w-full max-w-[220px] overflow-hidden rounded-2xl bg-white p-4 shadow-2xl shadow-primary/20 ring-4 ring-white/10">
-                                                {pixQrDataUrl ? (
-                                                    <img src={pixQrDataUrl} alt="QR Code Pix" className="h-full w-full mix-blend-multiply" />
-                                                ) : (
-                                                    <div className="flex aspect-square items-center justify-center text-xs text-black font-bold animate-pulse">
-                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                        GERANDO QR CODE...
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            <Button
-                                                variant="outline"
-                                                className="w-full border-primary/20 bg-primary/5 font-bold hover:bg-primary/10 py-6 text-xs uppercase tracking-wider transition-all hover:scale-[1.02] active:scale-[0.98]"
-                                                onClick={handleCopyPix}
-                                            >
-                                                {copied ? <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
-                                                {copied ? <span className="text-green-500">CÓDIGO COPIADO!</span> : "COPIAR CÓDIGO PIX"}
-                                            </Button>
-                                        </>
-                                    ) : (
-                                        <div className="py-6 text-center space-y-6">
-                                            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/20 animate-pulse">
-                                                <CreditCard className="h-8 w-8 text-primary" />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <h4 className="font-bold text-foreground">Ambiente Seguro Mercado Pago</h4>
-                                                <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-                                                    Para sua segurança, o pagamento será finalizado diretamente no ambiente criptografado do banco.
-                                                </p>
-                                            </div>
-                                            <Button
-                                                className="w-full py-7 gap-2 font-black uppercase tracking-wider text-base shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all hover:translate-y-[-2px]"
-                                                onClick={() => paymentUrl && window.open(paymentUrl, '_blank')}
-                                            >
-                                                <ExternalLink className="h-5 w-5" />
-                                                PAGAR AGORA
-                                            </Button>
-                                        </div>
-                                    )}
-
-                                    <div className="space-y-4 pt-4 border-t border-white/5">
-                                        <Button
-                                            variant="ghost"
-                                            className="w-full text-[10px] font-bold uppercase tracking-widest gap-2 text-muted-foreground hover:text-white hover:bg-white/5"
-                                            onClick={handleVerifyStatus}
-                                            disabled={verifyingPayment}
-                                        >
-                                            {verifyingPayment ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
-                                            {verifyingPayment ? "VERIFICANDO NO BANCO..." : "JÁ FIZ O PAGAMENTO"}
-                                        </Button>
-                                    </div>
+                                <div className="flex items-center gap-1.5">
+                                    <CheckCircle2 className="h-3 w-3 text-primary" />
+                                    <span className="text-[9px] font-black uppercase tracking-tighter text-white">Cartão de Crédito</span>
                                 </div>
-                            ) : (
-                                <div className="pt-2 space-y-4">
-                                    <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 ring-1 ring-primary/10">
-                                        <div className="flex gap-3">
-                                            <Zap className="h-5 w-5 text-primary shrink-0" />
-                                            <p className="text-xs text-muted-foreground leading-relaxed">
-                                                <strong className="text-primary block mb-1 uppercase text-[10px] tracking-widest">Ativação Imediata</strong>
-                                                Seu plano será liberado automaticamente após a confirmação do {paymentMethod === 'pix' ? 'Pix' : 'Cartão'}.
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <Button
-                                        variant="premium"
-                                        className="w-full py-7 text-lg font-black uppercase tracking-wider shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                                        disabled={submitting}
-                                        onClick={handleConfirmOrder}
-                                    >
-                                        {submitting ? (
-                                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                        ) : (
-                                            <Zap className="mr-2 h-5 w-5 fill-current" />
-                                        )}
-                                        {submitting ? "PROCESSANDO..." : "GERAR PAGAMENTO"}
-                                    </Button>
+                                <div className="flex items-center gap-1.5">
+                                    <CheckCircle2 className="h-3 w-3 text-primary" />
+                                    <span className="text-[9px] font-black uppercase tracking-tighter text-white">Boleto</span>
                                 </div>
-                            )}
-
-                            {!paymentStatus && (
-                                <div className="text-center pt-4">
-                                    <div className="flex items-center justify-center gap-2 opacity-70 grayscale transition-all hover:opacity-100 hover:grayscale-0">
-                                        <img src={mercadoPagoLogo} alt="Mercado Pago" className="h-6" />
-                                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
-                                            <ShieldCheck className="h-3 w-3" />
-                                            Pagamento 100% Seguro
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
+                            </div>
                         </CardContent>
                     </Card>
                 </div>

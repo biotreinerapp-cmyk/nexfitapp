@@ -555,115 +555,141 @@ const RunningClubDetailPage = () => {
   const isMember = Boolean(membership);
 
   return (
-    <main className="safe-bottom-main flex min-h-screen flex-col gap-4 bg-background px-4 pb-32 pt-4">
-      <header className="mb-2 flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleGoBack}
-          className="mr-1 text-foreground"
-          aria-label="Voltar"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="flex flex-col">
-          <span className="text-xs uppercase tracking-[0.3em] text-accent-foreground/80">Running Club</span>
-          <h1 className="mt-1 page-title-gradient text-xl font-semibold tracking-tight">{club.name}</h1>
-        </div>
-      </header>
+    <main className="relative min-h-screen overflow-hidden bg-background px-4 pb-32 pt-6">
+      {/* Premium Background */}
+      <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/20 via-background to-background" />
+        <div className="absolute -top-[40%] -left-[20%] h-[800px] w-[800px] rounded-full bg-primary/10 blur-3xl filter" />
+        <div className="absolute top-[20%] -right-[20%] h-[600px] w-[600px] rounded-full bg-accent/10 blur-3xl filter" />
+        <div className="absolute bottom-0 left-0 right-0 h-[400px] bg-gradient-to-t from-background via-background/80 to-transparent" />
+      </div>
 
-      {isMember && (
-        <section className="space-y-3">
-          <Card className="border border-accent/50 bg-card/80">
-            <CardHeader className="pb-2 flex flex-row items-start justify-between gap-2">
-              <div>
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Users className="h-4 w-4 text-accent" />
-                  <span>Detalhes do clube</span>
-                </CardTitle>
-              </div>
-              <div className="flex items-center gap-1 self-start">
-                {isAdmin && (
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full border border-accent/60 bg-background/80">
-                    <ShieldCheck className="h-3 w-3 text-accent" aria-label="Admin do clube" />
+      <div className="relative z-10">
+        <header className="mb-8 flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleGoBack}
+            className="mr-1 text-foreground hover:bg-white/10"
+            aria-label="Voltar"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="flex flex-col">
+            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground font-bold">Running Club</p>
+            <h1 className="text-2xl font-black italic text-foreground tracking-tighter uppercase leading-none truncate max-w-[250px]">
+              {club.name}
+            </h1>
+          </div>
+        </header>
+
+        {isMember && (
+          <section className="space-y-6">
+            <Card className="border-white/5 bg-black/40 backdrop-blur-2xl shadow-xl">
+              <CardHeader className="pb-4 flex flex-row items-center justify-between gap-2 border-b border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
+                    <Users className="h-5 w-5" />
                   </div>
-                )}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                      aria-label="Ações do clube"
+                  <div>
+                    <CardTitle className="text-sm font-black italic uppercase tracking-wider text-foreground">
+                      Dashboard do Clube
+                    </CardTitle>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  {isAdmin && (
+                    <div className="flex h-7 w-7 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 shadow-[0_0_10px_rgba(var(--primary),0.3)]">
+                      <ShieldCheck className="h-3.5 w-3.5 text-primary" aria-label="Admin do clube" />
+                    </div>
+                  )}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-white/10 rounded-xl"
+                        aria-label="Ações do clube"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="end"
+                      className="z-50 bg-black/90 backdrop-blur-xl border-white/10 text-foreground"
                     >
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="end"
-                    className="z-50 bg-popover text-popover-foreground border border-border/60"
-                  >
-                    {isAdmin && (
-                      <DropdownMenuItem onClick={() => setEditDialogOpen(true)}>
-                        Editar clube
+                      {isAdmin && (
+                        <DropdownMenuItem className="focus:bg-primary/20 focus:text-white" onClick={() => setEditDialogOpen(true)}>
+                          Editar clube
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem className="focus:bg-primary/20 focus:text-white" onClick={() => setShareDialogOpen(true)}>
+                        Compartilhar convite
                       </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem onClick={() => setShareDialogOpen(true)}>
-                      Compartilhar convite
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        void handleLeaveClub();
-                      }}
-                      className="text-destructive"
-                    >
-                      Sair do clube
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0 text-[11px] text-muted-foreground">
-              <div className="flex items-center gap-3">
-                <div className="h-16 w-16 rounded-lg border border-border bg-muted flex items-center justify-center text-[10px] text-muted-foreground">
-                  Foto
+                      <DropdownMenuItem
+                        onClick={() => {
+                          void handleLeaveClub();
+                        }}
+                        className="text-destructive focus:bg-destructive/20 focus:text-destructive font-bold"
+                      >
+                        Sair do clube
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-                <div className="flex flex-col text-xs">
-                  <span className="text-[11px] text-muted-foreground">KMs do clube</span>
-                  <span className="text-base font-semibold">{totalDistanceKm.toFixed(1)} km</span>
-                  <span className="mt-1 text-[11px] text-muted-foreground">
-                    Calorias estimadas: {Math.round(totalCalories).toLocaleString()} kcal
-                  </span>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-6">
+                  <div className="relative group">
+                    <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="h-20 w-20 rounded-2xl border-2 border-white/10 bg-white/5 flex items-center justify-center text-[10px] text-muted-foreground overflow-hidden relative z-10">
+                      <Users className="h-8 w-8 opacity-20" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col flex-1 gap-1">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Volume de Treino</span>
+                    <div className="text-4xl font-black italic text-primary tracking-tighter shadow-primary/20 drop-shadow-xl">
+                      {totalDistanceKm.toFixed(1)} <span className="text-xs uppercase font-bold tracking-normal text-foreground/60 not-italic ml-1">KM</span>
+                    </div>
+                    <div className="mt-1 inline-flex items-center gap-2 rounded-full bg-white/5 px-2.5 py-1 w-fit border border-white/5">
+                      <Clock className="h-3 w-3 text-primary" />
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                        {Math.round(totalCalories).toLocaleString()} kcal estimadas
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <p className="mt-3 text-[11px] text-muted-foreground">
-                "Convide amigos e transforme treino em comunidade." Quanto mais gente correndo junto, maior a constância.
-              </p>
-            </CardContent>
-          </Card>
 
-          <Tabs defaultValue="atividades" className="w-full">
-            <TabsList className="w-full justify-between">
-              <TabsTrigger value="atividades" className="flex-1 text-xs">
-                <MapPin className="mr-1 h-3 w-3" /> Feed
-              </TabsTrigger>
-              <TabsTrigger value="ranking" className="flex-1 text-xs">
-                <Trophy className="mr-1 h-3 w-3" /> Ranking
-              </TabsTrigger>
-              <TabsTrigger value="desafios" className="flex-1 text-xs">
-                <Target className="mr-1 h-3 w-3" /> Desafios
-              </TabsTrigger>
-            </TabsList>
+                <div className="mt-6 p-4 rounded-2xl bg-white/5 border border-white/10">
+                  <p className="text-[11px] text-muted-foreground font-medium italic leading-relaxed">
+                    "O objetivo não é ser melhor que os outros, mas sim melhor do que você foi ontem." Convide seu pelotão e bora pra pista!
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
 
-            <TabsContent value="atividades" className="mt-3 space-y-3">
-              <Card className="border border-border/60 bg-card/80">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">Feed do clube</CardTitle>
-                  <CardDescription className="text-[11px]">
-                    Atividades compartilhadas pelos membros, em formato de feed social.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-2 space-y-3">
+            <Tabs defaultValue="atividades" className="w-full">
+              <TabsList className="w-full h-12 bg-black/40 backdrop-blur-xl border border-white/5 rounded-2xl p-1 shadow-2xl">
+                <TabsTrigger value="atividades" className="flex-1 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg text-[10px] font-black uppercase tracking-widest transition-all">
+                  <MapPin className="mr-2 h-3 w-3" /> Feed
+                </TabsTrigger>
+                <TabsTrigger value="ranking" className="flex-1 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg text-[10px] font-black uppercase tracking-widest transition-all">
+                  <Trophy className="mr-2 h-3 w-3" /> Ranking
+                </TabsTrigger>
+                <TabsTrigger value="desafios" className="flex-1 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg text-[10px] font-black uppercase tracking-widest transition-all">
+                  <Target className="mr-2 h-3 w-3" /> Desafios
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="atividades" className="mt-6 space-y-6">
+                <div className="flex flex-col gap-1 px-1">
+                  <h3 className="text-sm font-black italic uppercase tracking-widest text-foreground">Timeline</h3>
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter opacity-60">
+                    Atividades recentes do pelotão
+                  </p>
+                </div>
+
+                <div className="space-y-6">
                   {isFeedLoading && (
                     <p className="text-[11px] text-muted-foreground">Carregando feed do clube...</p>
                   )}
@@ -706,41 +732,48 @@ const RunningClubDetailPage = () => {
                       return (
                         <article
                           key={post.id}
-                          className="overflow-hidden rounded-xl border border-border/60 bg-background/80 text-xs shadow-sm"
+                          className="overflow-hidden rounded-[24px] border border-white/5 bg-black/40 backdrop-blur-2xl shadow-2xl transition-all"
                         >
-                          {/* Header estilo Instagram */}
-                          <header className="flex items-center justify-between px-3 py-2">
-                            <div className="flex items-center gap-2">
-                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/20 text-[11px] font-semibold text-foreground">
-                                {post.author_initials || (post.author_name ? post.author_name[0]?.toUpperCase() : "C")}
+                          {/* Header Premium */}
+                          <header className="flex items-center justify-between p-4 bg-white/5">
+                            <div className="flex items-center gap-3">
+                              <div className="relative">
+                                <div className="absolute inset-0 bg-primary/20 blur-sm rounded-full" />
+                                <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-black/40 border border-primary/20 text-xs font-black text-primary shadow-inner">
+                                  {post.author_initials || (post.author_name ? post.author_name[0]?.toUpperCase() : "C")}
+                                </div>
                               </div>
                               <div className="flex flex-col leading-tight">
-                                <span className="text-[11px] font-semibold text-foreground">
+                                <span className="text-xs font-black uppercase italic tracking-tight text-foreground">
                                   {post.author_name || "Corredor"}
                                 </span>
-                                <span className="text-[10px] text-muted-foreground">Running Club • {timeLabel}</span>
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground opacity-60">{timeLabel}</span>
                               </div>
                             </div>
-                            <MoreVertical className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-white hover:bg-white/10 rounded-full">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
                           </header>
 
-                          {/* Imagem / placeholder */}
+                          {/* Imagem Premium */}
                           {post.image_url ? (
-                            <div className="bg-black">
+                            <div className="bg-black relative group">
                               <img
                                 src={post.image_url}
                                 alt={post.caption || "Atividade do clube"}
-                                className="aspect-[4/5] w-full object-cover"
+                                className="aspect-square w-full object-cover group-hover:opacity-90 transition-opacity"
                                 loading="lazy"
                               />
                             </div>
                           ) : (
-                            <div className="flex aspect-[4/5] w-full flex-col justify-center gap-1 bg-muted/40 px-4 text-[11px] text-muted-foreground">
-                              <span className="font-semibold text-foreground">Resumo do treino</span>
-                              <span>
-                                {post.distance_km.toFixed(2)} km • {post.duration_minutes} min
-                                {post.pace && ` • Ritmo médio ${post.pace}`}
-                              </span>
+                            <div className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-white/5 to-white/[0.02] px-6 text-center border-y border-white/5">
+                              <Zap className="h-8 w-8 text-primary/40 animate-pulse" />
+                              <div className="space-y-1">
+                                <span className="text-sm font-black italic uppercase tracking-tight text-foreground/80 block">Resumo do Treino</span>
+                                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest block opacity-70">
+                                  {post.distance_km.toFixed(2)} km • {post.duration_minutes} min
+                                </span>
+                              </div>
                             </div>
                           )}
 
@@ -862,70 +895,120 @@ const RunningClubDetailPage = () => {
                         </article>
                       );
                     })}
-                </CardContent>
-              </Card>
-            </TabsContent>
+                </div>
+              </TabsContent>
 
-            {/* Ranking tab content */}
-            <TabsContent value="ranking" className="mt-3 space-y-3">
-              <Card className="border border-border/60 bg-card/80">
-                <CardHeader>
-                  <CardTitle className="text-sm flex items-center gap-2">Ranking semanal</CardTitle>
-                  <CardDescription className="text-[11px]">
-                    Distância total percorrida pelos membros nos últimos 7 dias.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-2">
-                  {myRankings.length === 0 ? (
-                    <p className="text-[11px] text-muted-foreground">Nenhuma corrida registrada nos últimos 7 dias.</p>
-                  ) : (
-                    <ol className="list-decimal list-inside space-y-1 text-[11px]">
-                      {myRankings.map((entry, index) => (
-                        <li key={entry.user_id} className="flex justify-between">
-                          <span>{entry.user_id}</span>
-                          <span>
-                            {entry.total_distance.toFixed(2)} km em {entry.runs} corrida{entry.runs > 1 ? "s" : ""}
-                          </span>
-                        </li>
-                      ))}
-                    </ol>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Desafios tab content */}
-            <TabsContent value="desafios" className="mt-3 space-y-3">
-              <Card className="border border-border/60 bg-card/80">
-                <CardHeader>
-                  <CardTitle className="text-sm flex items-center gap-2">Desafios</CardTitle>
-                  <CardDescription className="text-[11px]">
-                    Desafios ativos e passados do clube.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-2 space-y-2">
-                  {challenges.length === 0 ? (
-                    <p className="text-[11px] text-muted-foreground">Nenhum desafio criado ainda.</p>
-                  ) : (
-                    challenges.map((challenge) => (
-                      <div key={challenge.id} className="rounded border border-border/60 p-2 text-xs">
-                        <h3 className="font-semibold">{challenge.title}</h3>
-                        <p className="text-muted-foreground">{challenge.description}</p>
-                        <p className="mt-1 text-[11px]">
-                          Meta: {challenge.target_distance_km} km | De {new Date(challenge.start_date).toLocaleDateString()} até {new Date(challenge.end_date).toLocaleDateString()}
-                        </p>
-                        <p className="text-[11px] font-medium">
-                          Status: {challenge.active ? "Ativo" : "Inativo"}
-                        </p>
+              {/* Ranking tab content */}
+              <TabsContent value="ranking" className="mt-6 space-y-6">
+                <Card className="border-white/5 bg-black/40 backdrop-blur-2xl shadow-xl overflow-hidden">
+                  <CardHeader className="pb-4 bg-white/5 border-b border-white/5">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
+                        <Trophy className="h-5 w-5" />
                       </div>
-                    ))
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </section>
-      )}
+                      <div>
+                        <CardTitle className="text-sm font-black italic uppercase tracking-widest text-foreground">
+                          Pelotão de Elite
+                        </CardTitle>
+                        <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground opacity-60">
+                          Últimos 7 dias de glória
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    {myRankings.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+                        <div className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center text-muted-foreground mb-4 opacity-20">
+                          <Trophy className="h-6 w-6" />
+                        </div>
+                        <p className="text-[11px] font-black italic uppercase tracking-widest text-muted-foreground/50">Nenhuma corrida registrada</p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-white/5">
+                        {myRankings.map((entry, index) => (
+                          <div key={entry.user_id} className="flex items-center justify-between p-4 bg-white/0 hover:bg-white/[0.02] transition-colors">
+                            <div className="flex items-center gap-4">
+                              <span className={`text-xl font-black italic ${index === 0 ? "text-primary shadow-primary/20 drop-shadow-lg" : "text-muted-foreground/30"}`}>
+                                #{index + 1}
+                              </span>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-black uppercase italic tracking-tight text-foreground truncate max-w-[150px]">
+                                  {entry.user_id}
+                                </span>
+                                <span className="text-[10px] font-bold text-muted-foreground uppercase opacity-60">
+                                  {entry.runs} CORRIDA{entry.runs > 1 ? "S" : ""}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex flex-col items-end text-right">
+                              <span className="text-lg font-black text-primary tracking-tighter">
+                                {entry.total_distance.toFixed(1)} <span className="text-[10px] uppercase font-bold tracking-normal italic">KM</span>
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="desafios" className="mt-6 space-y-6">
+                <Card className="border-white/5 bg-black/40 backdrop-blur-2xl shadow-xl overflow-hidden">
+                  <CardHeader className="pb-4 bg-white/5 border-b border-white/5">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
+                        <Target className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-sm font-black italic uppercase tracking-widest text-foreground">
+                          Missões do Clube
+                        </CardTitle>
+                        <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground opacity-60">
+                          Desafios e conquistas
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4 space-y-4">
+                    {challenges.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-center bg-white/5 rounded-2xl border border-dashed border-white/10">
+                        <p className="text-[11px] font-black italic uppercase tracking-widest text-muted-foreground/50">Nenhum desafio ativo</p>
+                      </div>
+                    ) : (
+                      challenges.map((challenge) => (
+                        <div key={challenge.id} className="relative group overflow-hidden rounded-2xl border border-white/5 bg-white/5 p-4 transition-all hover:bg-white/[0.08]">
+                          <div className="relative z-10">
+                            <div className="flex items-center justify-between mb-2">
+                              <h3 className="text-sm font-black italic uppercase tracking-tight text-foreground">{challenge.title}</h3>
+                              <div className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase italic tracking-widest ${challenge.active ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-white/10 text-muted-foreground"}`}>
+                                {challenge.active ? "ATIVO" : "ENCERRADO"}
+                              </div>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground font-medium mb-3 leading-tight leading-relaxed">{challenge.description}</p>
+                            <div className="flex items-center justify-between pt-3 border-t border-white/5">
+                              <div className="flex flex-col">
+                                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Meta</span>
+                                <span className="text-xs font-black italic text-primary">{challenge.target_distance_km} KM</span>
+                              </div>
+                              <div className="flex flex-col items-end">
+                                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Prazo</span>
+                                <span className="text-[10px] font-bold text-foreground">{new Date(challenge.end_date).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </section>
+        )}
+
+      </div>
 
       {/* Comments Dialog */}
       <Dialog open={Boolean(commentDialogPostId)} onOpenChange={(open) => !open && setCommentDialogPostId(null)}>
@@ -1263,7 +1346,7 @@ const RunningClubDetailPage = () => {
         </AlertDialogContent>
       </AlertDialog>
       <FloatingNavIsland />
-    </main>
+    </main >
   );
 };
 

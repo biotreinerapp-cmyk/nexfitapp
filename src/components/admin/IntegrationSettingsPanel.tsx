@@ -13,8 +13,7 @@ export function IntegrationSettingsPanel() {
     const [saving, setSaving] = useState(false);
     const [showToken, setShowToken] = useState(false);
 
-    const [publicKey, setPublicKey] = useState("");
-    const [accessToken, setAccessToken] = useState("");
+    const [perfectPayToken, setPerfectPayToken] = useState("");
 
     useEffect(() => {
         fetchConfigs();
@@ -23,17 +22,16 @@ export function IntegrationSettingsPanel() {
     async function fetchConfigs() {
         try {
             setLoading(true);
-            const { data, error } = await supabase
+            const { data, error } = await (supabase as any)
                 .from("integration_configs")
                 .select("key, value")
-                .in("key", ["mercadopago_public_key", "mercadopago_access_token"]);
+                .eq("key", "perfectpay_webhook_token");
 
             if (error) throw error;
 
-            data?.forEach((cfg) => {
-                if (cfg.key === "mercadopago_public_key") setPublicKey(cfg.value || "");
-                if (cfg.key === "mercadopago_access_token") setAccessToken(cfg.value || "");
-            });
+            if (data && data.length > 0) {
+                setPerfectPayToken(data[0].value || "");
+            }
         } catch (err: any) {
             console.error("Error fetching configs:", err);
         } finally {
@@ -44,20 +42,22 @@ export function IntegrationSettingsPanel() {
     async function handleSave() {
         try {
             setSaving(true);
-            const updates = [
-                { key: "mercadopago_public_key", value: publicKey, is_secret: false, description: "Mercado Pago Production Public Key" },
-                { key: "mercadopago_access_token", value: accessToken, is_secret: true, description: "Mercado Pago Production Access Token" }
-            ];
+            const update = {
+                key: "perfectpay_webhook_token",
+                value: perfectPayToken,
+                is_secret: true,
+                description: "Perfect Pay Webhook Security Token"
+            };
 
-            const { error } = await supabase
+            const { error } = await (supabase as any)
                 .from("integration_configs")
-                .upsert(updates);
+                .upsert(update);
 
             if (error) throw error;
 
             toast({
                 title: "Configurações salvas",
-                description: "As chaves de integração foram atualizadas com sucesso.",
+                description: "O token da Perfect Pay foi atualizado com sucesso.",
             });
         } catch (err: any) {
             toast({
@@ -82,38 +82,23 @@ export function IntegrationSettingsPanel() {
         <div className="space-y-6 py-2">
             <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-4">
                 <p className="text-xs text-yellow-200/80">
-                    <strong>Atenção:</strong> Alterar estas chaves afetará imediatamente o processamento de pagamentos em todo o sistema. Certifique-se de que as novas chaves são de **Produção**.
+                    <strong>Atenção:</strong> O token abaixo é usado para validar as notificações enviadas pela Perfect Pay. Certifique-se de que ele corresponde ao configurado na plataforma deles.
                 </p>
             </div>
 
             <div className="space-y-4">
                 <div className="space-y-2">
-                    <Label htmlFor="public_key" className="text-sm font-medium text-white flex items-center gap-2">
+                    <Label htmlFor="perfectpay_token" className="text-sm font-medium text-white flex items-center gap-2">
                         <Key className="h-4 w-4 text-green-500" />
-                        Mercado Pago Public Key
-                    </Label>
-                    <Input
-                        id="public_key"
-                        placeholder="APP_USR-..."
-                        value={publicKey}
-                        onChange={(e) => setPublicKey(e.target.value)}
-                        className="bg-black/20 border-white/10 text-white"
-                    />
-                    <p className="text-[10px] text-muted-foreground">Usada pelo checkout no navegador para coletar dados de pagamento.</p>
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="access_token" className="text-sm font-medium text-white flex items-center gap-2">
-                        <Key className="h-4 w-4 text-green-500" />
-                        Mercado Pago Access Token
+                        Perfect Pay Webhook Token
                     </Label>
                     <div className="relative">
                         <Input
-                            id="access_token"
+                            id="perfectpay_token"
                             type={showToken ? "text" : "password"}
-                            placeholder="APP_USR-..."
-                            value={accessToken}
-                            onChange={(e) => setAccessToken(e.target.value)}
+                            placeholder="Insira o token da Perfect Pay..."
+                            value={perfectPayToken}
+                            onChange={(e) => setPerfectPayToken(e.target.value)}
                             className="bg-black/20 border-white/10 text-white pr-10"
                         />
                         <button
@@ -124,7 +109,7 @@ export function IntegrationSettingsPanel() {
                             {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                     </div>
-                    <p className="text-[10px] text-muted-foreground">Usado pelo servidor para criar ordens e processar webhooks. **Nunca compartilhe.**</p>
+                    <p className="text-[10px] text-muted-foreground">Este token é essencial para a segurança das transações automatizadas.</p>
                 </div>
             </div>
 
