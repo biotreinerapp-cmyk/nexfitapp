@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
 // Nome das variáveis: VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://affyfsmcvphrhbtxrgt.supabase.co";
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://affyffsmcvphrhbtxrgt.supabase.co";
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFmZnlmZnNtY3ZwaHJoYnR4cmd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcwNjU1NDYsImV4cCI6MjA4MjY0MTU0Nn0.cpLjvUADTJxzdr0MGIZFai_zYHPbnaU2P1I-EyDoqnw";
 
 // Logs de Diagnóstico (Seguros)
