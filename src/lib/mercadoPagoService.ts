@@ -35,7 +35,7 @@ export async function createMercadoPagoPayment(params: MercadoPagoPaymentParams)
     console.log("[MercadoPago Service] Creating payment:", params);
 
     try {
-        const response = await fetch(`https://affyffsmcvphrhbtxrgt.supabase.co/functions/v1/create-mercadopago-payment`, {
+        const response = await fetch(`https://afffyfsmcvphrhbtxrgt.supabase.co/functions/v1/create-mercadopago-payment`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

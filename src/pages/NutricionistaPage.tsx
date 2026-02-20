@@ -212,7 +212,7 @@ const NutricionistaPage = () => {
       throw new Error("Sessão expirada. Faça login novamente.");
     }
 
-    const response = await fetch("https://affyffsmcvphrhbtxrgt.functions.supabase.co/dr-bio-chat", {
+    const response = await fetch("https://afffyfsmcvphrhbtxrgt.functions.supabase.co/dr-bio-chat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -636,13 +636,13 @@ const AdminMasterContent = () => {
         throw new Error("Sessão expirada. Faça login novamente.");
       }
 
-      const response = await fetch("https://affyffsmcvphrhbtxrgt.functions.supabase.co/dr-bio-chat", {
+      const response = await fetch("https://afffyfsmcvphrhbtxrgt.functions.supabase.co/dr-bio-chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
           apikey:
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFmZnlmZnNtY3ZwaHJoYnR4cmd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcwNjU1NDYsImV4cCI6MjA4MjY0MTU0Nn0.cpLjvUADTJxzdr0MGIZFai_zYHPbnaU2P1I-EyDoqnw",
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFmZmZ5ZnNtY3ZwaHJoYnR4cmd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcwNjU1NDYsImV4cCI6MjA4MjY0MTU0Nn0.cpLjvUADTJxzdr0MGIZFai_zYHPbnaU2P1I-EyDoqnw",
         },
         body: JSON.stringify({
           messages: [{ role: "user", content: testPrompt.trim() }],
@@ -1081,7 +1081,7 @@ const AdminMasterContent = () => {
           }
 
           // Remove token local imediatamente para evitar "loop" de redirect no /auth.
-          window.localStorage.removeItem("sb-affyffsmcvphrhbtxrgt-auth-token");
+          window.localStorage.removeItem("sb-afffyfsmcvphrhbtxrgt-auth-token");
         } catch (error) {
           console.error("Falha ao limpar caches temporários no logout (admin)", error);
         }
