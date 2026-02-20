@@ -25,10 +25,14 @@ import {
     SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { supabase } from "@/integrations/supabase/client";
+import { useAdminRole } from "@/hooks/useAdminRole";
+import { useAuth } from "@/hooks/useAuth";
 
 export const AdminLayout = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { user } = useAuth();
+    const { isAdmin, hasPermission, loading } = useAdminRole();
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
@@ -37,16 +41,25 @@ export const AdminLayout = () => {
 
     const navItems = [
         { label: "Dashboard", icon: LayoutDashboard, path: "/admin" },
-        { label: "Usuários", icon: Users, path: "/admin/users" },
-        { label: "Faturamento", icon: CreditCard, path: "/admin/financial" },
-        { label: "Marketplace", icon: Store, path: "/admin/stores" },
-        { label: "Telemedicina", icon: Stethoscope, path: "/admin/telemedicina" },
-        { label: "Precificação", icon: CreditCard, path: "/admin/pricing" },
-        { label: "Conteúdo & IA", icon: Brain, path: "/admin/content" },
-        { label: "Exercícios", icon: Dumbbell, path: "/admin/exercises" },
-        { label: "Notificações", icon: Bell, path: "/admin/notifications" },
-        { label: "Configurações", icon: Settings, path: "/admin/settings" },
+        { label: "Usuários", icon: Users, path: "/admin/users", system: 'users' },
+        { label: "Faturamento", icon: CreditCard, path: "/admin/financial", system: 'billing' },
+        { label: "Marketplace", icon: Store, path: "/admin/stores", system: 'stores' },
+        { label: "Telemedicina", icon: Stethoscope, path: "/admin/telemedicina", system: 'telemedicine' },
+        { label: "Precificação", icon: CreditCard, path: "/admin/pricing", system: 'billing', level: 'admin' },
+        { label: "Conteúdo & IA", icon: Brain, path: "/admin/content", system: 'content' },
+        { label: "Exercícios", icon: Dumbbell, path: "/admin/exercises", system: 'exercises' },
+        { label: "Notificações", icon: Bell, path: "/admin/notifications", system: 'notifications' },
+        { label: "Configurações", icon: Settings, path: "/admin/settings", system: 'settings', level: 'admin' },
     ];
+
+    const isMasterAdmin = user?.email === "biotreinerapp@gmail.com";
+    const filteredNavItems = navItems.filter(item => {
+        if (isMasterAdmin || isAdmin) return true;
+        if (!item.system) return true; // Dashboard
+        return hasPermission(item.system, item.level || 'read');
+    });
+
+    if (loading) return null;
 
     return (
         <SidebarProvider>
@@ -68,7 +81,7 @@ export const AdminLayout = () => {
 
                     <SidebarContent className="px-2 pt-4">
                         <SidebarMenu className="gap-1">
-                            {navItems.map((item) => {
+                            {filteredNavItems.map((item) => {
                                 const isActive = location.pathname === item.path;
                                 return (
                                     <SidebarMenuItem key={item.path}>

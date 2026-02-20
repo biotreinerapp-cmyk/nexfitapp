@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { MaskedInput } from "@/components/ui/masked-input";
 import { Label } from "@/components/ui/label";
 import {
     Dialog,
@@ -414,7 +414,13 @@ export const AdminTelemedicinaPage = () => {
                                         </div>
                                         <div className="space-y-2">
                                             <Label>Preço Base (R$)</Label>
-                                            <Input type="number" step="0.01" value={newProfessional.preco_base || ""} onChange={e => setNewProfessional({ ...newProfessional, preco_base: e.target.value })} className="bg-black/20 border-white/10" placeholder="150.00" />
+                                            <MaskedInput
+                                                mask="currency"
+                                                value={newProfessional.preco_base || ""}
+                                                onChange={e => setNewProfessional({ ...newProfessional, preco_base: e.target.value })}
+                                                className="bg-black/20 border-white/10"
+                                                placeholder="150,00"
+                                            />
                                         </div>
                                     </div>
                                     <div className="space-y-2">
@@ -447,7 +453,13 @@ export const AdminTelemedicinaPage = () => {
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label>Telefone</Label>
-                                            <Input value={newProfessional.phone || ""} onChange={e => setNewProfessional({ ...newProfessional, phone: e.target.value })} className="bg-black/20 border-white/10" placeholder="(11) 99999-9999" />
+                                            <MaskedInput
+                                                mask="phone"
+                                                value={newProfessional.phone || ""}
+                                                onChange={e => setNewProfessional({ ...newProfessional, phone: e.target.value })}
+                                                className="bg-black/20 border-white/10"
+                                                placeholder="(11) 99999-9999"
+                                            />
                                         </div>
                                         <div className="space-y-2">
                                             <Label>Instagram</Label>
@@ -610,10 +622,8 @@ export const AdminTelemedicinaPage = () => {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Preço Base (R$)</Label>
-                                    <Input
-                                        type="number"
-                                        step="0.01"
+                                    <MaskedInput
+                                        mask="currency"
                                         value={editingProfessional.base_price || ""}
                                         onChange={e => setEditingProfessional({ ...editingProfessional, base_price: e.target.value })}
                                         className="bg-black/20 border-white/10"
@@ -646,8 +656,8 @@ export const AdminTelemedicinaPage = () => {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label>Telefone</Label>
-                                    <Input
+                                    <MaskedInput
+                                        mask="phone"
                                         value={editingProfessional.phone || ""}
                                         onChange={e => setEditingProfessional({ ...editingProfessional, phone: e.target.value })}
                                         className="bg-black/20 border-white/10"

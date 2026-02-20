@@ -83,6 +83,8 @@ import { useOfflineSync } from "@/hooks/useOfflineSync";
 import AdminMasterPage from "./pages/AdminMaster";
 import AdminPricingPage from "./pages/admin/AdminPricingPage";
 import ProfessionalPlanoPage from "./pages/ProfessionalPlanoPage";
+import ForbiddenPage from "./pages/Forbidden";
+import { AdminGuard } from "./components/admin/AdminGuard";
 
 const AlunoRoute = ({ children }: { children: JSX.Element }) => {
   const { user, loading } = useAuth();
@@ -440,18 +442,27 @@ const AppRoutes = () => (
       <Route path="/entrepreneur/register" element={<EntrepreneurPortalPage />} />
 
       {/* Admin Routes */}
-      <Route path="/admin" element={<AdminLayout />}>
+      <Route
+        path="/admin"
+        element={
+          <AdminGuard>
+            <AdminLayout />
+          </AdminGuard>
+        }
+      >
         <Route index element={<AdminDashboardPage />} />
-        <Route path="users" element={<AdminUsersPage />} />
-        <Route path="financial" element={<AdminBillingPage />} />
-        <Route path="stores" element={<AdminStoresPage />} />
-        <Route path="telemedicina" element={<AdminTelemedicinaPage />} />
-        <Route path="pricing" element={<AdminPricingPage />} />
-        <Route path="content" element={<AdminContentPage />} />
-        <Route path="exercises" element={<AdminExercisesPage />} />
-        <Route path="notifications" element={<AdminNotificationsPage />} />
-        <Route path="settings" element={<AdminSettingsPage />} />
+        <Route path="users" element={<AdminGuard system="users" level="read"><AdminUsersPage /></AdminGuard>} />
+        <Route path="financial" element={<AdminGuard system="billing" level="read"><AdminBillingPage /></AdminGuard>} />
+        <Route path="stores" element={<AdminGuard system="stores" level="read"><AdminStoresPage /></AdminGuard>} />
+        <Route path="telemedicina" element={<AdminGuard system="telemedicine" level="read"><AdminTelemedicinaPage /></AdminGuard>} />
+        <Route path="pricing" element={<AdminGuard system="billing" level="admin"><AdminPricingPage /></AdminGuard>} />
+        <Route path="content" element={<AdminGuard system="content" level="read"><AdminContentPage /></AdminGuard>} />
+        <Route path="exercises" element={<AdminGuard system="exercises" level="read"><AdminExercisesPage /></AdminGuard>} />
+        <Route path="notifications" element={<AdminGuard system="notifications" level="read"><AdminNotificationsPage /></AdminGuard>} />
+        <Route path="settings" element={<AdminGuard system="settings" level="admin"><AdminSettingsPage /></AdminGuard>} />
       </Route>
+
+      <Route path="/403" element={<ForbiddenPage />} />
 
       <Route
         path="/aluno/atividade"

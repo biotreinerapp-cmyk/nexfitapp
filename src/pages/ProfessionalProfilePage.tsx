@@ -5,11 +5,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MaskedInput } from "@/components/ui/masked-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Save, User, Camera, ArrowLeft, Loader2 } from "lucide-react";
+import { Sparkles, Save, User, Camera, ArrowLeft, Loader2, CreditCard } from "lucide-react";
 import { ProfessionalFloatingNavIsland } from "@/components/navigation/ProfessionalFloatingNavIsland";
 import { SPECIALTY_CATEGORIES, getSpecialtyLabel } from "@/lib/professionalSpecialties";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -180,8 +181,8 @@ export default function ProfessionalProfilePage() {
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-white">Preço Base (R$)</Label>
-                                <Input
-                                    type="number"
+                                <MaskedInput
+                                    mask="currency"
                                     value={formData.base_price}
                                     onChange={(e) => setFormData({ ...formData, base_price: e.target.value })}
                                     className="bg-black/20 border-white/10 text-white"
@@ -264,7 +265,8 @@ export default function ProfessionalProfilePage() {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label className="text-white">WhatsApp</Label>
-                                <Input
+                                <MaskedInput
+                                    mask="phone"
                                     value={formData.phone}
                                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                                     className="bg-black/20 border-white/10 text-white"

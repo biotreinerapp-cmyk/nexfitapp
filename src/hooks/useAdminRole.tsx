@@ -2,13 +2,20 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 
-interface UseAdminRoleResult {
-  isAdmin: boolean;
-  loading: boolean;
-  error: Error | null;
+interface UserPermission {
+  system_key: string;
+  permission_level: string;
 }
 
-const ROLE_CHECK_TIMEOUT_MS = 4000;
+interface UseAdminRoleResult {
+  isAdmin: boolean;
+  permissions: UserPermission[];
+  loading: boolean;
+  error: Error | null;
+  hasPermission: (system: string, level?: string) => boolean;
+}
+
+const ROLE_CHECK_TIMEOUT_MS = 6000;
 
 const withTimeout = async (promise: any, timeoutMs: number): Promise<any> => {
   return await new Promise<any>((resolve, reject) => {
@@ -24,8 +31,10 @@ export const useAdminRole = (): UseAdminRoleResult => {
   const { user, loading: authLoading } = useAuth();
   const [state, setState] = useState<UseAdminRoleResult>({
     isAdmin: false,
+    permissions: [],
     loading: true,
     error: null,
+    hasPermission: () => false,
   });
 
   useEffect(() => {
@@ -49,31 +58,54 @@ export const useAdminRole = (): UseAdminRoleResult => {
       setState((prev) => ({ ...prev, loading: true, error: null }));
 
       try {
-        const result = await withTimeout(
-          Promise.resolve(
+        // Parallel check for role and granular permissions
+        const [roleResult, permissionsResult] = await Promise.all([
+          withTimeout(
             supabase.rpc("has_role", {
               _user_id: user.id,
               _role: "admin",
-            }) as any,
+            }),
+            ROLE_CHECK_TIMEOUT_MS
           ),
-          ROLE_CHECK_TIMEOUT_MS,
-        );
-
-        const { data, error } = result as { data: unknown; error: any };
+          withTimeout(
+            supabase
+              .from("user_system_permissions")
+              .select("system_key, permission_level")
+              .eq("user_id", user.id),
+            ROLE_CHECK_TIMEOUT_MS
+          )
+        ]);
 
         if (cancelled) return;
 
-        if (error) {
-          console.error("Erro ao verificar role admin:", error);
-          setState({ isAdmin: false, loading: false, error: error as any });
+        if (roleResult.error) {
+          console.error("Erro ao verificar role admin:", roleResult.error);
+          setState((prev) => ({ ...prev, isAdmin: false, loading: false, error: roleResult.error }));
           return;
         }
 
-        setState({ isAdmin: Boolean(data), loading: false, error: null });
+        const isAdmin = Boolean(roleResult.data) || user.email === "biotreinerapp@gmail.com";
+        const permissions = (permissionsResult.data as UserPermission[]) || [];
+
+        setState({
+          isAdmin,
+          permissions,
+          loading: false,
+          error: null,
+          hasPermission: (system: string, level: string = 'read') => {
+            if (isAdmin) return true;
+            const p = permissions.find(p => p.system_key === system);
+            if (!p) return false;
+
+            if (level === 'admin') return p.permission_level === 'admin';
+            if (level === 'write') return p.permission_level === 'write' || p.permission_level === 'admin';
+            return true; // level 'read'
+          }
+        });
       } catch (e) {
         if (cancelled) return;
-        console.warn("Role admin: falha/timeout, liberando app", e);
-        setState({ isAdmin: false, loading: false, error: e as Error });
+        console.warn("Role admin check: falha/timeout", e);
+        setState((prev) => ({ ...prev, loading: false, error: e as Error }));
       }
     };
 

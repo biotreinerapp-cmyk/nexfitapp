@@ -12,6 +12,7 @@ import { ProfessionalFloatingNavIsland } from "@/components/navigation/Professio
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { MaskedInput } from "@/components/ui/masked-input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
@@ -388,11 +389,12 @@ export default function ProfessionalFinanceiroPage() {
                                             <Label htmlFor="phone" className="text-[10px] font-bold">Celular</Label>
                                         </div>
                                     </RadioGroup>
-                                    <Input
+                                    <MaskedInput
                                         value={pixKey}
                                         onChange={(e) => setPixKey(e.target.value)}
                                         placeholder="Digite sua chave PIX"
                                         className="bg-black/40 border-white/10 text-white rounded-xl h-11"
+                                        mask={pixType === "cpf" ? "cpf" : pixType === "phone" ? "phone" : undefined}
                                     />
                                 </div>
 
@@ -400,8 +402,8 @@ export default function ProfessionalFinanceiroPage() {
                                     <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Valor Desejado</Label>
                                     <div className="relative">
                                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">R$</span>
-                                        <Input
-                                            type="number"
+                                        <MaskedInput
+                                            mask="currency"
                                             value={withdrawAmount}
                                             onChange={(e) => setWithdrawAmount(e.target.value)}
                                             placeholder="0,00"

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { MaskedInput } from "@/components/ui/masked-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -243,7 +243,8 @@ export const AdminStoresPage = () => {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label>CNPJ (Opcional)</Label>
-                                    <Input
+                                    <MaskedInput
+                                        mask="cnpj"
                                         value={newStore.cnpj}
                                         onChange={e => setNewStore({ ...newStore, cnpj: e.target.value })}
                                         className="bg-black/20 border-white/10"
@@ -251,7 +252,8 @@ export const AdminStoresPage = () => {
                                 </div>
                                 <div className="space-y-2">
                                     <Label>WhatsApp (Opcional)</Label>
-                                    <Input
+                                    <MaskedInput
+                                        mask="phone"
                                         value={newStore.whatsapp}
                                         onChange={e => setNewStore({ ...newStore, whatsapp: e.target.value })}
                                         className="bg-black/20 border-white/10"

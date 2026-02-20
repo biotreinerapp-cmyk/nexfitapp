@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MaskedInput } from "@/components/ui/masked-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
@@ -227,7 +228,8 @@ function Step1({ formData, setFormData }: any) {
             </div>
             <div>
                 <Label className="text-white">CNPJ</Label>
-                <Input
+                <MaskedInput
+                    mask="cnpj"
                     value={formData.cnpj}
                     onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
                     className="bg-black/20 border-white/10 text-white"
@@ -235,7 +237,8 @@ function Step1({ formData, setFormData }: any) {
             </div>
             <div>
                 <Label className="text-white">Telefone *</Label>
-                <Input
+                <MaskedInput
+                    mask="phone"
                     value={formData.telefone}
                     onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
                     className="bg-black/20 border-white/10 text-white"
@@ -286,7 +289,8 @@ function Step3({ formData, setFormData }: any) {
             <h2 className="text-xl font-bold text-white mb-4">Localização</h2>
             <div>
                 <Label className="text-white">CEP *</Label>
-                <Input
+                <MaskedInput
+                    mask="cep"
                     value={formData.cep}
                     onChange={(e) => setFormData({ ...formData, cep: e.target.value })}
                     className="bg-black/20 border-white/10 text-white"
