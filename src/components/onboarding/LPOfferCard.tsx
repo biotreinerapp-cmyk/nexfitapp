@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Check, Zap, TrendingUp, Users, Loader2, CheckCircle2, CreditCard, QrCode } from "lucide-react";
 import { createPixPayment } from "@/lib/pixPaymentTracking";
-import { subscribeToPaymentStatus } from "@/lib/mercadoPagoService";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -82,12 +81,7 @@ export function LPOfferCard({ userType, userId, onSkip, onPurchaseComplete }: LP
 
     useEffect(() => {
         if (!pixData?.paymentId || !showPayment) return;
-
-        return subscribeToPaymentStatus(pixData.paymentId, (status) => {
-            if (status === 'paid' || status === 'approved') {
-                void handlePaymentConfirmed();
-            }
-        });
+        // Status checks are handled manually or by other mechanisms.
     }, [pixData?.paymentId, showPayment]);
 
     const handlePaymentConfirmed = async () => {
@@ -170,13 +164,13 @@ export function LPOfferCard({ userType, userId, onSkip, onPurchaseComplete }: LP
                                         </div>
                                     </div>
                                     <p className="text-center text-sm text-white/70">
-                                        O pagamento será processado em ambiente seguro do Mercado Pago.
+                                        O pagamento será processado em ambiente seguro e criptografado.
                                     </p>
                                     <Button
                                         className="w-full h-12 bg-primary text-black font-bold uppercase"
                                         onClick={() => paymentUrl && window.open(paymentUrl, '_blank')}
                                     >
-                                        Finalizar no Mercado Pago
+                                        Finalizar Pagamento
                                     </Button>
                                 </div>
                             )}

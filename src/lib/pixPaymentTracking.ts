@@ -1,9 +1,9 @@
 // Universal PIX Payment Tracking System
 // Centralized service for all PIX payments in the app
-// Now integrated with Mercado Pago for automatic payment processing
+// Integrated with InfinitePay for automatic payment processing
 
 import { supabase } from "@/integrations/supabase/client";
-import { createMercadoPagoPayment } from "./mercadoPagoService";
+import { createInfinitePayPayment } from "./infinitePayService";
 import { buildPixPayload } from "./pix";
 import QRCode from "qrcode";
 
@@ -38,7 +38,7 @@ export interface PixPaymentResult {
 }
 
 /**
- * Creates a new PIX/Card payment using Mercado Pago
+ * Creates a new PIX/Card payment using InfinitePay
  */
 export async function createPixPayment(
     params: CreatePixPaymentParams
@@ -49,57 +49,29 @@ export async function createPixPayment(
         paymentType,
         referenceId,
         description,
-        desiredPlan,
         paymentMethod = "pix",
-        userEmail
     } = params;
 
     console.log("[PixTracking] Creating payment:", { paymentType, amount });
 
-    // Use Mercado Pago for automated payments
-    // MP uses its own registered PIX key — no manual pix_configs needed
-    // Route ALL payment types through Mercado Pago for consistency and Card support
+    // Use InfinitePay for automated payments
     try {
-        const [firstName = "Cliente", lastName = "Nexfit"] = (params.userName || "").split(" ");
-        const email = params.userEmail || "atendimento@nexfit.com";
-
-        // Create payment via Mercado Pago Service
-        const result = await createMercadoPagoPayment({
-            transaction_amount: amount,
+        // Create payment via InfinitePay Service
+        const result = await createInfinitePayPayment({
+            amount,
             description: description || `Pagamento Nexfit - ${paymentType}`,
-            payment_method_id: paymentMethod,
-            payer: {
-                email,
-                first_name: firstName,
-                last_name: lastName,
-            },
-            metadata: {
-                payment_type: paymentType,
-                reference_id: referenceId || "",
-                user_id: userId,
-            }
+            paymentType,
+            referenceId: referenceId || "",
+            userId: userId,
+            paymentMethods: paymentMethod === "pix" ? ["pix"] : ["credit_card"],
         });
 
-        if (!result.success || !result.payment_id) {
-            throw new Error(result.error || "Erro ao criar pagamento no Mercado Pago");
-        }
-
-        // Expiration is handled by Edge Function (24h default)
-        const expiresAt = new Date();
-        expiresAt.setHours(expiresAt.getHours() + 24);
-
         return {
-            paymentId: result.payment_id,
-            pixPayload: result.qr_code || "",
-            // Prefer complete data URL; fall back to converting raw base64
-            pixQrCode: result.qr_code_data_url ||
-                (result.qr_code_base64
-                    ? (result.qr_code_base64.startsWith('data:')
-                        ? result.qr_code_base64
-                        : `data:image/png;base64,${result.qr_code_base64}`)
-                    : ""),
-            expiresAt,
-            paymentUrl: result.ticket_url || result.checkout_url,
+            paymentId: result.paymentId,
+            pixPayload: result.pixCode || "",
+            pixQrCode: result.qrCode || "",
+            expiresAt: new Date(result.expiresAt),
+            paymentUrl: result.paymentUrl,
         };
     } catch (error: any) {
         console.error("[PixTracking] Error creating automated payment:", error);

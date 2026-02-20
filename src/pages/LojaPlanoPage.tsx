@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { createPixPayment, checkPixPaymentStatus, getUserPixPayments } from "@/lib/pixPaymentTracking";
-import { subscribeToPaymentStatus } from "@/lib/mercadoPagoService";
 
 type StoreBillingInfo = {
     id: string;
@@ -115,13 +114,7 @@ export default function LojaPlanoPage() {
     // Realtime subscription for automatic payment confirmation
     useEffect(() => {
         if (!pixData?.paymentId) return;
-        return subscribeToPaymentStatus(pixData.paymentId, (status) => {
-            if (status === 'paid' || status === 'approved') {
-                setPaymentStatus('paid');
-                toast({ title: "Pagamento Confirmado!", description: "Seu plano foi ativado!" });
-                setTimeout(() => { setIsOpen(false); void loadData(); }, 2500);
-            }
-        });
+        // Status checks are handled by handleCheckPayment and initial loadData.
     }, [pixData?.paymentId, toast, loadData]);
 
     const handleInitiateUpgrade = async (method: "pix" | "card" = "pix") => {
@@ -142,7 +135,7 @@ export default function LojaPlanoPage() {
             const planPrice = activePlan ? activePlan.price_cents / 100 : DEFAULT_PLAN_PRICE;
             const planName = activePlan?.name || "PRO";
 
-            console.log(`[LojaPlano] Criando pagamento ${method} via Mercado Pago...`);
+            console.log(`[LojaPlano] Criando pagamento ${method}...`);
             const result = await createPixPayment({
                 userId: user.id,
                 userEmail: user.email || "lojista@nexfit.com",
@@ -318,7 +311,7 @@ export default function LojaPlanoPage() {
                                         <p className="text-zinc-400 text-xs font-medium">
                                             {paymentMethod === "pix"
                                                 ? "Escaneie o QR Code abaixo para ativar seu plano instantaneamente."
-                                                : "Finalize seu pagamento através do Mercado Pago seguro."}
+                                                : "Finalize seu pagamento através do ambiente seguro."}
                                         </p>
                                     </div>
 
@@ -361,7 +354,7 @@ export default function LojaPlanoPage() {
                                                 </div>
                                             </div>
                                             <p className="text-center text-sm text-zinc-400">
-                                                O pagamento será processado em ambiente seguro do Mercado Pago.
+                                                O pagamento será processado em ambiente seguro e criptografado.
                                             </p>
                                             <Button
                                                 className="w-full h-14 rounded-2xl bg-primary text-black font-black uppercase tracking-widest text-[11px] shadow-lg shadow-primary/20"

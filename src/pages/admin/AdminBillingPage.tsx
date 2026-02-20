@@ -323,7 +323,7 @@ export const AdminBillingPage = () => {
                         <div className="text-2xl font-bold text-white tracking-tight">{formatCurrency(stats.expenses)}</div>
                         <p className="text-xs text-red-400 flex items-center mt-1">
                             <Activity className="h-3 w-3 mr-1" />
-                            Fixo: Aluguel, AWS, Mercado Pago
+                            Fixo: Aluguel, AWS, Plataforma de Pagamento
                         </p>
                     </CardContent>
                 </Card>
@@ -470,7 +470,7 @@ export const AdminBillingPage = () => {
                             Configuração de APIs Financeiras
                         </DialogTitle>
                         <DialogDescription className="text-muted-foreground">
-                            Gerencie as chaves de integração do Mercado Pago e outras plataformas.
+                            Gerencie as chaves de integração do Plataforma de Pagamento e outras plataformas.
                         </DialogDescription>
                     </DialogHeader>
                     <IntegrationSettingsPanel />

@@ -14,8 +14,6 @@ import { Minus, Plus, Trash2, Ticket, ShieldCheck, Truck, MapPin, QrCode, Copy, 
 import { buildPixPayload } from "@/lib/pix";
 import * as QRCodeLib from "qrcode";
 import { createPixPayment, checkPixPaymentStatus } from "@/lib/pixPaymentTracking";
-import { subscribeToPaymentStatus } from "@/lib/mercadoPagoService";
-import mercadoPagoLogo from "@/assets/mercado-pago.png";
 
 interface CartItem {
   id: string;
@@ -419,22 +417,8 @@ export default function MarketplaceCartPage() {
   useEffect(() => {
     if (!pixPaymentId || paymentStatus !== "pending") return;
 
-    return subscribeToPaymentStatus(pixPaymentId, (status) => {
-      if (status === 'paid' || status === 'approved') {
-        setPaymentStatus("paid");
-
-        // No need to manually update order status here if webhook is working, 
-        // but we'll reflect it in UI and maybe navigate
-        toast({
-          title: "Pagamento confirmado!",
-          description: "Seu pedido está sendo processado.",
-        });
-
-        setTimeout(() => {
-          navigate("/marketplace/pedidos");
-        }, 2000);
-      }
-    });
+    // The polling in the first useEffect handles status checks.
+    // Realtime subscription in the second useEffect handles instant updates.
   }, [pixPaymentId, paymentStatus, navigate]);
 
   const handleVerifyPayment = async () => {
@@ -874,13 +858,13 @@ function CheckoutView({
             <div className="flex items-center justify-center gap-2 text-sm font-semibold text-foreground">
               <CreditCard className="h-5 w-5 text-primary" /> Pagamento com Cartão
             </div>
-            <p className="text-sm text-foreground">Clique no botão abaixo para concluir o pagamento no Mercado Pago seguro.</p>
+            <p className="text-sm text-foreground">Clique no botão abaixo para concluir o pagamento seguro.</p>
             <Button
               className="w-full gap-2"
               onClick={() => window.open(paymentUrl, '_blank')}
             >
               <ExternalLink className="h-4 w-4" />
-              Pagar no Mercado Pago
+              Pagar com Cartão
             </Button>
           </CardContent>
         </Card>
@@ -938,7 +922,6 @@ function CheckoutView({
 
       <div className="mt-8 flex flex-col items-center justify-center gap-2 border-t border-border/20 pt-4 opacity-70">
         <div className="flex items-center gap-2 grayscale hover:grayscale-0 transition-all duration-500">
-          <img src={mercadoPagoLogo} alt="Mercado Pago" className="h-4 opacity-80" />
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
             <ShieldCheck className="h-3 w-3" />
             Pagamento Blindado

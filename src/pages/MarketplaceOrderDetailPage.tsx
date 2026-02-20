@@ -489,7 +489,7 @@ export default function MarketplaceOrderDetailPage() {
                                         onClick={() => window.open(paymentInfo.payment_url, '_blank')}
                                     >
                                         <ExternalLink className="h-4 w-4 mr-2" />
-                                        Concluir no Mercado Pago
+                                        Finalizar Pedido
                                     </Button>
                                     <Button
                                         variant="ghost"

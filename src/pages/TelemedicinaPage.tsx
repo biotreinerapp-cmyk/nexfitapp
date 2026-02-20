@@ -20,7 +20,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { useToast } from "@/hooks/use-toast";
 import { createPixPayment, checkPixPaymentStatus, PixPaymentResult } from "@/lib/pixPaymentTracking";
-import { subscribeToPaymentStatus } from "@/lib/mercadoPagoService";
 import { HubServiceButton } from "@/components/dashboard/HubServiceButton";
 import { FloatingNavIsland } from "@/components/navigation/FloatingNavIsland";
 import { Button } from "@/components/ui/button";
@@ -175,19 +174,7 @@ const TelemedicinaPage = () => {
 
   useEffect(() => {
     if (!pixData?.paymentId || !showPixDialog) return;
-
-    return subscribeToPaymentStatus(pixData.paymentId, (status) => {
-      if (status === 'paid' || status === 'approved') {
-        setPaymentStatus("paid");
-        toast({
-          title: "Pagamento confirmado!",
-          description: "Sua conexão com o profissional foi liberada.",
-        });
-        setTimeout(() => setShowPixDialog(false), 2000);
-      } else if (status === 'cancelled' || status === 'expired') {
-        setPaymentStatus("expired");
-      }
-    });
+    // Status checks are handled by handleCheckPayment.
   }, [pixData?.paymentId, showPixDialog]);
 
   const handleCheckPayment = async () => {
@@ -606,7 +593,7 @@ const TelemedicinaPage = () => {
                         className="w-full h-14 bg-primary text-black font-black uppercase tracking-widest text-xs rounded-xl"
                         onClick={() => paymentUrl && window.open(paymentUrl, '_blank')}
                       >
-                        Ir para Mercado Pago
+                        Finalizar Pagamento
                       </Button>
                     </div>
                   )}

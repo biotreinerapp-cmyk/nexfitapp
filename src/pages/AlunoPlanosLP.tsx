@@ -8,7 +8,6 @@ import { BackIconButton } from "@/components/navigation/BackIconButton";
 import { FloatingNavIsland } from "@/components/navigation/FloatingNavIsland";
 import { supabase } from "@/integrations/supabase/client";
 import { PLAN_LABEL, type SubscriptionPlan } from "@/lib/subscriptionPlans";
-import mercadoPagoLogo from "@/assets/mercado-pago.png";
 
 const AlunoPlanosLP = () => {
     const navigate = useNavigate();
@@ -185,11 +184,9 @@ const AlunoPlanosLP = () => {
                         <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
                         <div className="relative z-10 flex flex-col items-center">
-                            <img
-                                src={mercadoPagoLogo}
-                                alt="Mercado Pago"
-                                className="h-12 mb-4 opacity-90 grayscale group-hover:grayscale-0 transition-all duration-500"
-                            />
+                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-500 mb-4 ring-1 ring-blue-500/20 shadow-lg">
+                                <ShieldCheck className="h-8 w-8" />
+                            </div>
 
                             <h3 className="text-xl font-black italic text-foreground mb-2 flex items-center gap-2">
                                 <ShieldCheck className="h-5 w-5 text-blue-500" />
@@ -197,7 +194,7 @@ const AlunoPlanosLP = () => {
                             </h3>
 
                             <p className="text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto mb-4">
-                                Sua segurança é nossa prioridade. Processamento criptografado de ponta a ponta pelo <strong>Mercado Pago</strong>.
+                                Sua segurança é nossa prioridade. Processamento criptografado de ponta a ponta com aprovação imediata.
                             </p>
 
                             <div className="flex items-center gap-2 text-xs font-bold text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">
