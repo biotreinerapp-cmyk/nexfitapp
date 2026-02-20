@@ -18,9 +18,9 @@ interface Store {
 
 const categoryTitles: Record<string, string> = {
   suplementos: "Suplementos",
-  roupas_fitness: "Roupas Fitness",
-  artigos_esportivos: "Artigos Esportivos",
-  comidas_fitness: "Comidas Fitness",
+  roupas: "Roupas Fitness",
+  artigos: "Artigos Esportivos",
+  nutricao: "Comidas Fitness",
 };
 
 export default function MarketplaceStoresPage() {

@@ -62,7 +62,7 @@ const MarketplaceCategoriesPage = () => {
             color="from-emerald-500/20 to-emerald-600/5"
             borderColor="border-emerald-500/20"
             iconColor="text-emerald-400"
-            onClick={() => navigate("/marketplace/categoria/roupas_fitness")}
+            onClick={() => navigate("/marketplace/categoria/roupas")}
           />
           <CategoryCard
             title="Acessórios"
@@ -71,7 +71,7 @@ const MarketplaceCategoriesPage = () => {
             color="from-orange-500/20 to-orange-600/5"
             borderColor="border-orange-500/20"
             iconColor="text-orange-400"
-            onClick={() => navigate("/marketplace/categoria/artigos_esportivos")}
+            onClick={() => navigate("/marketplace/categoria/artigos")}
           />
           <CategoryCard
             title="Nutrição"
@@ -80,7 +80,7 @@ const MarketplaceCategoriesPage = () => {
             color="from-red-500/20 to-red-600/5"
             borderColor="border-red-500/20"
             iconColor="text-red-400"
-            onClick={() => navigate("/marketplace/categoria/comidas_fitness")}
+            onClick={() => navigate("/marketplace/categoria/nutricao")}
           />
         </div>
       </section>

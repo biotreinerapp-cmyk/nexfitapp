@@ -2661,9 +2661,9 @@ const AdminMasterContent = () => {
                                   </SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="suplementos">Suplementos</SelectItem>
-                                    <SelectItem value="artigos_esportivos">Artigos esportivos</SelectItem>
-                                    <SelectItem value="roupas_fitness">Roupas fitness</SelectItem>
-                                    <SelectItem value="comidas_fitness">Comidas Fitness</SelectItem>
+                                    <SelectItem value="artigos">Artigos esportivos</SelectItem>
+                                    <SelectItem value="roupas">Roupas fitness</SelectItem>
+                                    <SelectItem value="nutricao">Comidas Fitness</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>
@@ -2975,9 +2975,9 @@ const AdminMasterContent = () => {
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="suplementos">Suplementos</SelectItem>
-                                  <SelectItem value="artigos_esportivos">Artigos Esportivos</SelectItem>
-                                  <SelectItem value="roupas_fitness">Roupas Fitness</SelectItem>
-                                  <SelectItem value="comidas_fitness">Comidas Fitness</SelectItem>
+                                  <SelectItem value="artigos">Artigos Esportivos</SelectItem>
+                                  <SelectItem value="roupas">Roupas Fitness</SelectItem>
+                                  <SelectItem value="nutricao">Comidas Fitness</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
