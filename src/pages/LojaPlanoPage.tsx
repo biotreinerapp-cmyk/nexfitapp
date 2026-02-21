@@ -1,22 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { Copy, CreditCard, Crown, QrCode, CheckCircle2, Package, TrendingUp, ShoppingBag, Loader2, Sparkles } from "lucide-react";
+import { Crown, CheckCircle2, Package, TrendingUp, ShoppingBag, Loader2, Sparkles, Rocket } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LojaFloatingNavIsland } from "@/components/navigation/LojaFloatingNavIsland";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { createPixPayment, checkPixPaymentStatus, getUserPixPayments } from "@/lib/pixPaymentTracking";
 
 type StoreBillingInfo = {
     id: string;
@@ -45,15 +34,9 @@ export default function LojaPlanoPage() {
 
     const [loading, setLoading] = useState(true);
     const [store, setStore] = useState<StoreBillingInfo | null>(null);
-    const [pixData, setPixData] = useState<any>(null);
-    const [activePayment, setActivePayment] = useState<any>(null);
     const [activePlan, setActivePlan] = useState<ActivePlan | null>(null);
 
-    const [isOpen, setIsOpen] = useState(false);
-    const [verifying, setVerifying] = useState(false);
-    const [paymentMethod, setPaymentMethod] = useState<"pix" | "card">("pix");
-    const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
-
+|
     useEffect(() => {
         document.title = "Meu Plano - Nexfit Lojista";
     }, []);
@@ -85,23 +68,7 @@ export default function LojaPlanoPage() {
                     setActivePlan(plan as ActivePlan);
                 }
 
-                // Check for existing pending payments
-                const payments = await getUserPixPayments(user.id, "store_plan");
-                const pending = payments?.find(p => p.status === "pending");
-                if (pending) {
-                    setActivePayment(pending);
-                    // Normalize QR code from DB: may be raw base64 or already a data URL
-                    const rawQr = pending.pix_qr_code || '';
-                    const qrDataUrl = rawQr
-                        ? (rawQr.startsWith('data:') ? rawQr : `data:image/png;base64,${rawQr}`)
-                        : '';
-                    setPixData({
-                        paymentId: pending.id,
-                        pixPayload: pending.pix_payload,
-                        pixQrCode: qrDataUrl,
-                        expiresAt: new Date(pending.expires_at)
-                    });
-                }
+
             }
         } catch (error) {
             console.error("Erro ao carregar dados do plano:", error);
@@ -112,103 +79,21 @@ export default function LojaPlanoPage() {
 
     useEffect(() => { void loadData(); }, [loadData]);
 
-    // Realtime subscription for automatic payment confirmation
-    useEffect(() => {
-        if (!pixData?.paymentId) return;
-        // Status checks are handled by handleCheckPayment and initial loadData.
-    }, [pixData?.paymentId, toast, loadData]);
 
-    const handleInitiateUpgrade = async (method: "pix" | "card" = "pix") => {
+
+    const handleInitiateUpgrade = async () => {
         if (!user || !store) return;
 
-        // External Link (Perfect Pay or others)
-        if (method === "card") {
-            if (activePlan?.checkout_link) {
-                // Open safe external link directly
-                window.open(activePlan.checkout_link, '_blank');
-                return;
-            } else {
-                toast({ title: "Checkout Indisponível", description: "O link de pagamento com cartão ainda não foi configurado.", variant: "destructive" });
-                return;
-            }
-        }
-
-        setPaymentMethod(method);
-        console.log(`[LojaPlano] Iniciando upgrade (${method}) para loja:`, store.id);
-
-        // If already have a pending payment of SAME method, just show it
-        if (pixData && paymentMethod === method) {
-            console.log("[LojaPlano] Pagamento pendente já existe:", pixData.paymentId);
-            setIsOpen(true);
-            return;
-        }
-
-        setVerifying(true);
-        try {
-            const planPrice = activePlan ? activePlan.price_cents / 100 : DEFAULT_PLAN_PRICE;
-            const planName = activePlan?.name || "PRO";
-
-            console.log(`[LojaPlano] Criando pagamento ${method}...`);
-            const result = await createPixPayment({
-                userId: user.id,
-                userEmail: user.email || "lojista@nexfit.com",
-                userName: user.user_metadata?.full_name || user.user_metadata?.nome || store.nome || "Lojista Nexfit",
-                amount: planPrice,
-                paymentType: "store_plan",
-                referenceId: store.id,
-                description: `Plano ${planName} - ${store.nome}`,
-                paymentMethod: method,
-            });
-
-            console.log("[LojaPlano] Pagamento criado:", result.paymentId);
-            setPixData(result);
-            setPaymentUrl(result.paymentUrl || null);
-            setIsOpen(true);
-        } catch (error: any) {
-            console.error(`[LojaPlano] Erro ao gerar ${method}:`, error);
-            toast({ title: `Erro ao gerar ${method.toUpperCase()}`, description: error.message, variant: "destructive" });
-        } finally {
-            setVerifying(false);
+        if (activePlan?.checkout_link) {
+            window.open(activePlan.checkout_link, '_blank');
+        } else {
+            toast({ title: "Checkout Indisponível", description: "O link de pagamento ainda não foi configurado.", variant: "destructive" });
         }
     };
 
-    const handleCheckPayment = async () => {
-        if (!pixData) return;
-        setVerifying(true);
-        console.log("[LojaPlano] Verificando status do pagamento:", pixData.paymentId);
-        try {
-            const status = await checkPixPaymentStatus(pixData.paymentId);
-            console.log("[LojaPlano] Status retornado:", status);
-            if (status === "paid") {
-                setPaymentStatus("paid");
-                toast({ title: "Pagamento confirmado!", description: "Sua loja agora é PRO!" });
-                setTimeout(() => {
-                    setIsOpen(false);
-                    void loadData();
-                }, 3000);
-            } else if (status === "expired") {
-                setPaymentStatus("expired");
-                setPixData(null); // Allow regenerate
-                toast({ title: "Pagamento expirado", description: "O código PIX expirou. Gere um novo." });
-            } else {
-                toast({ title: "Aguardando pagamento...", description: "O sistema ainda não identificou seu PIX." });
-            }
-        } catch (error) {
-            console.error("[LojaPlano] Erro ao verificar pagamento:", error);
-        } finally {
-            setVerifying(false);
-        }
-    };
 
-    const handleCopyPix = useCallback(async () => {
-        if (!pixData?.pixPayload) return;
-        try {
-            await navigator.clipboard.writeText(pixData.pixPayload);
-            toast({ title: "Código Pix copiado!" });
-        } catch {
-            toast({ title: "Erro ao copiar", variant: "destructive" });
-        }
-    }, [pixData, toast]);
+
+
 
     const isPro = !!(store?.subscription_plan && store.subscription_plan !== "FREE" && store.subscription_plan !== "");
     const planPrice = activePlan ? activePlan.price_cents / 100 : DEFAULT_PLAN_PRICE;
@@ -314,20 +199,11 @@ export default function LojaPlanoPage() {
 
                         <div className="space-y-3">
                             <Button
-                                onClick={() => handleInitiateUpgrade("pix")}
-                                disabled={verifying}
-                                className="w-full h-14 rounded-2xl bg-primary text-black font-black uppercase tracking-widest text-[11px] hover:bg-primary/90 shadow-[0_0_20px_rgba(86,255,2,0.2)] transition-all"
+                                onClick={handleInitiateUpgrade}
+                                className="w-full py-7 text-lg uppercase tracking-wider font-black shadow-[0_0_20px_rgba(86,255,2,0.2)] hover:shadow-[0_0_30px_rgba(86,255,2,0.4)] bg-gradient-to-r from-primary to-primary/80 text-black hover:brightness-110 transition-all duration-300 transform hover:-translate-y-1"
                             >
-                                {verifying && paymentMethod === "pix" ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : <QrCode className="h-5 w-5 mr-2" />}
-                                Assinar via PIX (Liberação Imediata)
-                            </Button>
-                            <Button
-                                onClick={() => handleInitiateUpgrade("card")}
-                                disabled={verifying}
-                                className="w-full h-14 rounded-2xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 transition-all gap-2"
-                            >
-                                {verifying && paymentMethod === "card" ? <Loader2 className="animate-spin h-5 w-5" /> : <CreditCard className="h-5 w-5 text-zinc-400" />}
-                                Assinar com Cartão
+                                <Rocket className="h-6 w-6 mr-3" />
+                                QUERO EVOLUIR AGORA
                             </Button>
                         </div>
                     </div>
