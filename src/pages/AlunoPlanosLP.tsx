@@ -13,14 +13,22 @@ const AlunoPlanosLP = () => {
     const navigate = useNavigate();
 
     // Fetch prices from database - synced with Admin config keys
-    const { data: planConfigs = [] } = useQuery({
+    const { data: planConfigs = [] } = useQuery<{ plan: string, price_cents: number, checkout_link: string | null }[]>({
         queryKey: ["admin", "plan-configs-basic"],
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from("plan_configs")
-                .select("plan, price_cents");
+            const { data, error } = await (supabase as any)
+                .from("app_access_plans")
+                .select("name, price_cents, checkout_link")
+                .eq("user_type", "ALUNO")
+                .in("name", ["Advance Pro", "Elite Black"])
+                .order("price_cents");
             if (error) throw error;
-            return data || [];
+            // Map the format back to the expected array structures
+            return (data as any[])?.map(p => ({
+                plan: p.name.includes('Advance') ? 'ADVANCE' : 'ELITE',
+                price_cents: p.price_cents,
+                checkout_link: p.checkout_link
+            })) || [];
         },
         staleTime: 0,
     });
@@ -32,6 +40,11 @@ const AlunoPlanosLP = () => {
     const getPriceForPlan = (plan: string) => {
         const config = planConfigs.find(c => c.plan === plan);
         return config ? formatPrice(config.price_cents) : (plan === "ADVANCE" ? "19,90" : "39,90");
+    };
+
+    const getLinkForPlan = (plan: string) => {
+        const config = planConfigs.find(c => c.plan === plan);
+        return config?.checkout_link || "";
     };
 
     const plans = [
@@ -55,6 +68,7 @@ const AlunoPlanosLP = () => {
             icon: Rocket,
             accent: "primary",
             buttonText: "QUERO EVOLUIR AGORA",
+            checkoutLink: getLinkForPlan("ADVANCE"),
         },
         {
             type: "ELITE",
@@ -78,6 +92,7 @@ const AlunoPlanosLP = () => {
             accent: "accent",
             buttonText: "QUERO SER ELITE",
             popular: true,
+            checkoutLink: getLinkForPlan("ELITE"),
         },
     ];
 
@@ -177,7 +192,13 @@ const AlunoPlanosLP = () => {
 
                                 <Button
                                     className={`w-full py-7 text-lg uppercase tracking-wider font-black shadow-lg shadow-${plan.accent}/20 hover:shadow-${plan.accent}/40 bg-gradient-to-r from-${plan.accent} to-${plan.accent}/80 hover:brightness-110 transition-all duration-300 transform hover:-translate-y-1`}
-                                    onClick={() => navigate(`/aluno/planos/checkout/${plan.type}`)}
+                                    onClick={() => {
+                                        if (plan.checkoutLink) {
+                                            window.open(plan.checkoutLink, '_blank');
+                                        } else {
+                                            navigate(`/aluno/planos/checkout/${plan.type}`);
+                                        }
+                                    }}
                                 >
                                     {plan.buttonText}
                                 </Button>
