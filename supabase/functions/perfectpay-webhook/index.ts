@@ -111,10 +111,14 @@ serve(async (req: Request) => {
         const expiresAt = new Date(Date.now() + validityDays * 24 * 60 * 60 * 1000).toISOString();
 
         // 4. Atualizar Assinatura
+        let enumPlan = "FREE";
+        if (matchedPlanName.toUpperCase().includes("ADVANCE")) enumPlan = "ADVANCE";
+        if (matchedPlanName.toUpperCase().includes("ELITE")) enumPlan = "ELITE";
+
         const { error: profileError } = await supabaseClient
             .from("profiles")
             .update({
-                subscription_plan: matchedPlanName,
+                subscription_plan: enumPlan,
                 plan_expires_at: expiresAt
             })
             .eq("id", userId);
