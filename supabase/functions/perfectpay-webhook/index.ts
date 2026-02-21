@@ -131,7 +131,7 @@ serve(async (req: Request) => {
             .insert({
                 user_id: userId,
                 provider: "perfectpay",
-                desired_plan: matchedPlanName,
+                desired_plan: enumPlan,
                 status: "approved",
                 processed_at: new Date().toISOString()
             });
