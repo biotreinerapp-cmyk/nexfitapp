@@ -14,20 +14,38 @@ export const AdminDashboardPage = () => {
         revenue: 0,
         activeNow: 0,
     });
+    const [recentUsers, setRecentUsers] = useState<any[]>([]);
 
     useEffect(() => {
         const fetchStats = async () => {
-            // Fetch real user count
-            const { count } = await supabase.from("profiles").select("*", { count: "exact", head: true });
+            // Fetch real user count and active users (plans != FREE)
+            const { count: totalUsers } = await supabase.from("profiles").select("*", { count: "exact", head: true });
+            const { count: activeUsers } = await supabase.from("profiles").select("*", { count: "exact", head: true }).neq("subscription_plan", "FREE");
 
-            // Mocked revenue for now as we don't have a transactions table sum ready in this context
-            // In a real scenario we would sum the 'pagamentos' table where status = approved
+            // Fetch income transactions to sum revenue
+            const { data: txs } = await supabase
+                .from("financial_transactions")
+                .select("amount_cents")
+                .eq("type", 'income');
+
+            const totalRevenue = txs ? txs.reduce((acc, tx) => acc + (tx.amount_cents / 100), 0) : 0;
+
+            // Fetch 5 recent profiles
+            const { data: recentProfiles } = await supabase
+                .from("profiles")
+                .select("id, nome, email, subscription_plan")
+                .order("created_at", { ascending: false })
+                .limit(5);
 
             setStats({
-                users: count || 0,
-                revenue: 12450.00, // Placeholder
-                activeNow: 12, // Placeholder
+                users: totalUsers || 0,
+                revenue: totalRevenue,
+                activeNow: activeUsers || 0,
             });
+
+            if (recentProfiles) {
+                setRecentUsers(recentProfiles);
+            }
         };
         fetchStats();
     }, []);
@@ -139,16 +157,22 @@ export const AdminDashboardPage = () => {
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
-                            {[1, 2, 3].map((i) => (
-                                <div key={i} className="flex items-center gap-4">
-                                    <div className="h-9 w-9 rounded-full bg-white/10" />
-                                    <div className="space-y-1">
-                                        <p className="text-sm font-medium text-white leading-none">Usuário {i}</p>
-                                        <p className="text-xs text-muted-foreground">usuario{i}@email.com</p>
+                            {recentUsers.length > 0 ? recentUsers.map((u, i) => (
+                                <div key={u.id} className="flex items-center gap-4">
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-[10px] font-bold text-white/50">
+                                        {i + 1}
                                     </div>
-                                    <div className="ml-auto font-medium text-green-500 text-xs">+ Plan Elite</div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm font-medium text-white leading-none">{u.nome || `Usuário Anônimo`}</p>
+                                        <p className="text-xs text-muted-foreground">{u.email}</p>
+                                    </div>
+                                    <div className={`ml-auto font-medium text-xs ${u.subscription_plan && u.subscription_plan !== 'FREE' ? 'text-green-500' : 'text-muted-foreground'}`}>
+                                        {u.subscription_plan && u.subscription_plan !== 'FREE' ? `+ Plan ${u.subscription_plan}` : "Free"}
+                                    </div>
                                 </div>
-                            ))}
+                            )) : (
+                                <div className="text-center text-sm text-muted-foreground py-6">Nenhum usuário encontrado.</div>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
