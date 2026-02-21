@@ -133,6 +133,7 @@ serve(async (req: Request) => {
                 provider: "perfectpay",
                 desired_plan: enumPlan,
                 status: "approved",
+                receipt_path: "auto_approved_perfectpay",
                 processed_at: new Date().toISOString()
             });
 
