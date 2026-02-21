@@ -43,11 +43,42 @@ export function useStorePlanModules(): StorePlanInfo {
                 }
 
                 setStoreId(store.id);
-                setSubscriptionPlan(store.subscription_plan);
+                const currentPlan = store.subscription_plan || "FREE";
+                setSubscriptionPlan(currentPlan);
 
-                // BYPASS: Grant full access to all modules regardless of plan
-                // This is a temporary measure requested to unblock the LOJISTA access on Render
-                setModules(new Set(['treinos', 'nutricao', 'telemedicina', 'marketplace', 'agenda', 'chat', 'financeiro', 'loja', 'estoque', 'relatorios']));
+                // 2. Fetch the plan ID from app_access_plans
+                const { data: planData } = await (supabase as any)
+                    .from("app_access_plans")
+                    .select("id")
+                    .eq("user_type", "LOJISTA")
+                    .ilike("name", `%${currentPlan}%`)
+                    .maybeSingle();
+
+                if (!planData) {
+                    // Fallback to minimal modules if no plan found (or FREE)
+                    setModules(new Set(['dashboard', 'perfil']));
+                    setIsLoading(false);
+                    return;
+                }
+
+                // 3. Fetch the modules linked to this plan
+                const { data: planModulesData } = await (supabase as any)
+                    .from("plan_modules")
+                    .select(`
+                        module_id,
+                        access_modules ( key )
+                    `)
+                    .eq("plan_id", planData.id);
+
+                if (planModulesData && planModulesData.length > 0) {
+                    const moduleKeys = planModulesData
+                        .map((pm: any) => pm.access_modules?.key)
+                        .filter(Boolean);
+                    setModules(new Set(moduleKeys));
+                } else {
+                    // Default fallback if no modules mapped
+                    setModules(new Set(['dashboard', 'perfil']));
+                }
 
             } catch (error) {
                 console.error("[useStorePlanModules] Error loading plan modules:", error);

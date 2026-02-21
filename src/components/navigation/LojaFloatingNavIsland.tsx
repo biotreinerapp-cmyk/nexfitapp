@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, DollarSign, Package, Warehouse, User } from "lucide-react";
+import { Home, Megaphone, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -10,9 +10,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { icon: Home, label: "Início", path: "/loja/dashboard" },
-  { icon: DollarSign, label: "Financeiro", path: "/loja/financeiro" },
-  { icon: Package, label: "Produtos", path: "/loja/produtos" },
-  { icon: Warehouse, label: "Estoque", path: "/loja/estoque" },
+  { icon: Megaphone, label: "Nexfit ADS", path: "/loja/destaque" },
   { icon: User, label: "Perfil", path: "/loja/perfil" },
 ];
 

@@ -5,7 +5,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { LojaFloatingNavIsland } from "@/components/navigation/LojaFloatingNavIsland";
 import { StoreNotificationCenter } from "@/components/store/StoreNotificationCenter";
-import { Package, DollarSign, TrendingUp, ShoppingBag, LogOut, Clock, CheckCircle2, XCircle, ChevronRight, User } from "lucide-react";
+import { Package, DollarSign, TrendingUp, ShoppingBag, LogOut, Clock, CheckCircle2, XCircle, ChevronRight, User, Lock, Megaphone, Zap, Warehouse } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useStorePlanModules } from "@/hooks/useStorePlanModules";
 
 interface StoreInfo {
@@ -152,14 +153,6 @@ const LojaDashboardPage = () => {
   const pendingOrders = orders.filter((o) => o.status === "pending");
   const recentOrders = orders.slice(0, 10);
 
-  const stats = [
-    { icon: DollarSign, label: "Faturamento total", value: `R$ ${totalRevenue.toFixed(2)}`, color: "text-primary" },
-    { icon: TrendingUp, label: "Faturamento mensal", value: `R$ ${monthRevenue.toFixed(2)}`, color: "text-primary" },
-    { icon: ShoppingBag, label: "Pedidos pendentes", value: String(pendingOrders.length), color: "text-yellow-400" },
-    { icon: Package, label: "Produtos ativos", value: String(productCount), color: "text-primary" },
-    { icon: Clock, label: "Carrinhos abandonados", value: String(abandonedCarts.length), color: "text-orange-400" },
-  ];
-
   return (
     <main className="min-h-screen bg-black pb-28 safe-bottom-floating-nav">
       {/* Premium Header Card */}
@@ -195,6 +188,8 @@ const LojaDashboardPage = () => {
                   navigate("/auth", { replace: true });
                 }}
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                title="Sair"
+                aria-label="Sair"
               >
                 <LogOut className="h-5 w-5" />
               </button>
@@ -203,38 +198,159 @@ const LojaDashboardPage = () => {
         </div>
       </section>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-3 px-4 mt-4">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <div key={stat.label} className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.03] p-5 backdrop-blur-md transition-all hover:bg-white/[0.06]">
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-2">
-                  <Icon className={`h-4 w-4 ${stat.color}`} />
-                  <span className="text-[9px] uppercase tracking-wider text-zinc-400">{stat.label}</span>
-                </div>
-                <p className="text-xl font-black text-white">{stat.value}</p>
-              </div>
+      {/* Premium Hub Buttons */}
+      <section className="mt-6 px-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-black uppercase tracking-widest text-[#56FF02] drop-shadow-[0_0_8px_rgba(86,255,2,0.4)]">
+            Módulos da Loja
+          </h2>
+          <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent ml-4" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          {/* Módulo de Pedidos (Livre) */}
+          <button
+            onClick={() => {
+              // Smooth scroll to orders section or navigate if we create a dedicated page later
+              window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            }}
+            className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-blue-600/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-blue-400 shadow-inner">
+              <ShoppingBag className="h-6 w-6" />
             </div>
-          );
-        })}
-      </div>
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-white leading-none">Pedidos</h3>
+              <p className="text-[10px] text-zinc-400 font-medium">Gestão de Vendas</p>
+            </div>
+            <div className="absolute top-4 right-4 opacity-5 transition-opacity group-hover:opacity-10">
+              <ShoppingBag className="h-10 w-10 rotate-12 text-blue-400" />
+            </div>
+          </button>
+
+          {/* Financeiro (Locked) */}
+          <button
+            onClick={() => {
+              if (!hasModule("financeiro")) {
+                toast({ title: "Plano Interprise Necessário", description: "Faça upgrade para liberar o controle financeiro avançado." });
+                navigate("/loja/plano");
+                return;
+              }
+              navigate("/loja/financeiro");
+            }}
+            className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-emerald-400 shadow-inner">
+              <DollarSign className="h-6 w-6" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-white leading-none">Financeiro</h3>
+                {!hasModule("financeiro") && <Lock className="h-3 w-3 text-zinc-500" />}
+              </div>
+              <p className="text-[10px] text-zinc-400 font-medium">Faturamento e Relatórios</p>
+            </div>
+            <div className="absolute top-4 right-4 opacity-5 transition-opacity group-hover:opacity-10">
+              <DollarSign className="h-10 w-10 rotate-12 text-emerald-400" />
+            </div>
+          </button>
+
+          {/* Vitrine (Locked) */}
+          <button
+            onClick={() => {
+              if (!hasModule("loja")) {
+                toast({ title: "Plano Interprise Necessário", description: "Faça upgrade para liberar a exposição de produtos na vitrine." });
+                navigate("/loja/plano");
+                return;
+              }
+              navigate("/loja/produtos");
+            }}
+            className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-purple-600/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-purple-400 shadow-inner">
+              <Package className="h-6 w-6" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-white leading-none">Vitrine</h3>
+                {!hasModule("loja") && <Lock className="h-3 w-3 text-zinc-500" />}
+              </div>
+              <p className="text-[10px] text-zinc-400 font-medium">Top Vendas</p>
+            </div>
+            <div className="absolute top-4 right-4 opacity-5 transition-opacity group-hover:opacity-10">
+              <Package className="h-10 w-10 rotate-12 text-purple-400" />
+            </div>
+          </button>
+
+          {/* Estoque (Locked) */}
+          <button
+            onClick={() => {
+              if (!hasModule("estoque")) {
+                toast({ title: "Plano Interprise Necessário", description: "Faça upgrade para liberar o controle de estoque de produtos." });
+                navigate("/loja/plano");
+                return;
+              }
+              navigate("/loja/estoque");
+            }}
+            className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-orange-500/20 bg-gradient-to-br from-orange-500/10 to-orange-600/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-orange-400 shadow-inner">
+              <Warehouse className="h-6 w-6" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-white leading-none">Estoque</h3>
+                {!hasModule("estoque") && <Lock className="h-3 w-3 text-zinc-500" />}
+              </div>
+              <p className="text-[10px] text-zinc-400 font-medium">Controle e Cadastro</p>
+            </div>
+            <div className="absolute top-4 right-4 opacity-5 transition-opacity group-hover:opacity-10">
+              <Warehouse className="h-10 w-10 rotate-12 text-orange-400" />
+            </div>
+          </button>
+
+          {/* Nexfit ADS (Upsell / Pack) */}
+          <button
+            onClick={() => {
+              navigate("/loja/destaque");
+            }}
+            className="group relative col-span-2 flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-primary/30 bg-gradient-to-br from-primary/20 to-primary/5 p-5 text-left transition-all hover:scale-[1.01] active:scale-[0.99] backdrop-blur-md"
+          >
+            <div className="flex w-full items-center justify-between">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/20 text-primary shadow-inner">
+                <Megaphone className="h-6 w-6" />
+              </div>
+              <Badge variant="outline" className="border-primary/50 text-primary bg-primary/10 tracking-widest text-[9px]">IMPULSIONAR VENDAS</Badge>
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-sm font-black italic text-white leading-none flex items-center gap-2">NEXFIT <span className="text-primary">ADS</span> <Zap className="h-4 w-4 text-primary fill-primary" /></h3>
+              <p className="text-xs text-zinc-400 font-medium mt-1">Destaque sua loja com banners exclusivos <br />no dashboard principal de todos os alunos.</p>
+            </div>
+            <div className="absolute top-4 right-10 opacity-5 transition-opacity group-hover:opacity-10">
+              <Megaphone className="h-24 w-24 rotate-12 text-primary" />
+            </div>
+          </button>
+
+        </div>
+      </section>
 
       {/* Pending Orders */}
-      {pendingOrders.length > 0 && (
-        <section className="mt-8 px-4">
-          <h2 className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-zinc-400">
-            <Clock className="h-4 w-4 text-yellow-400" />
-            Aguardando Ação ({pendingOrders.length})
-          </h2>
-          <div className="space-y-3">
-            {pendingOrders.map((order) => (
-              <OrderCard key={order.id} order={order} storeId={store.id} navigate={navigate} />
-            ))}
-          </div>
-        </section>
-      )}
+      {
+        pendingOrders.length > 0 && (
+          <section className="mt-8 px-4">
+            <h2 className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-zinc-400">
+              <Clock className="h-4 w-4 text-yellow-400" />
+              Aguardando Ação ({pendingOrders.length})
+            </h2>
+            <div className="space-y-3">
+              {pendingOrders.map((order) => (
+                <OrderCard key={order.id} order={order} storeId={store.id} navigate={navigate} />
+              ))}
+            </div>
+          </section>
+        )
+      }
 
       {/* Recent Orders */}
       <section className="mt-8 px-4">
