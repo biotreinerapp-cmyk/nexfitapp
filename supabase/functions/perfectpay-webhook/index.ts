@@ -126,7 +126,7 @@ serve(async (req: Request) => {
         if (profileError) throw new Error("Erro ao atualizar perfil: " + profileError.message);
 
         // 5. Inserir Registro na Tabela pagamentos
-        await supabaseClient
+        const { error: pagError } = await supabaseClient
             .from("pagamentos")
             .insert({
                 user_id: userId,
@@ -135,6 +135,8 @@ serve(async (req: Request) => {
                 status: "approved",
                 processed_at: new Date().toISOString()
             });
+
+        if (pagError) throw new Error("Erro ao registrar pagamento: " + pagError.message);
 
         // 6. Inserir transação financeira
         // Verifica se já existe a transação para não duplicar receita do mesmo webhook
@@ -145,7 +147,7 @@ serve(async (req: Request) => {
             .eq("type", "income");
 
         if (!existingTx || existingTx.length === 0) {
-            await supabaseClient
+            const { error: txError } = await supabaseClient
                 .from("financial_transactions")
                 .insert({
                     type: 'income',
@@ -155,6 +157,8 @@ serve(async (req: Request) => {
                     reference_id: transactionId,
                     date: new Date().toISOString().split('T')[0]
                 });
+
+            if (txError) throw new Error("Erro ao registrar transação financeira: " + txError.message);
         }
 
         return new Response(JSON.stringify({ message: "Webhook processado com sucesso!" }), {
