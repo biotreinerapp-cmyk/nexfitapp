@@ -97,11 +97,16 @@ const AlunoPlanosCheckout = () => {
                             <div className="flex items-center justify-between rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
                                 <div>
                                     <p className="text-2xl font-black italic text-foreground uppercase tracking-tight">{PLAN_LABEL[desiredPlan]}</p>
-                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Cobrança Mensal</p>
+                                    <div className="mt-1">
+                                        <span className="bg-primary/20 text-primary uppercase text-[9px] font-black px-2 py-0.5 rounded-sm">1º MÊS PROMOCIONAL</span>
+                                    </div>
                                 </div>
                                 <div className="text-right">
                                     <p className="text-3xl font-black text-primary tracking-tighter drop-shadow-lg">
-                                        R$ {((planConfig?.price_cents ?? 0) / 100).toFixed(2).replace('.', ',')}
+                                        R$ {desiredPlan === "ADVANCE" ? "9,90" : "19,90"}
+                                    </p>
+                                    <p className="text-[10px] text-muted-foreground font-medium mt-1 uppercase tracking-wider">
+                                        Depois R$ {((planConfig?.price_cents ?? 0) / 100).toFixed(2).replace('.', ',')} / mês
                                     </p>
                                 </div>
                             </div>

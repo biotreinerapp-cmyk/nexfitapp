@@ -37,9 +37,13 @@ const AlunoPlanosLP = () => {
         return (cents / 100).toFixed(2).replace(".", ",");
     };
 
-    const getPriceForPlan = (plan: string) => {
+    const getBasePriceForPlan = (plan: string) => {
         const config = planConfigs.find(c => c.plan === plan);
         return config ? formatPrice(config.price_cents) : (plan === "ADVANCE" ? "19,90" : "39,90");
+    };
+
+    const getPromoPriceForPlan = (plan: string) => {
+        return plan === "ADVANCE" ? "9,90" : "19,90";
     };
 
     const getLinkForPlan = (plan: string) => {
@@ -52,7 +56,8 @@ const AlunoPlanosLP = () => {
             type: "ADVANCE",
             title: "Advance Pro",
             subtitle: "RESULTADOS ACELERADOS",
-            price: getPriceForPlan("ADVANCE"),
+            basePrice: getBasePriceForPlan("ADVANCE"),
+            promoPrice: getPromoPriceForPlan("ADVANCE"),
             originalPrice: "49,90",
             description: "A tecnologia de ponta que você precisa para transformar seu corpo em tempo recorde. Pare de treinar no escuro.",
             features: [
@@ -74,7 +79,8 @@ const AlunoPlanosLP = () => {
             type: "ELITE",
             title: "Elite Black",
             subtitle: "EXPERIÊNCIA COMPLETA 360º",
-            price: getPriceForPlan("ELITE"),
+            basePrice: getBasePriceForPlan("ELITE"),
+            promoPrice: getPromoPriceForPlan("ELITE"),
             originalPrice: "99,90",
             description: "O arsenal completo para sua saúde. Médicos, Nutricionistas e IA trabalhando juntos por você. O valor de uma consulta, pelo preço de um cafezinho.",
             features: [
@@ -170,9 +176,14 @@ const AlunoPlanosLP = () => {
                                         </Badge>
                                     </div>
                                     <div className="flex items-baseline gap-1.5">
-                                        <span className="text-sm font-bold text-muted-foreground mb-1">POR R$</span>
-                                        <span className="text-6xl font-black tracking-tighter text-foreground drop-shadow-lg">{plan.price}</span>
-                                        <span className="text-sm font-bold text-muted-foreground mb-1">/mês</span>
+                                        <span className="text-sm font-bold text-muted-foreground mb-1">1º MÊS R$</span>
+                                        <span className="text-6xl font-black tracking-tighter text-foreground drop-shadow-lg">{plan.promoPrice}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-2">
+                                        <Badge variant="secondary" className="bg-primary/20 text-primary hover:bg-primary/30 uppercase text-[9px] font-black tracking-widest px-1.5">
+                                            OFERTA DE LANÇAMENTO
+                                        </Badge>
+                                        <span className="text-xs text-muted-foreground font-medium">Depois R$ {plan.basePrice}/mês</span>
                                     </div>
                                     <p className="text-xs leading-relaxed text-muted-foreground border-t border-white/5 pt-3 mt-1">
                                         {plan.description}
