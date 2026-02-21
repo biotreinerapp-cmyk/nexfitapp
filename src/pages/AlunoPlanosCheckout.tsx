@@ -21,9 +21,11 @@ const AlunoPlanosCheckout = () => {
         queryKey: ["admin", "plan-configs-basic", desiredPlan],
         queryFn: async () => {
             const { data, error } = await (supabase as any)
-                .from("plan_configs")
+                .from("app_access_plans")
                 .select("price_cents, checkout_link")
-                .eq("plan", desiredPlan)
+                .ilike("name", `%${desiredPlan}%`)
+                .eq("user_type", "ALUNO")
+                .limit(1)
                 .maybeSingle();
             if (error) throw error;
             return data;
