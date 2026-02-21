@@ -35,8 +35,6 @@ export default function LojaPlanoPage() {
     const [loading, setLoading] = useState(true);
     const [store, setStore] = useState<StoreBillingInfo | null>(null);
     const [activePlan, setActivePlan] = useState<ActivePlan | null>(null);
-
-|
     useEffect(() => {
         document.title = "Meu Plano - Nexfit Lojista";
     }, []);
