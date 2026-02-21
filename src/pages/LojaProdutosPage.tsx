@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useStorePlanModules } from "@/hooks/useStorePlanModules";
 import { LojaFloatingNavIsland } from "@/components/navigation/LojaFloatingNavIsland";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,7 @@ interface MarketplaceProduct {
 const LojaProdutosPage = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { hasModule } = useStorePlanModules();
   const [storeId, setStoreId] = useState<string | null>(null);
   const [products, setProducts] = useState<MarketplaceProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,12 +61,18 @@ const LojaProdutosPage = () => {
       if (!store) { setLoading(false); return; }
       setStoreId(store.id);
 
-      const { data } = await (supabase as any)
+      let query = supabase
         .from("marketplace_products")
         .select("id, nome, descricao, image_url, image_urls, preco_original, preco_desconto, ativo")
         .eq("store_id", store.id)
         .order("nome");
 
+      // Free limit: Top 3 products (Alphabetical Top 3 for showcase purposes)
+      if (!hasModule("loja")) {
+        query = query.limit(3);
+      }
+
+      const { data } = await query;
       if (data) setProducts(data as MarketplaceProduct[]);
       setLoading(false);
     };
@@ -279,6 +287,23 @@ const LojaProdutosPage = () => {
               </div>
             </div>
           ))}
+
+          {!hasModule("loja") && (
+            <div className="mt-4 overflow-hidden rounded-[24px] border border-primary/30 bg-gradient-to-br from-primary/20 to-primary/5 p-6 text-center backdrop-blur-md relative">
+              <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-primary/20 blur-3xl pointer-events-none" />
+              <Package className="mx-auto h-8 w-8 text-primary mb-3 block" />
+              <h3 className="text-sm font-bold text-white mb-2">Exibição Limitada</h3>
+              <p className="text-xs text-zinc-400 mb-5 max-w-[250px] mx-auto">
+                No plano gratuito apenas os 3 primeiros produtos são exibidos. <span className="text-white font-medium">Faça upgrade e mostre todo o seu catálogo!</span>
+              </p>
+              <Button
+                onClick={() => window.location.href = "/loja/plano"}
+                className="w-full h-12 rounded-xl bg-primary text-black font-black uppercase tracking-widest hover:bg-primary/90 shadow-[0_0_15px_rgba(86,255,2,0.3)] transition-all"
+              >
+                Conhecer Plano Pro
+              </Button>
+            </div>
+          )}
         </div>
       )}
 

@@ -124,34 +124,20 @@ const LojaFinanceiroPage = () => {
     );
   }
 
-  if (!isPro) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-black px-4 text-center">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 border border-primary/20">
-          <Lock className="h-10 w-10 text-primary" />
-        </div>
-        <div className="space-y-2">
-          <h1 className="text-2xl font-black uppercase tracking-tighter text-white">Módulo Bloqueado</h1>
-          <p className="text-sm text-zinc-400 max-w-xs">
-            O módulo <strong>Financeiro</strong> não está incluído no seu plano atual.
-          </p>
-        </div>
-        <button
-          onClick={() => navigate("/loja/plano")}
-          className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-xs font-bold uppercase tracking-widest text-black hover:bg-primary/90 transition-colors"
-        >
-          <Crown className="h-4 w-4" /> Ver Planos
-        </button>
-        <LojaFloatingNavIsland />
-      </main>
-    );
-  }
-
   return (
     <main className="min-h-screen bg-black px-4 pb-28 pt-8 safe-bottom-floating-nav">
       <header className="mb-6">
-        <p className="text-xs uppercase tracking-[0.3em] text-zinc-400">Financeiro</p>
-        <h1 className="mt-1 text-2xl font-black text-white uppercase tracking-tight">Gestão Financeira</h1>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-zinc-400">Financeiro</p>
+            <h1 className="mt-1 text-2xl font-black text-white uppercase tracking-tight">Gestão Financeira</h1>
+          </div>
+          {!isPro && (
+            <button onClick={() => navigate("/loja/plano")} className="flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-primary hover:bg-primary/20 transition-colors">
+              <Crown className="h-3 w-3" /> PRO
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="grid gap-3 mb-6">
@@ -275,6 +261,39 @@ const LojaFinanceiroPage = () => {
         </div>
       </div>
 
+
+      <div className="mt-8 space-y-4">
+        {/* RELATÓRIOS PRO SECTION */}
+        <div className="overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.03] backdrop-blur-md relative">
+          {!isPro && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-6 text-center backdrop-blur-md bg-black/70">
+              <Lock className="w-8 h-8 text-primary mb-3" />
+              <h3 className="text-sm font-bold text-white mb-1">Relatórios Avançados</h3>
+              <p className="text-xs text-zinc-400 mb-4 px-4">Histórico detalhado e exportação de dados para gestão contábil.</p>
+              <button
+                className="w-full max-w-[200px] rounded-xl bg-primary py-3 text-xs font-black uppercase tracking-widest text-black hover:bg-primary/90 transition-colors shadow-[0_0_20px_rgba(86,255,2,0.3)]"
+                onClick={() => navigate("/loja/plano")}
+              >
+                Assinar Interprise
+              </button>
+            </div>
+          )}
+          <div className={`p-6 ${!isPro ? 'opacity-30 select-none pointer-events-none' : ''}`}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-zinc-300">
+                <Calendar className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider">Histórico de Transações</h3>
+                <p className="text-[10px] text-zinc-500">Exporte sua movimentação completa</p>
+              </div>
+            </div>
+            <button className="w-full flex items-center justify-center gap-2 rounded-xl bg-white/10 py-3 text-xs font-bold uppercase tracking-widest text-white hover:bg-white/20 transition-colors border border-white/5">
+              <ArrowUpRight className="h-4 w-4" /> Baixar Extrato (CSV)
+            </button>
+          </div>
+        </div>
+      </div>
 
       <LojaFloatingNavIsland />
     </main >

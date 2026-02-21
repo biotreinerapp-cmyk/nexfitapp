@@ -210,40 +210,32 @@ const LojaEstoquePage = () => {
     );
   }
 
-  if (!isPro) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-black px-4 text-center">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 border border-primary/20">
-          <Lock className="h-10 w-10 text-primary" />
-        </div>
-        <div className="space-y-2">
-          <h1 className="text-2xl font-black uppercase tracking-tighter text-white">Módulo Bloqueado</h1>
-          <p className="text-sm text-zinc-400 max-w-xs">
-            O módulo de <strong>Estoque</strong> não está incluído no seu plano atual.
-          </p>
-        </div>
-        <button
-          onClick={() => navigate("/loja/plano")}
-          className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-xs font-bold uppercase tracking-widest text-black hover:bg-primary/90 transition-colors"
-        >
-          <Crown className="h-4 w-4" /> Ver Planos
-        </button>
-        <LojaFloatingNavIsland />
-      </main>
-    );
-  }
-
-
-
   return (
     <main className="min-h-screen bg-black px-4 pb-28 pt-8 safe-bottom-floating-nav">
       <header className="mb-6 flex items-center justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-zinc-400">Estoque</p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs uppercase tracking-[0.3em] text-zinc-400">Estoque</p>
+            {!isPro && (
+              <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary flex items-center gap-1 cursor-pointer" onClick={() => navigate("/loja/plano")}>
+                <Lock className="w-2.5 h-2.5" /> PRO
+              </span>
+            )}
+          </div>
           <h1 className="mt-1 text-2xl font-black text-white uppercase tracking-tight">Gestão de Estoque</h1>
+          {!isPro && (
+            <p className="text-[10px] text-zinc-500 mt-1">{products.length} de 10 produtos permitidos</p>
+          )}
         </div>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => {
+            if (!isPro && products.length >= 10) {
+              toast({ title: "Limite Atingido", description: "Faça o upgrade para Interprise para cadastrar produtos ilimitados.", variant: "destructive" });
+              navigate("/loja/plano");
+              return;
+            }
+            setShowForm(true);
+          }}
           className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold uppercase tracking-widest text-black hover:bg-primary/90 transition-colors"
         >
           <Plus className="h-4 w-4" /> Novo

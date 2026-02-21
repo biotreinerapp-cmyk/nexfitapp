@@ -34,6 +34,7 @@ type ActivePlan = {
     id: string;
     name: string;
     price_cents: number;
+    checkout_link?: string | null;
 };
 
 const DEFAULT_PLAN_PRICE = 39.90; // Fallback if no plan found
@@ -73,7 +74,7 @@ export default function LojaPlanoPage() {
                 // Fetch the active LOJISTA plan from admin-created plans
                 const { data: plan } = await supabase
                     .from("app_access_plans")
-                    .select("id, name, price_cents")
+                    .select("id, name, price_cents, checkout_link")
                     .eq("user_type", "LOJISTA")
                     .eq("is_active", true)
                     .order("price_cents", { ascending: false })
@@ -119,6 +120,18 @@ export default function LojaPlanoPage() {
 
     const handleInitiateUpgrade = async (method: "pix" | "card" = "pix") => {
         if (!user || !store) return;
+
+        // External Link (Perfect Pay or others)
+        if (method === "card") {
+            if (activePlan?.checkout_link) {
+                // Open safe external link directly
+                window.open(activePlan.checkout_link, '_blank');
+                return;
+            } else {
+                toast({ title: "Checkout Indisponível", description: "O link de pagamento com cartão ainda não foi configurado.", variant: "destructive" });
+                return;
+            }
+        }
 
         setPaymentMethod(method);
         console.log(`[LojaPlano] Iniciando upgrade (${method}) para loja:`, store.id);
@@ -217,218 +230,108 @@ export default function LojaPlanoPage() {
                 <div className="absolute bottom-[-10%] left-[-10%] h-[500px] w-[500px] rounded-full bg-primary/5 blur-[120px] pointer-events-none" />
             </div>
 
-            <header className="mb-8 relative z-10">
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary italic">Assinatura Nexfit</p>
-                <h1 className="mt-1 text-3xl font-black italic uppercase tracking-tighter text-white leading-none">Minha Loja</h1>
+            <header className="mb-6 relative z-10 text-center mt-4">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-primary/20 ring-1 ring-primary/30 shadow-[0_0_30px_rgba(86,255,2,0.3)] mb-4">
+                    <Crown className="h-8 w-8 text-primary" />
+                </div>
+                <h1 className="text-3xl font-black italic uppercase tracking-tighter text-white leading-[1.1]">
+                    NEXFIT <span className="text-primary">INTERPRISE</span>
+                </h1>
+                <p className="mt-3 text-sm font-medium text-zinc-400 max-w-[280px] mx-auto leading-relaxed">
+                    Desbloqueie o potencial máximo da sua loja. Venda mais, controle tudo.
+                </p>
             </header>
 
             <div className="space-y-6 relative z-10">
-                <div className="relative overflow-hidden rounded-[2.5rem] border border-white/5 bg-black/40 p-8 backdrop-blur-2xl transition-all duration-300 hover:border-primary/30">
-                    <div className="absolute -inset-0.5 bg-gradient-to-b from-primary/10 to-transparent opacity-50" />
-
-                    <div className="relative z-10 mb-8 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/20 ring-1 ring-primary/20 shadow-lg">
-                                <CreditCard className="h-7 w-7 text-primary" />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-black italic uppercase tracking-tighter text-white leading-none">Status de Assinatura</h2>
-                                <p className="mt-1 text-[10px] font-medium text-zinc-500 uppercase tracking-widest">Controle sua loja NEXFIT</p>
-                            </div>
+                {/* PRO Status Card if already subscribed */}
+                {isPro && (
+                    <div className="relative overflow-hidden rounded-[2.5rem] border border-primary/30 bg-primary/10 p-8 text-center backdrop-blur-md">
+                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/20 mb-4">
+                            <CheckCircle2 className="h-8 w-8 text-primary" />
                         </div>
-                        <Badge variant="outline" className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border-primary/20 ${isPro ? "bg-primary text-black" : "bg-zinc-900 text-zinc-400"}`}>
-                            {isPro ? planDisplayName : "PLANO FREE"}
-                        </Badge>
+                        <h2 className="text-xl font-black uppercase text-white tracking-tight mb-2">Assinatura Ativa</h2>
+                        <p className="text-sm text-zinc-300">Sua loja já possui todos os recursos liberados.</p>
+                        <div className="mt-6 flex justify-center gap-4 text-xs font-bold text-primary uppercase">
+                            <span>Vencimento: {store?.plan_expires_at ? new Date(store.plan_expires_at).toLocaleDateString("pt-BR") : "ILIMITADO"}</span>
+                        </div>
                     </div>
+                )}
 
-                    <div className="relative z-10 space-y-6">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1.5 p-4 rounded-3xl bg-white/[0.03] border border-white/5 backdrop-blur-sm">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 italic">Estabelecimento</p>
-                                <p className="text-sm font-bold text-white truncate uppercase tracking-tight">{store?.nome || "Carregando..."}</p>
-                            </div>
-                            <div className="space-y-1.5 p-4 rounded-3xl bg-white/[0.03] border border-white/5 backdrop-blur-sm">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 italic">Vencimento</p>
-                                <p className="text-sm font-bold text-white tracking-tight">
-                                    {store?.plan_expires_at
-                                        ? new Date(store.plan_expires_at).toLocaleDateString("pt-BR")
-                                        : "ILIMITADO"}
-                                </p>
-                            </div>
+                {/* Main Pitch Card for Free Users */}
+                {!isPro && (
+                    <div className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-black/40 p-8 backdrop-blur-2xl transition-all duration-300">
+                        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+                        <div className="text-center mb-6">
+                            <p className="text-4xl font-black text-white tracking-tighter">
+                                R$ {planPrice.toFixed(2).replace(".", ",")}
+                                <span className="text-sm text-zinc-500 font-medium">/mês</span>
+                            </p>
                         </div>
 
-                        {!isPro && (
-                            <div className="space-y-4 pt-4 border-t border-white/5">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-center mb-2">Selecione o Método de Pagamento</p>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <Button
-                                        onClick={() => handleInitiateUpgrade("pix")}
-                                        disabled={verifying}
-                                        className="h-14 rounded-2xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 transition-all gap-2"
-                                    >
-                                        {verifying && paymentMethod === "pix" ? <Loader2 className="animate-spin h-5 w-5" /> : <QrCode className="h-5 w-5" />}
-                                        PIX
-                                    </Button>
-                                    <Button
-                                        onClick={() => handleInitiateUpgrade("card")}
-                                        disabled={verifying}
-                                        className="h-14 rounded-2xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 transition-all gap-2"
-                                    >
-                                        {verifying && paymentMethod === "card" ? <Loader2 className="animate-spin h-5 w-5" /> : <CreditCard className="h-5 w-5" />}
-                                        Cartão
-                                    </Button>
+                        <div className="space-y-4 mb-8">
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 text-center mb-4">O que você ganha</p>
+
+                            <div className="flex items-center gap-4 bg-white/5 rounded-2xl p-4 border border-white/5">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/20 text-orange-400">
+                                    <ShoppingBag className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-white">Carrinhos Abandonados</p>
+                                    <p className="text-[10px] text-zinc-400 mt-0.5 leading-tight">Chame clientes no WhatsApp e recupere vendas perdidas.</p>
                                 </div>
                             </div>
-                        )}
-                    </div>
-                </div>
 
+                            <div className="flex items-center gap-4 bg-white/5 rounded-2xl p-4 border border-white/5">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/20 text-blue-400">
+                                    <Package className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-white">Estoque Ilimitado</p>
+                                    <p className="text-[10px] text-zinc-400 mt-0.5 leading-tight">Cadastre quantos produtos quiser, sem a trava de 10 itens.</p>
+                                </div>
+                            </div>
 
+                            <div className="flex items-center gap-4 bg-white/5 rounded-2xl p-4 border border-white/5">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-500/20 text-purple-400">
+                                    <Sparkles className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-white">Vitrine Completa</p>
+                                    <p className="text-[10px] text-zinc-400 mt-0.5 leading-tight">Mostre todos os seus produtos para os alunos, sem limite de exibição.</p>
+                                </div>
+                            </div>
 
-                <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                    <DialogContent className="!grid-cols-1 !gap-0 !p-0 border-white/10 bg-[#0a0a0a] text-white sm:max-w-md w-[95%] rounded-[32px] shadow-2xl ring-1 ring-white/10">
-                        <div className="flex flex-col items-center space-y-6 w-full p-8">
-                            {paymentStatus === "paid" ? (
-                                <>
-                                    <div className="h-24 w-24 rounded-full bg-primary/20 flex items-center justify-center">
-                                        <CheckCircle2 className="h-12 w-12 text-primary" />
-                                    </div>
-                                    <div className="space-y-2 text-center">
-                                        <h2 className="text-2xl font-black uppercase italic tracking-tighter">Upgrade Confirmado!</h2>
-                                        <p className="text-zinc-400 text-sm leading-relaxed">
-                                            Parabéns! Sua loja agora tem acesso a todos os recursos PRO. Aproveite!
-                                        </p>
-                                    </div>
-                                    <Button onClick={() => setIsOpen(false)} className="w-full h-12 bg-primary text-black font-black uppercase tracking-wider rounded-2xl">Acessar Recursos PRO</Button>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="text-center space-y-2">
-                                        <div className="flex items-center justify-center gap-2">
-                                            <Sparkles className="h-5 w-5 text-primary" />
-                                            <h2 className="text-xl font-black uppercase tracking-tight text-white">Upgrade Nexfit PRO</h2>
-                                        </div>
-                                        <p className="text-zinc-400 text-xs font-medium">
-                                            {paymentMethod === "pix"
-                                                ? "Escaneie o QR Code abaixo para ativar seu plano instantaneamente."
-                                                : "Finalize seu pagamento através do ambiente seguro."}
-                                        </p>
-                                    </div>
-
-                                    {paymentMethod === "pix" ? (
-                                        <>
-                                            {/* QR Code Container */}
-                                            <div className="w-48 h-48 rounded-2xl bg-white p-3 shadow-xl flex items-center justify-center">
-                                                {pixData?.pixQrCode ? (
-                                                    <img
-                                                        src={pixData.pixQrCode}
-                                                        alt="QR Code"
-                                                        className="w-full h-full object-contain"
-                                                    />
-                                                ) : (
-                                                    <div className="flex flex-col items-center gap-3">
-                                                        <Loader2 className="h-8 w-8 animate-spin text-black" />
-                                                        <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-tighter">Gerando código...</p>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {/* PIX Copy & Paste */}
-                                            <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-4">
-                                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 mb-2">Pix Copia e Cola</p>
-                                                <div className="flex items-center gap-3">
-                                                    <p className="text-[11px] text-zinc-400 truncate flex-1 font-mono tracking-tight">
-                                                        {pixData?.pixPayload || "Carregando payload..."}
-                                                    </p>
-                                                    <Button size="icon" variant="ghost" className="h-10 w-10 text-primary hover:bg-primary/10 shrink-0" onClick={handleCopyPix}>
-                                                        <Copy className="h-5 w-5" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <div className="w-full space-y-4 py-8">
-                                            <div className="flex justify-center">
-                                                <div className="p-6 rounded-full bg-primary/10 ring-1 ring-primary/20">
-                                                    <CreditCard className="h-12 w-12 text-primary" />
-                                                </div>
-                                            </div>
-                                            <p className="text-center text-sm text-zinc-400">
-                                                O pagamento será processado em ambiente seguro e criptografado.
-                                            </p>
-                                            <Button
-                                                className="w-full h-14 rounded-2xl bg-primary text-black font-black uppercase tracking-widest text-[11px] shadow-lg shadow-primary/20"
-                                                onClick={() => paymentUrl && window.open(paymentUrl, '_blank')}
-                                            >
-                                                Ir para Pagamento Seguro
-                                            </Button>
-                                        </div>
-                                    )}
-
-                                    {/* Payment Check Button */}
-                                    <Button
-                                        onClick={handleCheckPayment}
-                                        disabled={verifying}
-                                        className="w-full h-14 bg-white/5 border border-white/10 text-white font-black uppercase tracking-widest text-[11px] rounded-2xl hover:bg-white/10"
-                                    >
-                                        {verifying ? <Loader2 className="animate-spin h-5 w-5 mr-3" /> : <QrCode className="h-5 w-5 mr-3" />}
-                                        Já realizei o pagamento
-                                    </Button>
-
-                                    {/* Auto-activation notice */}
-                                    <div className="flex items-center gap-2 px-6 py-3 rounded-full bg-white/[0.03] border border-white/5">
-                                        <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                                        <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
-                                            Ativação automática após confirmação
-                                        </p>
-                                    </div>
-                                </>
-                            )}
+                            <div className="flex items-center gap-4 bg-white/5 rounded-2xl p-4 border border-white/5">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400">
+                                    <TrendingUp className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-white">Relatórios Financeiros</p>
+                                    <p className="text-[10px] text-zinc-400 mt-0.5 leading-tight">Exporte relatórios e tenha controle total do seu faturamento.</p>
+                                </div>
+                            </div>
                         </div>
-                    </DialogContent>
-                </Dialog>
 
-                {/* Benefits Cards */}
-                <div className="grid gap-3">
-                    <div className={`relative overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.03] p-4 transition-all hover:bg-white/[0.06] ${!isPro ? 'opacity-80' : ''}`}>
-                        <div className="flex items-center gap-4">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/20 text-purple-400">
-                                <Package className="h-6 w-6" />
-                            </div>
-                            <div className="flex-1">
-                                <p className="text-sm font-bold text-white">Estoque Avançado</p>
-                                <p className="text-xs text-zinc-400">Alertas de reposição e histórico completo.</p>
-                            </div>
-                            {!isPro && <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center"><Crown className="h-4 w-4 text-primary" /></div>}
+                        <div className="space-y-3">
+                            <Button
+                                onClick={() => handleInitiateUpgrade("pix")}
+                                disabled={verifying}
+                                className="w-full h-14 rounded-2xl bg-primary text-black font-black uppercase tracking-widest text-[11px] hover:bg-primary/90 shadow-[0_0_20px_rgba(86,255,2,0.2)] transition-all"
+                            >
+                                {verifying && paymentMethod === "pix" ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : <QrCode className="h-5 w-5 mr-2" />}
+                                Assinar via PIX (Liberação Imediata)
+                            </Button>
+                            <Button
+                                onClick={() => handleInitiateUpgrade("card")}
+                                disabled={verifying}
+                                className="w-full h-14 rounded-2xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 transition-all gap-2"
+                            >
+                                {verifying && paymentMethod === "card" ? <Loader2 className="animate-spin h-5 w-5" /> : <CreditCard className="h-5 w-5 text-zinc-400" />}
+                                Assinar com Cartão
+                            </Button>
                         </div>
                     </div>
-
-                    <div className={`relative overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.03] p-4 transition-all hover:bg-white/[0.06] ${!isPro ? 'opacity-80' : ''}`}>
-                        <div className="flex items-center gap-4">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/20 text-blue-400">
-                                <TrendingUp className="h-6 w-6" />
-                            </div>
-                            <div className="flex-1">
-                                <p className="text-sm font-bold text-white">Relatórios Consolidados</p>
-                                <p className="text-xs text-zinc-400">Análise de vendas e margem de lucro.</p>
-                            </div>
-                            {!isPro && <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center"><Crown className="h-4 w-4 text-primary" /></div>}
-                        </div>
-                    </div>
-
-                    <div className={`relative overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.03] p-4 transition-all hover:bg-white/[0.06] ${!isPro ? 'opacity-80' : ''}`}>
-                        <div className="flex items-center gap-4">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/20 text-orange-400">
-                                <ShoppingBag className="h-6 w-6" />
-                            </div>
-                            <div className="flex-1">
-                                <p className="text-sm font-bold text-white">Recuperação de Carrinhos</p>
-                                <p className="text-xs text-zinc-400">Recupere vendas perdidas com um clique.</p>
-                            </div>
-                            {!isPro && <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center"><Crown className="h-4 w-4 text-primary" /></div>}
-                        </div>
-                    </div>
-                </div>
+                )}
             </div>
 
             <LojaFloatingNavIsland />

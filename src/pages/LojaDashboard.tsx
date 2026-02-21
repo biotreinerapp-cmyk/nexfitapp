@@ -228,16 +228,9 @@ const LojaDashboardPage = () => {
             </div>
           </button>
 
-          {/* Financeiro (Locked) */}
+          {/* Financeiro (Freemium) */}
           <button
-            onClick={() => {
-              if (!hasModule("financeiro")) {
-                toast({ title: "Plano Interprise Necessário", description: "Faça upgrade para liberar o controle financeiro avançado." });
-                navigate("/loja/plano");
-                return;
-              }
-              navigate("/loja/financeiro");
-            }}
+            onClick={() => navigate("/loja/financeiro")}
             className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-emerald-400 shadow-inner">
@@ -255,16 +248,9 @@ const LojaDashboardPage = () => {
             </div>
           </button>
 
-          {/* Vitrine (Locked) */}
+          {/* Vitrine (Freemium) */}
           <button
-            onClick={() => {
-              if (!hasModule("loja")) {
-                toast({ title: "Plano Interprise Necessário", description: "Faça upgrade para liberar a exposição de produtos na vitrine." });
-                navigate("/loja/plano");
-                return;
-              }
-              navigate("/loja/produtos");
-            }}
+            onClick={() => navigate("/loja/produtos")}
             className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-purple-600/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-purple-400 shadow-inner">
@@ -282,16 +268,9 @@ const LojaDashboardPage = () => {
             </div>
           </button>
 
-          {/* Estoque (Locked) */}
+          {/* Estoque (Freemium) */}
           <button
-            onClick={() => {
-              if (!hasModule("estoque")) {
-                toast({ title: "Plano Interprise Necessário", description: "Faça upgrade para liberar o controle de estoque de produtos." });
-                navigate("/loja/plano");
-                return;
-              }
-              navigate("/loja/estoque");
-            }}
+            onClick={() => navigate("/loja/estoque")}
             className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-orange-500/20 bg-gradient-to-br from-orange-500/10 to-orange-600/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-orange-400 shadow-inner">
@@ -377,8 +356,10 @@ const LojaDashboardPage = () => {
             <ShoppingBag className="h-4 w-4 text-orange-400" />
             Carrinhos Abandonados
           </h2>
-          {!isPro && (
-            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary">PRO</span>
+          {!hasModule("loja") && (
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary flex items-center gap-1">
+              <Lock className="w-3 h-3" /> PRO
+            </span>
           )}
         </div>
 
@@ -387,24 +368,32 @@ const LojaDashboardPage = () => {
             <p className="text-xs text-zinc-500">Nenhum carrinho abandonado detectado.</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {abandonedCarts.slice(0, 5).map((cart) => (
-              <AbandonedCartCard
-                key={cart.id}
-                cart={cart}
-                isPro={isPro}
-                navigate={navigate}
-              />
-            ))}
+          <div className="relative overflow-hidden rounded-[24px]">
+            {/* If user is FREE, blur the content and show upgrade overlay */}
+            {!hasModule("loja") && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-6 text-center backdrop-blur-md bg-black/60">
+                <Lock className="w-8 h-8 text-primary mb-3" />
+                <h3 className="text-sm font-bold text-white mb-1">Recupere Vendas Perdidas</h3>
+                <p className="text-xs text-zinc-400 mb-4">Assine o plano Interprise para ver quem abandonou o carrinho e contatar via WhatsApp.</p>
+                <button
+                  className="w-full rounded-xl bg-primary py-3 text-xs font-black uppercase tracking-widest text-black hover:bg-primary/90 transition-colors shadow-[0_0_20px_rgba(86,255,2,0.3)]"
+                  onClick={() => navigate("/loja/plano")}
+                >
+                  Fazer Upgrade
+                </button>
+              </div>
+            )}
+            <div className={`space-y-3 ${!hasModule("loja") ? 'opacity-30 select-none pointer-events-none blur-[2px]' : ''}`}>
+              {abandonedCarts.slice(0, 5).map((cart) => (
+                <AbandonedCartCard
+                  key={cart.id}
+                  cart={cart}
+                  isPro={hasModule("loja")}
+                  navigate={navigate}
+                />
+              ))}
+            </div>
           </div>
-        )}
-        {!isPro && abandonedCarts.length > 0 && (
-          <button
-            className="w-full mt-4 flex items-center justify-center rounded-xl bg-primary/10 py-3 text-xs font-bold uppercase tracking-widest text-primary hover:bg-primary/20 transition-colors"
-            onClick={() => navigate("/loja/plano")}
-          >
-            Upgrade para recuparar vendas
-          </button>
         )}
       </section>
 
