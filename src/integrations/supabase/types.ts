@@ -901,7 +901,11 @@ export type Database = {
       marketplace_stores: {
         Row: {
           banner_image_url: string | null
+          bairro: string | null
+          cep: string | null
           city: string | null
+          cnpj: string | null
+          complemento: string | null
           cover_image_url: string | null
           created_at: string
           desconto_percent: number
@@ -912,11 +916,15 @@ export type Database = {
           id: string
           is_highlighted: boolean
           nome: string
+          numero: string | null
           owner_user_id: string
           profile_image_url: string | null
+          rua: string | null
+          estado: string | null
           status: string
-          store_type: string
+          store_type: "suplementos" | "roupas" | "artigos" | "nutricao"
           updated_at: string
+          whatsapp: string | null
         }
         Insert: {
           banner_image_url?: string | null
@@ -931,15 +939,22 @@ export type Database = {
           id?: string
           is_highlighted?: boolean
           nome: string
+          numero?: string | null
           owner_user_id: string
           profile_image_url?: string | null
+          rua?: string | null
+          estado?: string | null
           status?: string
-          store_type: string
+          store_type: "suplementos" | "roupas" | "artigos" | "nutricao"
           updated_at?: string
         }
         Update: {
           banner_image_url?: string | null
+          bairro?: string | null
+          cep?: string | null
           city?: string | null
+          cnpj?: string | null
+          complemento?: string | null
           cover_image_url?: string | null
           created_at?: string
           desconto_percent?: number
@@ -950,10 +965,13 @@ export type Database = {
           id?: string
           is_highlighted?: boolean
           nome?: string
+          numero?: string | null
           owner_user_id?: string
           profile_image_url?: string | null
+          rua?: string | null
+          estado?: string | null
           status?: string
-          store_type?: string
+          store_type?: "suplementos" | "roupas" | "artigos" | "nutricao"
           updated_at?: string
         }
         Relationships: []

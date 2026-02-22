@@ -195,6 +195,8 @@ serve(async (req) => {
           status: "aprovado",
           profile_image_url: p.profileImageUrl || null,
           banner_image_url: p.bannerImageUrl || null,
+          cnpj: p.cnpj || null,
+          whatsapp: p.whatsapp || null,
         });
 
       if (mkError) {

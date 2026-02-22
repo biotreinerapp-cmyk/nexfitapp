@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { MaskedInput } from "@/components/ui/masked-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { OnboardingProgress } from "@/components/onboarding/OnboardingProgress";
 import { LPOfferCard } from "@/components/onboarding/LPOfferCard";
@@ -29,7 +30,7 @@ export default function LojaOnboardingPage() {
         nome_loja: "",
         cnpj: "",
         telefone: "",
-        categoria: "",
+        categoria: "suplementos" as "suplementos" | "roupas" | "artigos" | "nutricao",
         // Step 2
         logo: null as File | null,
         banner: null as File | null,
@@ -55,25 +56,26 @@ export default function LojaOnboardingPage() {
     const loadStoreData = async () => {
         if (!user) return;
         const { data }: any = await supabase
-            .from("lojas")
+            .from("marketplace_stores")
             .select("*")
-            .eq("user_id", user.id)
+            .eq("owner_user_id", user.id)
             .single();
 
         if (data) {
             setStoreId(data.id);
             setFormData((prev) => ({
                 ...prev,
-                nome_loja: data.nome_loja || "",
+                nome_loja: data.nome || "",
                 cnpj: data.cnpj || "",
-                telefone: data.telefone || "",
+                telefone: data.whatsapp || "",
+                categoria: data.store_type || "suplementos",
                 descricao: data.descricao || "",
                 cep: data.cep || "",
                 rua: data.rua || "",
                 numero: data.numero || "",
                 complemento: data.complemento || "",
                 bairro: data.bairro || "",
-                cidade: data.cidade || "",
+                cidade: data.city || "",
                 estado: data.estado || "",
             }));
         }
@@ -86,9 +88,10 @@ export default function LojaOnboardingPage() {
             const updateData: any = {};
 
             if (currentStep === 1) {
-                updateData.nome_loja = formData.nome_loja;
+                updateData.nome = formData.nome_loja;
                 updateData.cnpj = formData.cnpj;
-                updateData.telefone = formData.telefone;
+                updateData.whatsapp = formData.telefone;
+                updateData.store_type = formData.categoria;
             } else if (currentStep === 2) {
                 // Upload images
                 if (formData.logo) {
@@ -98,7 +101,7 @@ export default function LojaOnboardingPage() {
                         .from("loja-images")
                         .upload(path, formData.logo);
                     if (!uploadError) {
-                        updateData.logo_url = supabase.storage.from("loja-images").getPublicUrl(path).data.publicUrl;
+                        updateData.profile_image_url = supabase.storage.from("loja-images").getPublicUrl(path).data.publicUrl;
                     }
                 }
                 if (formData.banner) {
@@ -108,7 +111,7 @@ export default function LojaOnboardingPage() {
                         .from("loja-images")
                         .upload(path, formData.banner);
                     if (!uploadError) {
-                        updateData.banner_url = supabase.storage.from("loja-images").getPublicUrl(path).data.publicUrl;
+                        updateData.banner_image_url = supabase.storage.from("loja-images").getPublicUrl(path).data.publicUrl;
                     }
                 }
                 updateData.descricao = formData.descricao;
@@ -118,16 +121,43 @@ export default function LojaOnboardingPage() {
                 updateData.numero = formData.numero;
                 updateData.complemento = formData.complemento;
                 updateData.bairro = formData.bairro;
-                updateData.cidade = formData.cidade;
+                updateData.city = formData.cidade;
                 updateData.estado = formData.estado;
             }
 
-            const { error } = await supabase
-                .from("lojas")
-                .update(updateData)
-                .eq("user_id", user.id);
+            // Sync with old 'stores' table just in case other parts of the system still rely on it temporarily
+            if (currentStep === 1) {
+                await supabase.from("stores").update({
+                    name: formData.nome_loja,
+                    store_type: formData.categoria
+                }).eq("id", storeId).maybeSingle(); // Trying to keep it somewhat updated, though we want to deprecate it
+            }
 
-            if (error) throw error;
+            // Check if exists
+            const { data: existingStore } = await supabase
+                .from("marketplace_stores")
+                .select("id")
+                .eq("owner_user_id", user.id)
+                .maybeSingle();
+
+            if (existingStore) {
+                const { error } = await supabase
+                    .from("marketplace_stores")
+                    .update(updateData)
+                    .eq("owner_user_id", user.id);
+                if (error) throw error;
+            } else {
+                // Se não existe (novo cadastro do Portal), criamos a linha no marketplace
+                const { error } = await supabase
+                    .from("marketplace_stores")
+                    .insert({
+                        owner_user_id: user.id,
+                        status: "pendente", // ou o status que for padrão ao criar
+                        ...updateData
+                    });
+                if (error) throw error;
+            }
+
         } catch (error: any) {
             console.error("Save error:", error);
             toast({
@@ -236,13 +266,30 @@ function Step1({ formData, setFormData }: any) {
                 />
             </div>
             <div>
-                <Label className="text-white">Telefone *</Label>
+                <Label className="text-white">Telefone/WhatsApp *</Label>
                 <MaskedInput
                     mask="phone"
                     value={formData.telefone}
                     onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
                     className="bg-black/20 border-white/10 text-white"
                 />
+            </div>
+            <div>
+                <Label className="text-white">Categoria *</Label>
+                <Select
+                    value={formData.categoria}
+                    onValueChange={(value) => setFormData({ ...formData, categoria: value as any })}
+                >
+                    <SelectTrigger className="bg-black/20 border-white/10 text-white">
+                        <SelectValue placeholder="Selecione um tipo de loja" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="suplementos">Suplementos & Vitaminas</SelectItem>
+                        <SelectItem value="roupas">Moda Fitness</SelectItem>
+                        <SelectItem value="artigos">Equipamentos & Acessórios</SelectItem>
+                        <SelectItem value="nutricao">Alimentação Saudável</SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
         </div>
     );
