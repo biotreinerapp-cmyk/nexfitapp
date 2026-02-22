@@ -141,14 +141,12 @@ const ActivityShareCard = ({
         <main className="mt-auto flex flex-col w-full pb-8">
 
           <div className="mb-10 w-full max-w-[850px]">
-            {/* Círculo verde com a Data/Hora */}
-            <div className="flex items-center gap-4 mb-6">
-              <div className="flex items-center justify-center rounded-full bg-primary px-5 py-2 shadow-[0_0_15px_rgba(var(--primary),0.6)]">
-                <p className="text-[18px] font-black uppercase text-white tracking-widest leading-none mt-0.5">
-                  {activityDate.split(' ')[0]} {/* Data */}
-                </p>
-              </div>
-              <p className="text-2xl font-black uppercase tracking-widest text-white drop-shadow-md">
+            {/* Data e Hora */}
+            <div className="flex items-baseline gap-3 mb-6">
+              <p className="text-2xl font-black uppercase text-white tracking-widest drop-shadow-md">
+                {activityDate.split(' ')[0]} {/* Data */}
+              </p>
+              <p className="text-2xl font-black uppercase tracking-widest text-white/70 drop-shadow-md">
                 {activityDate.split(' ')[1]} {/* Hora */}
               </p>
             </div>
