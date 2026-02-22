@@ -75,110 +75,141 @@ const ActivityShareCard = ({
     .join("");
 
   return (
-    <div className="relative h-[1350px] w-[1080px] overflow-hidden bg-background">
+    <div className="relative h-[1350px] w-[1080px] overflow-hidden bg-[#0A0A0A] font-sans text-white">
       {backgroundUrl && (
         <img
           src={backgroundUrl}
           alt="Fundo do treino"
-          className="absolute inset-0 h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-cover scale-105"
           loading="eager"
         />
       )}
 
-      {/* Scrim de contraste */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          backgroundImage:
-            "radial-gradient(900px 900px at 0% 100%, hsl(var(--background) / 0.92) 0%, transparent 62%), linear-gradient(to bottom, transparent 0%, transparent 52%, hsl(var(--background) / 0.78) 100%)",
-        }}
-      />
+      {/* Cinematic Scrims */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/10 to-black/90 opacity-90 mix-blend-multiply" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-transparent to-transparent opacity-90" />
 
-      <div className="relative flex h-full w-full flex-col p-16 font-sans text-foreground">
-        {/* Header */}
-        <header className="flex items-start justify-between gap-10">
-          <div className="min-w-0 flex-1 pr-6">
-            <p className="text-base font-semibold text-foreground/80">{activityDate}</p>
-            <h1 className="mt-2 text-2xl font-bold leading-snug tracking-tight text-foreground break-words">
-              {activityTitle}
-            </h1>
-            {(clubName || intensidade) && (
-              <p className="mt-2 text-sm font-medium text-foreground/70 break-words">
-                {[clubName, intensidade].filter(Boolean).join(" • ")}
-              </p>
-            )}
-          </div>
+      {/* Decorative accent glow */}
+      <div className="absolute -bottom-32 -left-32 h-[600px] w-[600px] rounded-full bg-primary/20 blur-[120px] mix-blend-screen" />
 
+      <div className="relative flex h-full w-full flex-col p-14">
+        {/* Superior Header */}
+        <header className="flex items-start justify-between w-full">
+          <img
+            src={logoNexfit}
+            alt="Logo Nexfit"
+            className="h-12 w-auto drop-shadow-2xl [filter:brightness(0)_invert(1)]"
+            loading="eager"
+          />
+
+          {/* Etiqueta Superior Direita (User Tag) Atualizada */}
           {(userName || userAvatarUrl) && (
-            <div className="shrink-0 max-w-[420px] rounded-2xl border border-border/60 bg-background/45 px-4 py-3 backdrop-blur-sm">
-              <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4 rounded-full bg-white/10 px-6 py-3 backdrop-blur-xl border border-white/20 shadow-2xl">
+              <div className="text-right">
+                <p className="text-xl font-black uppercase italic tracking-tight text-white drop-shadow-md">
+                  {userName ?? "Atleta"}
+                </p>
+                <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                  <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                  <p className="text-sm font-bold text-white/70 uppercase tracking-widest">
+                    Nexfit
+                  </p>
+                </div>
+              </div>
+
+              <div className="relative">
+                <div className="absolute inset-0 rounded-full bg-primary/20 blur-sm" />
                 {userAvatarUrl ? (
                   <img
                     src={userAvatarUrl}
                     alt={userName ? `Foto de perfil de ${userName}` : "Foto de perfil"}
-                    className="h-10 w-10 rounded-full object-cover"
+                    className="relative h-16 w-16 rounded-full border-2 border-primary object-cover shadow-lg"
                     loading="eager"
                     crossOrigin="anonymous"
                   />
                 ) : (
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-background/60 text-xs font-semibold">
-                    {userInitials || "?"}
+                  <div className="relative flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary bg-black/60 text-lg font-black shadow-lg">
+                    {userInitials || "NX"}
                   </div>
                 )}
-
-                <div className="min-w-0">
-                  <p className="text-base font-semibold leading-snug text-foreground break-words">
-                    {userName ?? "Usuário"}
-                  </p>
-                  <p className="mt-0.5 text-[11px] font-medium text-foreground/70">Nexfit</p>
-                </div>
               </div>
             </div>
           )}
         </header>
 
-        {/* Footer */}
-        <main className="mt-auto">
-          <div className="flex items-end justify-between gap-10">
-            <section className="flex max-w-[620px] flex-col items-start text-left">
-              {isGpsActivity && (
-                <div className="mb-12">
-                  <p className="text-sm font-semibold tracking-widest text-foreground/60">KMS</p>
-                  <p className="mt-1 text-[104px] font-bold leading-none tracking-tighter">
-                    {kmValue.toFixed(2).replace(".", ",")}
-                  </p>
-                </div>
-              )}
+        {/* Base Content (Informações da Atividade) */}
+        <main className="mt-auto flex flex-col w-full pb-8">
 
-              <div className="grid grid-cols-2 gap-x-14 gap-y-10">
-                {isGpsActivity && (
-                  <div>
-                    <p className="text-sm font-semibold tracking-widest text-foreground/60">RITMO MÉDIO</p>
-                    <p className="mt-2 text-5xl font-bold tracking-tight text-foreground">{paceText}</p>
+          <div className="mb-10 w-full max-w-[850px]">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-1 w-12 bg-primary rounded-full shadow-[0_0_10px_rgba(var(--primary),0.8)]" />
+              <p className="text-xl font-bold uppercase tracking-[0.2em] text-primary drop-shadow-md">
+                {activityDate}
+              </p>
+            </div>
+
+            <h1 className="text-[72px] font-black italic uppercase leading-[0.9] tracking-tighter text-white drop-shadow-2xl break-words">
+              {activityTitle}
+            </h1>
+
+            {(clubName || intensidade) && (
+              <p className="mt-4 text-2xl font-medium text-white/80 drop-shadow-md flex items-center gap-2">
+                {[clubName, intensidade].filter(Boolean).map((text, i, arr) => (
+                  <span key={i} className="flex items-center">
+                    {text}
+                    {i < arr.length - 1 && <span className="mx-3 h-1.5 w-1.5 rounded-full bg-white/40" />}
+                  </span>
+                ))}
+              </p>
+            )}
+          </div>
+
+          <div className="h-px w-full bg-gradient-to-r from-white/20 to-transparent mb-10" />
+
+          {/* Grid de Estatísticas Fortes e Elegantes */}
+          <div className="flex items-end gap-16">
+            {isGpsActivity ? (
+              <>
+                <div className="flex flex-col">
+                  <span className="text-lg font-black uppercase tracking-widest text-white/50 mb-2">Distância</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[88px] font-black italic tracking-tighter leading-none text-white drop-shadow-xl">
+                      {kmValue.toFixed(2).replace(".", ",")}
+                    </span>
+                    <span className="text-3xl font-bold uppercase text-primary">km</span>
                   </div>
-                )}
-
-                <div>
-                  <p className="text-sm font-semibold tracking-widest text-foreground/60">TEMPO</p>
-                  <p className="mt-2 text-5xl font-bold tracking-tight text-foreground">{durationText}</p>
                 </div>
 
-                <div>
-                  <p className="text-sm font-semibold tracking-widest text-foreground/60">CALORIAS</p>
-                  <p className="mt-2 text-5xl font-bold tracking-tight text-foreground">{Math.round(calorias)} kcal</p>
+                <div className="flex flex-col">
+                  <span className="text-lg font-black uppercase tracking-widest text-white/50 mb-2">Pace Médio</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[56px] font-black italic tracking-tighter leading-none text-white drop-shadow-xl">
+                      {paceText.split(" ")[0]}
+                    </span>
+                    <span className="text-2xl font-bold uppercase text-primary">/km</span>
+                  </div>
                 </div>
+              </>
+            ) : null}
+
+            <div className="flex flex-col">
+              <span className="text-lg font-black uppercase tracking-widest text-white/50 mb-2">Tempo Ativo</span>
+              <span className="text-[56px] font-black italic tracking-tighter leading-none text-white drop-shadow-xl">
+                {durationText}
+              </span>
+            </div>
+
+            <div className="flex flex-col">
+              <span className="text-lg font-black uppercase tracking-widest text-white/50 mb-2">Gasto Calórico</span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-[56px] font-black italic tracking-tighter leading-none text-white drop-shadow-xl">
+                  {Math.round(calorias)}
+                </span>
+                <span className="text-2xl font-bold uppercase text-primary">kcal</span>
               </div>
-            </section>
-
-            <div>
-              <img
-                src={logoNexfit}
-                alt="Logo Nexfit"
-                className="h-14 w-auto [filter:brightness(0)_invert(1)]"
-                loading="eager"
-              />
             </div>
           </div>
+
         </main>
       </div>
     </div>
