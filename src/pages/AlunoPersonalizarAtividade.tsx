@@ -89,9 +89,6 @@ const ActivityShareCard = ({
       <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/10 to-black/90 opacity-90 mix-blend-multiply" />
       <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-transparent to-transparent opacity-90" />
 
-      {/* Decorative accent glow */}
-      <div className="absolute -bottom-32 -left-32 h-[600px] w-[600px] rounded-full bg-primary/20 blur-[120px] mix-blend-screen" />
-
       <div className="relative flex h-full w-full flex-col p-14">
         {/* Superior Header */}
         <header className="flex items-start justify-between w-full">
