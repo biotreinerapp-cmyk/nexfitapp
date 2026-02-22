@@ -595,15 +595,15 @@ const AlunoOnboardingPage = () => {
                       : "border-white/5 bg-white/5 hover:border-white/20"
                   )}
                 >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={cn("text-base font-black uppercase tracking-widest", selectedNivel === opt.id ? "text-primary" : "text-foreground")}>{opt.label}</span>
+                  <div className="flex w-full items-center justify-between mb-1">
+                    <span className={cn("text-base font-black uppercase tracking-widest text-left", selectedNivel === opt.id ? "text-primary" : "text-foreground")}>{opt.label}</span>
                     <div className="flex gap-0.5">
-                      {[1, 2, 3].map((s) => (
-                        <div key={s} className={cn("h-1.5 w-4 rounded-full", s <= opt.level ? (selectedNivel === opt.id ? "bg-primary" : "bg-muted-foreground") : "bg-white/5")} />
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className={cn("h-1.5 w-4 rounded-full transition-colors", i < opt.level ? "bg-primary" : "bg-white/10")} />
                       ))}
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground font-medium leading-tight">{opt.desc}</p>
+                  <span className="text-muted-foreground w-full text-left">{opt.desc}</span>
                 </button>
               ))}
             </div>
