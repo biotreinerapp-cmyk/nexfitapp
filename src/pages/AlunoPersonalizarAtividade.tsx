@@ -141,10 +141,15 @@ const ActivityShareCard = ({
         <main className="mt-auto flex flex-col w-full pb-8">
 
           <div className="mb-10 w-full max-w-[850px]">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-1 w-12 bg-primary rounded-full shadow-[0_0_10px_rgba(var(--primary),0.8)]" />
-              <p className="text-xl font-bold uppercase tracking-[0.2em] text-primary drop-shadow-md">
-                {activityDate}
+            {/* Círculo verde com a Data/Hora */}
+            <div className="flex items-center gap-4 mb-6">
+              <div className="flex items-center justify-center rounded-full bg-primary px-5 py-2 shadow-[0_0_15px_rgba(var(--primary),0.6)]">
+                <p className="text-[18px] font-black uppercase text-white tracking-widest leading-none mt-0.5">
+                  {activityDate.split(' ')[0]} {/* Data */}
+                </p>
+              </div>
+              <p className="text-2xl font-black uppercase tracking-widest text-white drop-shadow-md">
+                {activityDate.split(' ')[1]} {/* Hora */}
               </p>
             </div>
 
@@ -166,46 +171,46 @@ const ActivityShareCard = ({
 
           <div className="h-px w-full bg-gradient-to-r from-white/20 to-transparent mb-10" />
 
-          {/* Grid de Estatísticas Fortes e Elegantes */}
+          {/* Grid de Estatísticas Fortes e Elegantes (All White) */}
           <div className="flex items-end gap-16">
             {isGpsActivity ? (
               <>
                 <div className="flex flex-col">
-                  <span className="text-lg font-black uppercase tracking-widest text-white/50 mb-2">Distância</span>
+                  <span className="text-lg font-medium uppercase tracking-widest text-white mb-2">Distância</span>
                   <div className="flex items-baseline gap-2">
                     <span className="text-[88px] font-black italic tracking-tighter leading-none text-white drop-shadow-xl">
                       {kmValue.toFixed(2).replace(".", ",")}
                     </span>
-                    <span className="text-3xl font-bold uppercase text-primary">km</span>
+                    <span className="text-3xl font-black uppercase text-white drop-shadow-md">km</span>
                   </div>
                 </div>
 
                 <div className="flex flex-col">
-                  <span className="text-lg font-black uppercase tracking-widest text-white/50 mb-2">Pace Médio</span>
+                  <span className="text-lg font-medium uppercase tracking-widest text-white mb-2">Pace Médio</span>
                   <div className="flex items-baseline gap-2">
                     <span className="text-[56px] font-black italic tracking-tighter leading-none text-white drop-shadow-xl">
                       {paceText.split(" ")[0]}
                     </span>
-                    <span className="text-2xl font-bold uppercase text-primary">/km</span>
+                    <span className="text-2xl font-black uppercase text-white drop-shadow-md">/km</span>
                   </div>
                 </div>
               </>
             ) : null}
 
             <div className="flex flex-col">
-              <span className="text-lg font-black uppercase tracking-widest text-white/50 mb-2">Tempo Ativo</span>
+              <span className="text-lg font-medium uppercase tracking-widest text-white mb-2">Tempo Ativo</span>
               <span className="text-[56px] font-black italic tracking-tighter leading-none text-white drop-shadow-xl">
                 {durationText}
               </span>
             </div>
 
             <div className="flex flex-col">
-              <span className="text-lg font-black uppercase tracking-widest text-white/50 mb-2">Gasto Calórico</span>
+              <span className="text-lg font-medium uppercase tracking-widest text-white mb-2">Gasto Calórico</span>
               <div className="flex items-baseline gap-2">
                 <span className="text-[56px] font-black italic tracking-tighter leading-none text-white drop-shadow-xl">
                   {Math.round(calorias)}
                 </span>
-                <span className="text-2xl font-bold uppercase text-primary">kcal</span>
+                <span className="text-2xl font-black uppercase text-white drop-shadow-md">kcal</span>
               </div>
             </div>
           </div>
