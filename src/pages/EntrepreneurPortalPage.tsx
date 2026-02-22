@@ -8,44 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Store, Briefcase, Loader2, ArrowLeft, Eye, EyeOff, ShieldCheck, RefreshCw, Mail } from "lucide-react";
 import { checkEmailExists, isValidEmail, validatePassword } from "@/lib/emailValidation";
 import logoNexfit from "@/assets/nexfit-logo.png";
-
-// --- OTP Input (6 digits) ---
-const OtpInputEntrepreneur = ({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) => {
-    const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-    const digits = value.padEnd(6, "").split("").slice(0, 6);
-    const handleChange = (idx: number, char: string) => {
-        const digit = char.replace(/\D/g, "").slice(-1);
-        const next = [...digits]; next[idx] = digit; onChange(next.join(""));
-        if (digit && idx < 5) inputRefs.current[idx + 1]?.focus();
-    };
-    const handleKeyDown = (idx: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === "Backspace" && !digits[idx] && idx > 0) {
-            const next = [...digits]; next[idx - 1] = ""; onChange(next.join(""));
-            inputRefs.current[idx - 1]?.focus();
-        }
-    };
-    const handlePaste = (e: React.ClipboardEvent) => {
-        const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
-        if (pasted) { onChange(pasted.padEnd(6, "").slice(0, 6)); inputRefs.current[Math.min(pasted.length, 5)]?.focus(); }
-        e.preventDefault();
-    };
-    return (
-        <div className="flex gap-2 justify-center">
-            {digits.map((d, i) => (
-                <input key={i} ref={el => { inputRefs.current[i] = el; }} type="text" inputMode="numeric" maxLength={1}
-                    value={d} disabled={disabled}
-                    onChange={e => handleChange(i, e.target.value)}
-                    onKeyDown={e => handleKeyDown(i, e)}
-                    onPaste={handlePaste}
-                    className="w-11 h-14 text-center text-xl font-black rounded-xl bg-white/5 border-2 border-white/10 text-white focus:border-primary focus:outline-none transition-all disabled:opacity-50"
-                />
-            ))}
-        </div>
-    );
-};
 
 export default function EntrepreneurPortalPage() {
     const navigate = useNavigate();
@@ -216,9 +182,24 @@ export default function EntrepreneurPortalPage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            <div className="space-y-3">
+                            <div className="space-y-3 flex flex-col items-center">
                                 <p className="text-xs text-center text-zinc-500">Digite o código de 6 dígitos</p>
-                                <OtpInputEntrepreneur value={otpCode} onChange={setOtpCode} disabled={isVerifyingOtp} />
+                                <InputOTP
+                                    maxLength={6}
+                                    value={otpCode}
+                                    onChange={setOtpCode}
+                                    disabled={isVerifyingOtp}
+                                    containerClassName="justify-center mt-2"
+                                >
+                                    <InputOTPGroup>
+                                        <InputOTPSlot index={0} />
+                                        <InputOTPSlot index={1} />
+                                        <InputOTPSlot index={2} />
+                                        <InputOTPSlot index={3} />
+                                        <InputOTPSlot index={4} />
+                                        <InputOTPSlot index={5} />
+                                    </InputOTPGroup>
+                                </InputOTP>
                             </div>
                             <div className="space-y-2">
                                 <Button
