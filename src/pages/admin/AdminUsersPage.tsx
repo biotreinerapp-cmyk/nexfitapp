@@ -71,6 +71,11 @@ export const AdminUsersPage = () => {
     const [banReason, setBanReason] = useState("Violação dos termos de uso");
     const [isBanning, setIsBanning] = useState(false);
 
+    // Delete State
+    const [deletingUser, setDeletingUser] = useState<AdminUser | null>(null);
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
     const { data: users = [], isLoading, error, refetch } = useQuery({
         queryKey: ["admin-users"],
         queryFn: async () => {
@@ -158,24 +163,24 @@ export const AdminUsersPage = () => {
                 if (banningUser.email) {
                     const { error: blError } = await supabase
                         .from("blacklist_emails")
-                        .upsert({ 
-                            email: banningUser.email, 
+                        .upsert({
+                            email: banningUser.email,
                             reason: banReason,
-                            banned_by: (await supabase.auth.getUser()).data.user?.id 
+                            banned_by: (await supabase.auth.getUser()).data.user?.id
                         }, { onConflict: "email" });
-                    
-                     if (blError) console.error("Blacklist Error:", blError); // Log but don't fail visible flow if table missing
+
+                    if (blError) console.error("Blacklist Error:", blError); // Log but don't fail visible flow if table missing
                 }
             } else {
                 // Remove from blacklist if unbanning
                 if (banningUser.email) {
-                   await supabase.from("blacklist_emails").delete().eq("email", banningUser.email);
+                    await supabase.from("blacklist_emails").delete().eq("email", banningUser.email);
                 }
             }
 
-            toast({ 
-                title: willBan ? "Usuário Banido" : "Acesso Restaurado", 
-                description: willBan 
+            toast({
+                title: willBan ? "Usuário Banido" : "Acesso Restaurado",
+                description: willBan
                     ? `O usuário ${banningUser.display_name} foi bloqueado e adicionado à lista negra.`
                     : `O acesso do usuário ${banningUser.display_name} foi restaurado.`
             });
@@ -184,9 +189,36 @@ export const AdminUsersPage = () => {
             refetch();
 
         } catch (error: any) {
-             toast({ title: "Erro", description: error.message, variant: "destructive" });
+            toast({ title: "Erro", description: error.message, variant: "destructive" });
         } finally {
             setIsBanning(false);
+        }
+    };
+
+    // 3. Delete User
+    const openDeleteModal = (user: AdminUser) => {
+        setDeletingUser(user);
+        setIsDeleteOpen(true);
+    };
+
+    const handleDeleteUser = async () => {
+        if (!deletingUser) return;
+        setIsDeleting(true);
+        try {
+            const { data, error } = await supabase.functions.invoke("admin-user-management", {
+                body: { action: "delete", userId: deletingUser.id }
+            });
+            if (error) throw error;
+            if (data?.error) throw new Error(data.error);
+
+            toast({ title: "Usuário Excluído", description: `O usuário ${deletingUser.display_name || deletingUser.email} foi permanentemente removido.` });
+            setIsDeleteOpen(false);
+            setDeletingUser(null);
+            refetch();
+        } catch (error: any) {
+            toast({ title: "Erro na exclusão", description: error.message, variant: "destructive" });
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -317,9 +349,9 @@ export const AdminUsersPage = () => {
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end" className="bg-[#1a1a1a] border-white/10 text-white">
                                                         <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                                        <DropdownMenuItem 
-                                                          className="focus:bg-white/10 cursor-pointer"
-                                                          onClick={() => openEditModal(user)}
+                                                        <DropdownMenuItem
+                                                            className="focus:bg-white/10 cursor-pointer"
+                                                            onClick={() => openEditModal(user)}
                                                         >
                                                             <Pencil className="mr-2 h-4 w-4" /> Editar Perfil
                                                         </DropdownMenuItem>
@@ -329,14 +361,21 @@ export const AdminUsersPage = () => {
                                                             onClick={() => openBanModal(user)}
                                                         >
                                                             {user.ativo ? (
-                                                              <>
-                                                                <Ban className="mr-2 h-4 w-4" /> Banir Usuário
-                                                              </>
+                                                                <>
+                                                                    <Ban className="mr-2 h-4 w-4" /> Banir Usuário
+                                                                </>
                                                             ) : (
-                                                              <>
-                                                                <Undo2 className="mr-2 h-4 w-4" /> Restaurar Acesso
-                                                              </>
+                                                                <>
+                                                                    <Undo2 className="mr-2 h-4 w-4" /> Restaurar Acesso
+                                                                </>
                                                             )}
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator className="bg-white/10" />
+                                                        <DropdownMenuItem
+                                                            className="focus:bg-red-500/20 text-red-500 focus:text-red-500 cursor-pointer"
+                                                            onClick={() => openDeleteModal(user)}
+                                                        >
+                                                            <UserX className="mr-2 h-4 w-4" /> Excluir Usuário
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
@@ -402,7 +441,7 @@ export const AdminUsersPage = () => {
                             <Label htmlFor="plan" className="text-right text-zinc-300">
                                 Plano
                             </Label>
-                             <Select value={editPlan} onValueChange={setEditPlan}>
+                            <Select value={editPlan} onValueChange={setEditPlan}>
                                 <SelectTrigger className="col-span-3 bg-white/5 border-white/10 text-white">
                                     <SelectValue />
                                 </SelectTrigger>
@@ -417,7 +456,7 @@ export const AdminUsersPage = () => {
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setIsEditOpen(false)} className="text-white hover:bg-white/10">Cancelar</Button>
                         <Button onClick={handleSaveUser} disabled={isSaving} className="bg-primary text-black hover:bg-green-500">
-                             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Salvar
+                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Salvar
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -428,36 +467,64 @@ export const AdminUsersPage = () => {
                 <DialogContent className="bg-black/90 border-white/10 text-white">
                     <DialogHeader>
                         <DialogTitle className={banningUser?.ativo ? "text-red-500" : "text-green-500"}>
-                             {banningUser?.ativo ? "Banir Usuário" : "Restaurar Acesso"}
+                            {banningUser?.ativo ? "Banir Usuário" : "Restaurar Acesso"}
                         </DialogTitle>
                         <DialogDescription className="text-zinc-400">
-                             {banningUser?.ativo 
-                                ? `Tem certeza que deseja bloquear ${banningUser?.display_name}? O email será adicionado à lista negra.` 
+                            {banningUser?.ativo
+                                ? `Tem certeza que deseja bloquear ${banningUser?.display_name}? O email será adicionado à lista negra.`
                                 : `Deseja remover o bloqueio de ${banningUser?.display_name}?`}
                         </DialogDescription>
                     </DialogHeader>
-                    
+
                     {banningUser?.ativo && (
                         <div className="py-2 space-y-2">
-                             <Label className="text-zinc-300">Motivo do Bloqueio</Label>
-                             <Input 
-                                value={banReason} 
-                                onChange={(e) => setBanReason(e.target.value)} 
+                            <Label className="text-zinc-300">Motivo do Bloqueio</Label>
+                            <Input
+                                value={banReason}
+                                onChange={(e) => setBanReason(e.target.value)}
                                 className="bg-white/5 border-white/10 text-white"
-                             />
+                            />
                         </div>
                     )}
 
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setIsBanOpen(false)} className="text-white hover:bg-white/10">Cancelar</Button>
-                        <Button 
-                            onClick={handleToggleBan} 
-                            disabled={isBanning} 
+                        <Button
+                            onClick={handleToggleBan}
+                            disabled={isBanning}
                             variant={banningUser?.ativo ? "destructive" : "default"}
                             className={!banningUser?.ativo ? "bg-green-600 hover:bg-green-700" : ""}
                         >
-                             {isBanning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} 
-                             {banningUser?.ativo ? "Confirmar Banimento" : "Restaurar Acesso"}
+                            {isBanning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {banningUser?.ativo ? "Confirmar Banimento" : "Restaurar Acesso"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* DELETE USER CONFIRMATION DIALOG */}
+            <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+                <DialogContent className="bg-black/90 border-red-500/20 text-white">
+                    <DialogHeader>
+                        <DialogTitle className="text-red-500 flex items-center gap-2">
+                            <UserX className="h-5 w-5" /> Excluir Permanentemente
+                        </DialogTitle>
+                        <DialogDescription className="text-zinc-400">
+                            Você está prestes a excluir permanentemente o usuário <strong className="text-white">{deletingUser?.display_name || deletingUser?.email}</strong>.
+                            <br /><br />
+                            Esta ação é irreversível e excluirá o usuário de forma permanente, juntamente com todos os seus dados.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setIsDeleteOpen(false)} className="text-white hover:bg-white/10" disabled={isDeleting}>Cancelar</Button>
+                        <Button
+                            onClick={handleDeleteUser}
+                            disabled={isDeleting}
+                            variant="destructive"
+                        >
+                            {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Confirmar Exclusão
                         </Button>
                     </DialogFooter>
                 </DialogContent>
