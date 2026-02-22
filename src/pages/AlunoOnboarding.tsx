@@ -320,6 +320,7 @@ const AlunoOnboardingPage = () => {
       nome: (watch("nome") ?? "").trim(),
       sobrenome: (watch("sobrenome") ?? "").trim(),
       genero: watch("genero"),
+      whatsapp: watch("whatsapp"),
       altura_cm: watch("altura_cm"),
       peso_kg: watch("peso_kg"),
       objetivo: (watch("objetivo") ?? "").trim(),

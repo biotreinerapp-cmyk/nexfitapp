@@ -383,40 +383,7 @@ const AlunoDashboardPage = () => {
   const [selectedClubId, setSelectedClubId] = useState<string | undefined>();
   const [isPublishingShare, setIsPublishingShare] = useState(false);
 
-  useEffect(() => {
-    if (!user || typeof window === "undefined" || !("Notification" in window)) return;
-    if (!sessoesSemana.length) return;
 
-    // Evita spam no iOS: só notifica se a mensagem mudou E não notificamos ainda nesta "sessão" de dados.
-    // Usamos um hash simples da mensagem para saber se é um insight novo.
-    const insightHash = btoa(unescape(encodeURIComponent(insightMensagem))).slice(0, 16);
-    const storageKey = `biotreiner_insight_sent_${user.id}`;
-    const lastSentHash = window.localStorage.getItem(storageKey);
-
-    if (lastSentHash === insightHash) return;
-
-    const sendNotification = () => {
-      try {
-        new Notification("Insight Nexfit", {
-          body: insightMensagem,
-          icon: "/favicon-new.png"
-        });
-        window.localStorage.setItem(storageKey, insightHash);
-      } catch (error) {
-        console.error("Erro ao enviar notificação de insight:", error);
-      }
-    };
-
-    if (Notification.permission === "granted") {
-      sendNotification();
-    } else if (Notification.permission === "default") {
-      Notification.requestPermission().then((permission) => {
-        if (permission === "granted") {
-          sendNotification();
-        }
-      });
-    }
-  }, [insightMensagem, sessoesSemana.length, user]);
 
   useEffect(() => {
     if (location.state && (location.state as any).showSharePrompt) {

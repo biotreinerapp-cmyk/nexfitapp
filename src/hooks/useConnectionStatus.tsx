@@ -54,13 +54,6 @@ export function useConnectionStatus(options: ConnectionStatusOptions = {}) {
       handleOffline();
     }
 
-    // Solicita permissão para notificações (apenas no gerenciador global)
-    if (!silent && 'Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().then((permission) => {
-        console.log('[ConnectionStatus] Permissão de notificação:', permission);
-      });
-    }
-
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
