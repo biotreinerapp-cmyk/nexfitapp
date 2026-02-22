@@ -362,9 +362,9 @@ serve(async (req) => {
       const authRes = await supabaseAdmin.auth.admin.deleteUser(userId);
       if (authRes.error) {
         return json({
-          error: "Database error deleting user",
-          details: { auth: authRes.error.message, dependencies: stepErrors },
-        }, { status: 400 });
+          error: "Database error deleting user: " + authRes.error.message,
+          details: stepErrors
+        });
       }
 
       if (stepErrors.length) {
@@ -374,7 +374,7 @@ serve(async (req) => {
       return json({ ok: true });
     }
 
-    return json({ error: "Ação não suportada" }, { status: 400 });
+    return json({ error: "Ação não suportada" });
   } catch (err) {
     console.error("admin-user-management error:", err);
     return json({ error: err instanceof Error ? err.message : "Erro desconhecido" }, { status: 500 });

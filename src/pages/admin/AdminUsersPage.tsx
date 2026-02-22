@@ -208,15 +208,32 @@ export const AdminUsersPage = () => {
             const { data, error } = await supabase.functions.invoke("admin-user-management", {
                 body: { action: "delete", userId: deletingUser.id }
             });
-            if (error) throw error;
-            if (data?.error) throw new Error(data.error);
+
+            if (error) {
+                // If it's a generic invocation error (e.g. 500 Network error)
+                throw error;
+            }
+
+            if (data?.error) {
+                // If the edge function returned 400 with our custom error details
+                let errorDesc = data.error;
+                if (data.details && Array.isArray(data.details)) {
+                    const deps = data.details.map((d: any) => `${d.label}: ${d.message}`).join(" | ");
+                    if (deps) errorDesc += `\nDependências falharam: ${deps}`;
+                }
+                throw new Error(errorDesc);
+            }
 
             toast({ title: "Usuário Excluído", description: `O usuário ${deletingUser.display_name || deletingUser.email} foi permanentemente removido.` });
             setIsDeleteOpen(false);
             setDeletingUser(null);
             refetch();
         } catch (error: any) {
-            toast({ title: "Erro na exclusão", description: error.message, variant: "destructive" });
+            toast({
+                title: "Erro na exclusão",
+                description: error.message || "Erro desconhecido. Verifique o console.",
+                variant: "destructive"
+            });
         } finally {
             setIsDeleting(false);
         }
