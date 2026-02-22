@@ -43,6 +43,7 @@ import LojaEstoquePage from "./pages/LojaEstoquePage";
 import LojaPerfilPage from "./pages/LojaPerfilPage";
 import LojaPlanoPage from "./pages/LojaPlanoPage";
 import LojaOrderDetailPage from "./pages/LojaOrderDetailPage";
+import LojaPedidosPage from "./pages/LojaPedidosPage";
 import ProfessionalRegistrationPage from "./pages/ProfessionalRegistrationPage";
 import ProfessionalDashboard from "./pages/ProfessionalDashboard";
 
@@ -873,6 +874,14 @@ const AppRoutes = () => (
         element={
           <LojaRoute>
             <LojaPlanoPage />
+          </LojaRoute>
+        }
+      />
+      <Route
+        path="/loja/pedidos"
+        element={
+          <LojaRoute>
+            <LojaPedidosPage />
           </LojaRoute>
         }
       />

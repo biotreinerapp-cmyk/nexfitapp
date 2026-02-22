@@ -89,7 +89,68 @@ serve(async (req: Request) => {
 
         const userId = userData.id;
 
-        // 3. Buscar a vigência do plano no sistema para identificar dias
+        // 3. Verificando se a compra é de um pacote de Ads/Destaque
+        const upperPlanName = (planName || "").toUpperCase();
+        if (upperPlanName.includes("DESTAQUE") || upperPlanName.includes("ADS")) {
+            // Lógica de Destaque
+            const { data: storeData } = await supabaseClient
+                .from("marketplace_stores")
+                .select("id, highlight_expires_at")
+                .eq("owner_user_id", userId)
+                .limit(1);
+
+            if (storeData && storeData.length > 0) {
+                const storeId = storeData[0].id;
+                let newExpiresAt = new Date();
+
+                if (storeData[0].highlight_expires_at) {
+                    const currentExp = new Date(storeData[0].highlight_expires_at);
+                    if (currentExp > newExpiresAt) {
+                        newExpiresAt = currentExp;
+                    }
+                }
+
+                // Vamos assumir fallback de 30 dias para webhooks de destaque caso seja genérico.
+                // Mas o log do nome do plano conterá a descrição.
+                newExpiresAt.setDate(newExpiresAt.getDate() + 30);
+
+                const { error: adsError } = await supabaseClient
+                    .from("marketplace_stores")
+                    .update({
+                        is_highlighted: true,
+                        highlight_expires_at: newExpiresAt.toISOString(),
+                        highlight_clicks: 0,
+                        highlight_sales: 0
+                    })
+                    .eq("id", storeId);
+
+                if (adsError) throw new Error("Erro ao ativar ADS: " + adsError.message);
+
+                const { data: existingTx } = await supabaseClient
+                    .from("financial_transactions")
+                    .select("id")
+                    .eq("reference_id", transactionId)
+                    .eq("type", "income");
+
+                if (!existingTx || existingTx.length === 0) {
+                    await supabaseClient.from("financial_transactions").insert({
+                        type: 'income',
+                        amount_cents: amountCents > 0 ? amountCents : 9990,
+                        description: `Nexfit ADS (${planName}) via PerfectPay (${customerEmail})`,
+                        category: 'Marketing',
+                        reference_id: transactionId,
+                        date: new Date().toISOString().split('T')[0]
+                    });
+                }
+
+                return new Response(JSON.stringify({ message: "ADS ativado com sucesso!" }), {
+                    status: 200,
+                    headers: { ...corsHeaders, "Content-Type": "application/json" },
+                });
+            }
+        }
+
+        // 4. Se não for Destaque, Buscar a vigência do plano no sistema para identificar dias
         // (Buscamos o plano cujo nome contém a string enviada pela perfect pay de forma case-insensitive, ou um fallback).
         const { data: planData, error: planError } = await supabaseClient
             .from("app_access_plans")

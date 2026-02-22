@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { maskCurrency, unmaskCurrency } from "@/lib/maskUtils";
 import {
     Dialog,
     DialogContent,
@@ -41,6 +42,7 @@ type HighlightOffer = {
     is_active: boolean;
     sort_order: number;
     badge_label: string | null;
+    checkout_url: string | null;
 };
 
 export const HighlightOffersManager = () => {
@@ -55,6 +57,7 @@ export const HighlightOffersManager = () => {
         price_cents: 0,
         features: [] as string[],
         badge_label: "",
+        checkout_url: "",
         is_active: true,
         sort_order: 0,
     });
@@ -68,7 +71,7 @@ export const HighlightOffersManager = () => {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from("highlight_offers")
-                .select("*")
+                .select("id, title, description, duration_days, price_cents, features, is_active, sort_order, badge_label, checkout_url")
                 .order("sort_order");
             if (error) throw error;
             return data || [];
@@ -84,6 +87,7 @@ export const HighlightOffersManager = () => {
             price_cents: 0,
             features: [],
             badge_label: "",
+            checkout_url: "",
             is_active: true,
             sort_order: offers.length,
         });
@@ -99,6 +103,7 @@ export const HighlightOffersManager = () => {
             price_cents: offer.price_cents,
             features: offer.features,
             badge_label: offer.badge_label || "",
+            checkout_url: offer.checkout_url || "",
             is_active: offer.is_active,
             sort_order: offer.sort_order,
         });
@@ -131,6 +136,7 @@ export const HighlightOffersManager = () => {
                 price_cents: formData.price_cents,
                 features: formData.features,
                 badge_label: formData.badge_label || null,
+                checkout_url: formData.checkout_url || null,
                 is_active: formData.is_active,
                 sort_order: formData.sort_order,
             };
@@ -287,6 +293,16 @@ export const HighlightOffersManager = () => {
                         </div>
 
                         <div className="space-y-2">
+                            <Label>Link de Checkout (PerfectPay/Opcional)</Label>
+                            <Input
+                                value={formData.checkout_url}
+                                onChange={(e) => setFormData((prev) => ({ ...prev, checkout_url: e.target.value }))}
+                                className="bg-black/20 border-white/10"
+                                placeholder="https://perfectpay.com.br/..."
+                            />
+                        </div>
+
+                        <div className="space-y-2">
                             <Label>Descrição</Label>
                             <Textarea
                                 value={formData.description}
@@ -311,11 +327,11 @@ export const HighlightOffersManager = () => {
                             <div className="space-y-2">
                                 <Label>Preço (R$)</Label>
                                 <Input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={(formData.price_cents / 100).toFixed(2)}
-                                    onChange={(e) => setFormData((prev) => ({ ...prev, price_cents: Math.round(parseFloat(e.target.value) * 100) || 0 }))}
+                                    value={maskCurrency(formData.price_cents / 100)}
+                                    onChange={(e) => {
+                                        const rawValue = unmaskCurrency(e.target.value);
+                                        setFormData((prev) => ({ ...prev, price_cents: Math.round(rawValue * 100) }));
+                                    }}
                                     className="bg-black/20 border-white/10"
                                 />
                             </div>

@@ -121,7 +121,7 @@ export default function LojaPlanoPage() {
                     NEXFIT <span className="text-primary">INTERPRISE</span>
                 </h1>
                 <p className="mt-3 text-sm font-medium text-zinc-400 max-w-[280px] mx-auto leading-relaxed">
-                    Desbloqueie o potencial máximo da sua loja. Venda mais, controle tudo.
+                    Sua loja já recebe pedidos de graça! Evolua para o Interprise para remover os limites e dominar suas vendas.
                 </p>
             </header>
 
@@ -159,8 +159,8 @@ export default function LojaPlanoPage() {
                                     <ShoppingBag className="h-5 w-5" />
                                 </div>
                                 <div>
-                                    <p className="text-sm font-bold text-white">Carrinhos Abandonados</p>
-                                    <p className="text-[10px] text-zinc-400 mt-0.5 leading-tight">Chame clientes no WhatsApp e recupere vendas perdidas.</p>
+                                    <p className="text-sm font-bold text-white">Recuperar Carrinhos</p>
+                                    <p className="text-[10px] text-zinc-400 mt-0.5 leading-tight">Saiba quem abandonou o carrinho e chame no WhatsApp para garantir a venda.</p>
                                 </div>
                             </div>
 
@@ -169,8 +169,8 @@ export default function LojaPlanoPage() {
                                     <Package className="h-5 w-5" />
                                 </div>
                                 <div>
-                                    <p className="text-sm font-bold text-white">Estoque Ilimitado</p>
-                                    <p className="text-[10px] text-zinc-400 mt-0.5 leading-tight">Cadastre quantos produtos quiser, sem a trava de 10 itens.</p>
+                                    <p className="text-sm font-bold text-white">Estoque Sem Limites</p>
+                                    <p className="text-[10px] text-zinc-400 mt-0.5 leading-tight">Cadastre produtos infinitos. O plano grátis tem limite de 10 itens.</p>
                                 </div>
                             </div>
 
@@ -179,8 +179,8 @@ export default function LojaPlanoPage() {
                                     <Sparkles className="h-5 w-5" />
                                 </div>
                                 <div>
-                                    <p className="text-sm font-bold text-white">Vitrine Completa</p>
-                                    <p className="text-[10px] text-zinc-400 mt-0.5 leading-tight">Mostre todos os seus produtos para os alunos, sem limite de exibição.</p>
+                                    <p className="text-sm font-bold text-white">Vitrine em Destaque</p>
+                                    <p className="text-[10px] text-zinc-400 mt-0.5 leading-tight">Exponha todo o seu catálogo para os alunos sem restrições de exibição.</p>
                                 </div>
                             </div>
 
@@ -189,8 +189,8 @@ export default function LojaPlanoPage() {
                                     <TrendingUp className="h-5 w-5" />
                                 </div>
                                 <div>
-                                    <p className="text-sm font-bold text-white">Relatórios Financeiros</p>
-                                    <p className="text-[10px] text-zinc-400 mt-0.5 leading-tight">Exporte relatórios e tenha controle total do seu faturamento.</p>
+                                    <p className="text-sm font-bold text-white">Relatórios Avançados</p>
+                                    <p className="text-[10px] text-zinc-400 mt-0.5 leading-tight">Controle financeiro total, exportação de dados e métricas de faturamento.</p>
                                 </div>
                             </div>
                         </div>

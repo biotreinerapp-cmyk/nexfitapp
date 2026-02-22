@@ -138,10 +138,4 @@ BEGIN
         FOR EACH ROW EXECUTE FUNCTION public.audit_security_change();
     END IF;
 
-    -- blacklist_emails trigger
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'tr_audit_blacklist_emails') THEN
-        CREATE TRIGGER tr_audit_blacklist_emails
-        AFTER INSERT OR UPDATE OR DELETE ON public.blacklist_emails
-        FOR EACH ROW EXECUTE FUNCTION public.audit_security_change();
-    END IF;
 END $$;

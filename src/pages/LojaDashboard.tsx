@@ -211,8 +211,7 @@ const LojaDashboardPage = () => {
           {/* Módulo de Pedidos (Livre) */}
           <button
             onClick={() => {
-              // Smooth scroll to orders section or navigate if we create a dedicated page later
-              window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+              navigate("/loja/pedidos");
             }}
             className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-blue-600/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
           >
@@ -239,7 +238,6 @@ const LojaDashboardPage = () => {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-bold text-white leading-none">Financeiro</h3>
-                {!hasModule("financeiro") && <Lock className="h-3 w-3 text-zinc-500" />}
               </div>
               <p className="text-[10px] text-zinc-400 font-medium">Faturamento e Relatórios</p>
             </div>
@@ -259,7 +257,6 @@ const LojaDashboardPage = () => {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-bold text-white leading-none">Vitrine</h3>
-                {!hasModule("loja") && <Lock className="h-3 w-3 text-zinc-500" />}
               </div>
               <p className="text-[10px] text-zinc-400 font-medium">Top Vendas</p>
             </div>
@@ -279,7 +276,6 @@ const LojaDashboardPage = () => {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-bold text-white leading-none">Estoque</h3>
-                {!hasModule("estoque") && <Lock className="h-3 w-3 text-zinc-500" />}
               </div>
               <p className="text-[10px] text-zinc-400 font-medium">Controle e Cadastro</p>
             </div>
@@ -314,173 +310,9 @@ const LojaDashboardPage = () => {
         </div>
       </section>
 
-      {/* Pending Orders */}
-      {
-        pendingOrders.length > 0 && (
-          <section className="mt-8 px-4">
-            <h2 className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-zinc-400">
-              <Clock className="h-4 w-4 text-yellow-400" />
-              Aguardando Ação ({pendingOrders.length})
-            </h2>
-            <div className="space-y-3">
-              {pendingOrders.map((order) => (
-                <OrderCard key={order.id} order={order} storeId={store.id} navigate={navigate} />
-              ))}
-            </div>
-          </section>
-        )
-      }
-
-      {/* Recent Orders */}
-      <section className="mt-8 px-4">
-        <h2 className="mb-4 text-xs font-black uppercase tracking-widest text-zinc-400">Pedidos Recentes</h2>
-        {recentOrders.length === 0 ? (
-          <div className="rounded-[24px] border border-white/5 bg-white/[0.03] p-8 text-center backdrop-blur-md">
-            <p className="text-xs text-zinc-500">
-              Nenhum pedido recente. Os pedidos aparecerão aqui.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {recentOrders.map((order) => (
-              <OrderCard key={order.id} order={order} storeId={store.id} navigate={navigate} />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Abandoned Carts Section */}
-      <section className="mt-8 px-4">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xs font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
-            <ShoppingBag className="h-4 w-4 text-orange-400" />
-            Carrinhos Abandonados
-          </h2>
-          {!hasModule("loja") && (
-            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary flex items-center gap-1">
-              <Lock className="w-3 h-3" /> PRO
-            </span>
-          )}
-        </div>
-
-        {abandonedCarts.length === 0 ? (
-          <div className="rounded-[24px] border border-white/5 bg-white/[0.03] p-8 text-center backdrop-blur-md">
-            <p className="text-xs text-zinc-500">Nenhum carrinho abandonado detectado.</p>
-          </div>
-        ) : (
-          <div className="relative overflow-hidden rounded-[24px]">
-            {/* If user is FREE, blur the content and show upgrade overlay */}
-            {!hasModule("loja") && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-6 text-center backdrop-blur-md bg-black/60">
-                <Lock className="w-8 h-8 text-primary mb-3" />
-                <h3 className="text-sm font-bold text-white mb-1">Recupere Vendas Perdidas</h3>
-                <p className="text-xs text-zinc-400 mb-4">Assine o plano Interprise para ver quem abandonou o carrinho e contatar via WhatsApp.</p>
-                <button
-                  className="w-full rounded-xl bg-primary py-3 text-xs font-black uppercase tracking-widest text-black hover:bg-primary/90 transition-colors shadow-[0_0_20px_rgba(86,255,2,0.3)]"
-                  onClick={() => navigate("/loja/plano")}
-                >
-                  Fazer Upgrade
-                </button>
-              </div>
-            )}
-            <div className={`space-y-3 ${!hasModule("loja") ? 'opacity-30 select-none pointer-events-none blur-[2px]' : ''}`}>
-              {abandonedCarts.slice(0, 5).map((cart) => (
-                <AbandonedCartCard
-                  key={cart.id}
-                  cart={cart}
-                  isPro={hasModule("loja")}
-                  navigate={navigate}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-      </section>
-
       <LojaFloatingNavIsland />
-    </main >
+    </main>
   );
 };
-
-function OrderCard({ order, storeId, navigate }: { order: OrderRow; storeId: string; navigate: any }) {
-  const statusInfo = STATUS_LABELS[order.status] ?? STATUS_LABELS.pending;
-  const StatusIcon = statusInfo.icon;
-  const date = new Date(order.created_at);
-  const formatted = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
-
-  return (
-    <div
-      className="group cursor-pointer overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.03] p-4 transition-all hover:bg-white/[0.06] active:scale-[0.98]"
-      onClick={() => navigate(`/loja/pedido/${order.id}`)}
-    >
-      <div className="flex items-center gap-4">
-        <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 ${statusInfo.color}`}>
-          <StatusIcon className="h-5 w-5" />
-        </div>
-        <div className="flex-1">
-          <p className="text-base font-bold text-white">
-            R$ {order.total.toFixed(2)}
-          </p>
-          <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-            {formatted} • {order.delivery_city || "Sem cidade"}
-          </p>
-        </div>
-        <div className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider bg-white/5 ${statusInfo.color}`}>
-          {statusInfo.label}
-        </div>
-        <ChevronRight className="h-4 w-4 text-zinc-600 group-hover:text-white transition-colors" />
-      </div>
-    </div>
-  );
-}
-
-function AbandonedCartCard({ cart, isPro, navigate }: any) {
-  const date = new Date(cart.last_cart_activity);
-  const formatted = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-  const userName = cart.user?.nome || "Aluno";
-  const userAvatar = cart.user?.avatar_url;
-  const userWhatsapp = cart.user?.whatsapp;
-
-  const handleNotify = (e: any) => {
-    e.stopPropagation();
-    if (!isPro) {
-      navigate("/loja/plano");
-      return;
-    }
-    if (!userWhatsapp) return;
-
-    const message = `Olá ${userName}! Notamos que você deixou alguns itens no carrinho em nossa loja. Posso te ajudar a finalizar sua compra?`;
-    window.open(`https://wa.me/55${userWhatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(message)}`, "_blank");
-  };
-
-  return (
-    <div className="relative overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.03] p-4">
-      <div className="flex items-center gap-4">
-        <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full border border-white/10">
-          {userAvatar ? (
-            <img src={userAvatar} alt={userName} className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-white/10">
-              <User className="h-5 w-5 text-zinc-400" />
-            </div>
-          )}
-        </div>
-        <div className="flex-1">
-          <p className="text-sm font-bold text-white">{userName}</p>
-          <p className="text-[10px] text-zinc-500">Abandono em {formatted}</p>
-        </div>
-        <button
-          className={`flex h-8 items-center rounded-lg px-3 text-[10px] font-bold uppercase tracking-wider transition-all
-            ${isPro
-              ? "bg-primary text-black hover:bg-primary/90"
-              : "bg-white/5 text-zinc-500 cursor-not-allowed"}`}
-          onClick={handleNotify}
-        >
-          {isPro ? "Recuperar" : "Bloqueado"}
-        </button>
-      </div>
-    </div>
-  );
-}
 
 export default LojaDashboardPage;
