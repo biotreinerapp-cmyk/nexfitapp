@@ -171,7 +171,12 @@ const AuthPage = () => {
     if (!otpEmail || isResendingOtp || resendCooldown > 0) return;
     setIsResendingOtp(true);
     try {
-      await sendOtp(otpEmail);
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: otpEmail,
+      });
+      if (error) throw error;
+
       setOtpCode("");
       setResendCooldown(60);
       toast({ title: "Código reenviado!", description: "Verifique sua caixa de entrada." });
@@ -189,24 +194,20 @@ const AuthPage = () => {
     }
     setIsVerifyingOtp(true);
     try {
-      const { data, error } = await supabase.functions.invoke("verify-email-otp", {
-        body: { email: otpEmail, otp_code: otpCode },
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: otpEmail,
+        token: otpCode,
+        type: "signup",
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
 
-      if (data?.autoLogin && data?.access_token && data?.refresh_token) {
-        // Set session directly — user is now confirmed and logged in
-        await supabase.auth.setSession({
-          access_token: data.access_token,
-          refresh_token: data.refresh_token,
-        });
+      if (error) throw error;
+
+      if (data?.session) {
         toast({ title: "E-mail confirmado!", description: "Bem-vindo ao NexFit! 🎉" });
         setOtpEmail(null);
         setOtpCode("");
-        // Navigation handled by the user effect below
+        // Session is set automatically by Supabase Auth
       } else {
-        // Email confirmed but no auto-login — ask user to login manually
         toast({ title: "E-mail confirmado!", description: "Agora faça login com suas credenciais." });
         setOtpEmail(null);
         setOtpCode("");
@@ -302,15 +303,22 @@ const AuthPage = () => {
     } else {
       await withFeedback(
         async () => {
-          // Invocamos a Edge Function customizada. Ela vai criar o usuário sem
-          // acionar o e-mail padrão do Supabase (para evitar links do Lovable)
-          // e enviar o código OTP com nosso template customizado do Resend/Brevo.
-          await sendOtp(values.email, emailToDisplayName(values.email) ?? "Usuário", values.password, "aluno");
+          const { error } = await supabase.auth.signUp({
+            email: values.email,
+            password: values.password!,
+            options: {
+              data: {
+                display_name: emailToDisplayName(values.email) ?? "Usuário",
+                role: "aluno",
+              }
+            }
+          });
+          if (error) throw error;
         },
         { loading: "Criando conta...", success: "Código enviado!", error: undefined }
       ).catch((error) => {
         if (error) toast({ title: "Erro ao cadastrar", description: error.message, variant: "destructive" });
-        throw error; // Evita abrir a tela de OTP se falhou
+        throw error;
       });
 
       setOtpEmail(values.email);
