@@ -115,19 +115,15 @@ export default function EntrepreneurPortalPage() {
 
             const role = activeTab === "store" ? "store_owner" : "professional";
 
-            // Create auth user (email NOT confirmed yet — OTP will confirm)
-            const { data: authData, error: authError } = await supabase.auth.signUp({
-                email: formData.email.trim().toLowerCase(),
-                password: formData.password,
-                options: { data: { name: formData.name.trim(), role } },
-            });
-
-            if (authError) throw authError;
-            if (!authData.user) throw new Error("Falha ao criar usuário");
-
-            // Send custom OTP email
+            // Create auth user and send OTP directly via our custom edge function
+            // (admin.createUser bypasses the default Lovable email verification link)
             const { error: otpError } = await supabase.functions.invoke("send-email-otp", {
-                body: { email: formData.email.trim().toLowerCase(), name: formData.name.trim() },
+                body: {
+                    email: formData.email.trim().toLowerCase(),
+                    name: formData.name.trim(),
+                    password: formData.password,
+                    role: role
+                }
             });
             if (otpError) throw otpError;
 

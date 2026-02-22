@@ -72,6 +72,8 @@ serve(async (req) => {
     const body = await req.json();
     const email = (body.email ?? "").trim().toLowerCase();
     const name = (body.name ?? "").trim() || "Usuário";
+    const password = body.password;
+    const role = body.role || "aluno";
 
     if (!email || !email.includes("@")) {
       return json({ error: "E-mail inválido" }, { status: 400 });
@@ -80,6 +82,24 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
       auth: { persistSession: false },
     });
+
+    // Check if we need to create the user
+    if (password) {
+      const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: false,
+      });
+
+      if (createError) {
+        // If already registered, we simply ignore the error and proceed to send the OTP for login or re-verification
+        if (!createError.message.toLowerCase().includes("already registered")) {
+          return json({ error: createError.message }, { status: 400 });
+        }
+      } else if (newUser?.user) {
+        await supabase.from("user_roles").insert({ user_id: newUser.user.id, role });
+      }
+    }
 
     // Invalidate any previous unused OTPs for this email
     await supabase

@@ -350,22 +350,15 @@ const AuthPage = () => {
     } else {
       await withFeedback(
         async () => {
-          const { data, error } = await supabase.auth.signUp({
-            email: values.email,
-            password: values.password,
-          });
-
-          if (error) throw error;
-          if (data.user) {
-            await (supabase as any).from("user_roles").insert({ user_id: data.user.id, role: "aluno" });
-          }
-
-          // Send custom OTP email instead of Supabase's built-in confirmation
-          await sendOtp(values.email);
+          // Invocamos a Edge Function customizada. Ela vai criar o usuário sem
+          // acionar o e-mail padrão do Supabase (para evitar links do Lovable)
+          // e enviar o código OTP com nosso template customizado do Resend/Brevo.
+          await sendOtp(values.email, emailToDisplayName(values.email) ?? "Usuário", values.password, "aluno");
         },
         { loading: "Criando conta...", success: "Código enviado!", error: undefined }
       ).catch((error) => {
         if (error) toast({ title: "Erro ao cadastrar", description: error.message, variant: "destructive" });
+        throw error; // Evita abrir a tela de OTP se falhou
       });
 
       setOtpEmail(values.email);
