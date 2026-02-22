@@ -13,7 +13,6 @@ import { Input } from "@/components/ui/input";
 import { Minus, Plus, Trash2, Ticket, ShieldCheck, Truck, MapPin, QrCode, Copy, CheckCircle2, Loader2, CreditCard, ExternalLink } from "lucide-react";
 import { buildPixPayload } from "@/lib/pix";
 import * as QRCodeLib from "qrcode";
-import { createPixPayment, checkPixPaymentStatus } from "@/lib/pixPaymentTracking";
 
 interface CartItem {
   id: string;
@@ -70,11 +69,7 @@ export default function MarketplaceCartPage() {
   const [pixQrDataUrl, setPixQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [pixConfig, setPixConfig] = useState<PixConfig | null>(null);
-  const [pixPaymentId, setPixPaymentId] = useState<string | null>(null);
-  const [verifyingPayment, setVerifyingPayment] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"pix" | "card">("pix");
-  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
-  const [paymentStatus, setPaymentStatus] = useState<"pending" | "paid" | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<"pending" | "paid" | "verifying" | null>(null);
 
   const hasCouponAccess = plan === "ADVANCE" || plan === "ELITE";
 
@@ -82,103 +77,7 @@ export default function MarketplaceCartPage() {
     document.title = "Carrinho - Nexfit Marketplace";
   }, []);
 
-  // Auto-verify payment with polling when payment is pending
-  useEffect(() => {
-    if (!pixPaymentId || paymentStatus !== "pending") return;
 
-    console.log("[Cart] Starting auto-verification polling for payment:", pixPaymentId);
-
-    const pollInterval = setInterval(async () => {
-      try {
-        console.log("[Cart] Polling payment status...");
-        const status = await checkPixPaymentStatus(pixPaymentId);
-
-        if (status === "paid") {
-          console.log("[Cart] Payment confirmed via polling!");
-          setPaymentStatus("paid");
-
-          // Update order status
-          if (orderId) {
-            await (supabase as any)
-              .from("marketplace_orders")
-              .update({ status: "paid" })
-              .eq("id", orderId);
-          }
-
-          toast({
-            title: "Pagamento confirmado!",
-            description: "Seu pedido está sendo processado.",
-          });
-
-          clearInterval(pollInterval);
-
-          // Navigate to orders page after a short delay
-          setTimeout(() => {
-            navigate("/marketplace/pedidos");
-          }, 2000);
-        }
-      } catch (error) {
-        console.error("[Cart] Error polling payment:", error);
-      }
-    }, 3000); // Poll every 3 seconds
-
-    return () => {
-      console.log("[Cart] Cleaning up polling interval");
-      clearInterval(pollInterval);
-    };
-  }, [pixPaymentId, paymentStatus, orderId, navigate, toast]);
-
-  // Realtime subscription for instant payment confirmation
-  useEffect(() => {
-    if (!pixPaymentId) return;
-
-    console.log("[Cart] Setting up Realtime subscription for payment:", pixPaymentId);
-
-    const channel = supabase
-      .channel(`pix_payment_${pixPaymentId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'pix_payments',
-          filter: `id=eq.${pixPaymentId}`
-        },
-        async (payload) => {
-          console.log("[Cart] Realtime update received:", payload);
-          const newStatus = (payload.new as any).status;
-
-          if (newStatus === "paid" && paymentStatus !== "paid") {
-            console.log("[Cart] Payment confirmed via Realtime!");
-            setPaymentStatus("paid");
-
-            // Update order status
-            if (orderId) {
-              await (supabase as any)
-                .from("marketplace_orders")
-                .update({ status: "paid" })
-                .eq("id", orderId);
-            }
-
-            toast({
-              title: "Pagamento confirmado!",
-              description: "Seu pedido está sendo processado.",
-            });
-
-            // Navigate to orders page after a short delay
-            setTimeout(() => {
-              navigate("/marketplace/pedidos");
-            }, 2000);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      console.log("[Cart] Cleaning up Realtime subscription");
-      supabase.removeChannel(channel);
-    };
-  }, [pixPaymentId, paymentStatus, orderId, navigate, toast]);
 
   useEffect(() => {
     const load = async () => {
@@ -358,7 +257,11 @@ export default function MarketplaceCartPage() {
     setSubmitting(true);
 
     try {
-      // 1. Update order with address and totals
+      if (!pixConfig?.pix_key) {
+        throw new Error("A loja ainda não configurou uma chave PIX para receber pagamentos.");
+      }
+
+      // 1. Update order with address and totals, setting status as "pending"
       await (supabase as any)
         .from("marketplace_orders")
         .update({
@@ -370,31 +273,27 @@ export default function MarketplaceCartPage() {
           coupon_id: selectedCoupon?.id ?? null,
           delivery_address: deliveryAddress.trim(),
           delivery_city: deliveryCity.trim(),
-          payment_method: paymentMethod,
+          payment_method: "pix",
         })
         .eq("id", orderId);
 
-      // 2. Create automated payment via Unified Service
-      console.log("[Cart] Creating payment via service:", paymentMethod);
-      const result = await createPixPayment({
-        userId: user.id,
-        userEmail: user.email,
-        userName: user.user_metadata?.full_name || user.user_metadata?.nome || "Cliente",
+      // 2. Local generation of the PIX payload
+      const payloadString = buildPixPayload({
+        pixKey: pixConfig.pix_key,
+        merchantName: pixConfig.receiver_name,
+        merchantCity: pixConfig.city || "BRASIL",
         amount: total,
-        paymentType: "marketplace_order",
-        referenceId: orderId,
-        description: `Pedido ${storeName} #${orderId.slice(0, 8)}`,
-        paymentMethod: paymentMethod,
+        transactionId: `P${orderId.slice(0, 10).toUpperCase()}`.replace(/[^A-Z0-9]/g, "").substring(0, 25), // max 25 chars alphanumeric
+        description: `Pedido ${storeName}`.substring(0, 40)
       });
 
-      // 3. Update state with payment info
-      setPixPaymentId(result.paymentId);
-      setPixPayload(result.pixPayload);
-      setPixQrDataUrl(result.pixQrCode);
-      setPaymentUrl(result.paymentUrl || null);
+      const qrCodeDataUrl = await QRCodeLib.toDataURL(payloadString, { width: 300, margin: 1 });
+
+      setPixPayload(payloadString);
+      setPixQrDataUrl(qrCodeDataUrl);
       setPaymentStatus("pending");
 
-      // 4. Mark coupon as used
+      // 3. Mark coupon as used
       if (selectedCoupon && !isVipCouponApplied) {
         await (supabase as any)
           .from("marketplace_coupons")
@@ -402,67 +301,37 @@ export default function MarketplaceCartPage() {
           .eq("id", selectedCoupon.id);
       }
 
-      toast({
-        title: "Pedido criado!",
-        description: paymentMethod === 'pix' ? "Aguardando pagamento PIX." : "Aguardando pagamento via cartão."
-      });
     } catch (error: any) {
       console.error("Error confirming order:", error);
-      toast({ title: "Erro ao finalizar pedido", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao gerar PIX", description: error.message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
   };
 
-  useEffect(() => {
-    if (!pixPaymentId || paymentStatus !== "pending") return;
-
-    // The polling in the first useEffect handles status checks.
-    // Realtime subscription in the second useEffect handles instant updates.
-  }, [pixPaymentId, paymentStatus, navigate]);
-
   const handleVerifyPayment = async () => {
-    if (!pixPaymentId || !orderId) return;
-    setVerifyingPayment(true);
+    if (!orderId) return;
+    // P2P mock confirmation:
+    setPaymentStatus("verifying");
 
-    try {
-      const status = await checkPixPaymentStatus(pixPaymentId);
-
-      if (status === "paid") {
-        setPaymentStatus("paid");
-
-        // Update order status
+    setTimeout(async () => {
+      try {
         await (supabase as any)
           .from("marketplace_orders")
-          .update({ status: "paid" })
+          .update({ status: "processing" }) // It goes to processing, store owner will confirm shipping
           .eq("id", orderId);
 
         toast({
-          title: "Pagamento confirmado!",
-          description: "Seu pedido está sendo processado.",
+          title: "Recebemos seu aviso!",
+          description: "O vendedor irá conferir e preparar o seu pedido.",
         });
 
-        // Navigate to orders page after a short delay
-        setTimeout(() => {
-          navigate("/marketplace/pedidos");
-        }, 2000);
-      } else {
-        toast({
-          title: "Pagamento pendente",
-          description: "Ainda não identificamos seu pagamento. Tente novamente em alguns instantes.",
-          variant: "default"
-        });
+        navigate("/marketplace/pedidos");
+      } catch (e: any) {
+        toast({ title: "Erro na atualização", description: e.message, variant: "destructive" });
+        setPaymentStatus("pending");
       }
-    } catch (error: any) {
-      console.error("Error verifying payment:", error);
-      toast({
-        title: "Erro ao verificar pagamento",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setVerifyingPayment(false);
-    }
+    }, 1500);
   };
 
 
@@ -495,22 +364,25 @@ export default function MarketplaceCartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background px-4 pb-32 pt-6">
-      <header className="mb-4 flex items-center gap-3">
+    <div className="min-h-screen bg-background bg-gradient-to-b from-primary/5 to-transparent px-4 pb-32 pt-6">
+      <header className="mb-6 flex items-center gap-3">
         <BackIconButton to={checkoutStep === "checkout" ? undefined : `/marketplace/loja/${storeId}`} onClick={checkoutStep === "checkout" ? () => setCheckoutStep("cart") : undefined} />
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-            {checkoutStep === "checkout" ? "Checkout" : "Carrinho"}
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/80">
+            {checkoutStep === "checkout" ? "Finalização (Checkout)" : "Seu Carrinho"}
           </p>
-          <h1 className="text-xl font-semibold text-foreground">{storeName}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">{storeName}</h1>
         </div>
       </header>
 
       {items.length === 0 ? (
-        <Card className="border-border/50 bg-card/30">
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">Seu carrinho está vazio.</p>
-            <Button variant="outline" className="mt-4" onClick={() => navigate(`/marketplace/loja/${storeId}`)}>
+        <Card className="border-border/40 bg-card/50 backdrop-blur-md shadow-sm rounded-2xl overflow-hidden">
+          <CardContent className="py-12 text-center flex flex-col items-center justify-center">
+            <div className="h-16 w-16 bg-muted rounded-full flex items-center justify-center mb-4">
+              <Ticket className="h-6 w-6 text-muted-foreground/50" />
+            </div>
+            <p className="text-muted-foreground font-medium">Seu carrinho está vazio.</p>
+            <Button className="mt-6 rounded-xl font-bold shadow-md h-12 px-8" onClick={() => navigate(`/marketplace/loja/${storeId}`)}>
               Voltar à loja
             </Button>
           </CardContent>
@@ -567,7 +439,6 @@ export default function MarketplaceCartPage() {
           shippingCost={shippingCost}
           paymentStatus={paymentStatus}
           onVerifyPayment={handleVerifyPayment}
-          verifyingPayment={verifyingPayment}
         />
       )}
       <FloatingNavIsland />
@@ -590,9 +461,9 @@ function CartView({
       {/* Items */}
       <div className="space-y-2">
         {items.map((item: CartItem) => (
-          <Card key={item.id} className="border-border/50 bg-card/30">
-            <CardContent className="flex items-center gap-3 py-3">
-              <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">
+          <Card key={item.id} className="border border-border/40 bg-card/60 backdrop-blur-sm shadow-sm hover:border-primary/40 transition-all rounded-2xl overflow-hidden group">
+            <CardContent className="flex items-center gap-3 py-3 px-4">
+              <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted/50 border border-border/50 group-hover:border-primary/20 transition-colors">
                 {item.product_image ? (
                   <img src={item.product_image} alt={item.product_name} className="h-full w-full object-cover" />
                 ) : (
@@ -600,20 +471,22 @@ function CartView({
                 )}
               </div>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-foreground">{item.product_name}</p>
-                <p className="text-xs text-primary font-semibold">R$ {item.unit_price.toFixed(2)}</p>
+                <p className="text-sm font-bold text-foreground leading-tight line-clamp-2">{item.product_name}</p>
+                <p className="text-xs text-primary font-bold mt-1">R$ {item.unit_price.toFixed(2)}</p>
               </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => updateQuantity(item, -1)} className="flex h-7 w-7 items-center justify-center rounded-md border border-border/50 text-muted-foreground hover:text-foreground">
-                  <Minus className="h-3.5 w-3.5" />
+              <div className="flex flex-col items-end gap-2">
+                <button onClick={() => removeItem(item)} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors">
+                  <Trash2 className="h-4 w-4" />
                 </button>
-                <span className="w-6 text-center text-sm font-semibold text-foreground">{item.quantity}</span>
-                <button onClick={() => updateQuantity(item, 1)} className="flex h-7 w-7 items-center justify-center rounded-md border border-border/50 text-muted-foreground hover:text-foreground">
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
-                <button onClick={() => removeItem(item)} className="ml-1 flex h-7 w-7 items-center justify-center rounded-md text-destructive hover:bg-destructive/10">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                <div className="flex items-center gap-1 bg-background/50 border border-border/50 rounded-lg p-0.5 shadow-inner">
+                  <button onClick={() => updateQuantity(item, -1)} className="flex h-7 w-7 items-center justify-center rounded-md text-foreground hover:bg-background hover:shadow-sm transition-all focus:ring-2 focus:ring-primary/20">
+                    <Minus className="h-3.5 w-3.5" />
+                  </button>
+                  <span className="w-5 text-center text-xs font-bold text-foreground">{item.quantity}</span>
+                  <button onClick={() => updateQuantity(item, 1)} className="flex h-7 w-7 items-center justify-center rounded-md text-foreground hover:bg-background hover:shadow-sm transition-all focus:ring-2 focus:ring-primary/20">
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -621,64 +494,80 @@ function CartView({
       </div>
 
       {/* Delivery */}
-      <Card className="border-border/50 bg-card/30">
-        <CardContent className="space-y-3 py-4">
-          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <MapPin className="h-4 w-4 text-primary" />
+      <Card className="border-border/30 bg-gradient-to-br from-card/80 to-background backdrop-blur-md shadow-sm rounded-2xl overflow-hidden">
+        <CardContent className="space-y-4 py-5">
+          <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+            <div className="bg-primary/20 p-1.5 rounded-full">
+              <MapPin className="h-4 w-4 text-primary" />
+            </div>
             Endereço de entrega
           </div>
-          <div className="space-y-2">
-            <Input placeholder="Endereço completo" value={deliveryAddress} onChange={(e: any) => setDeliveryAddress(e.target.value)} />
-            <Input placeholder="Cidade" value={deliveryCity} onChange={(e: any) => setDeliveryCity(e.target.value)} />
+          <div className="space-y-3">
+            <Input
+              placeholder="Endereço completo (Rua, Número, Bairro)"
+              value={deliveryAddress}
+              onChange={(e: any) => setDeliveryAddress(e.target.value)}
+              className="bg-background/80 border-border/50 h-12 rounded-xl focus:ring-2 focus:ring-primary/20 transition-all text-sm"
+            />
+            <Input
+              placeholder="Cidade"
+              value={deliveryCity}
+              onChange={(e: any) => setDeliveryCity(e.target.value)}
+              className="bg-background/80 border-border/50 h-12 rounded-xl focus:ring-2 focus:ring-primary/20 transition-all text-sm"
+            />
           </div>
           {storeCity && deliveryCity.trim() && (
-            <p className="text-xs text-primary">
-              {deliveryCity.trim().toLowerCase() === storeCity.toLowerCase()
-                ? "✓ Mesma cidade da loja — frete reduzido ou grátis disponível"
-                : `Loja em ${storeCity} — frete padrão aplicado`}
-            </p>
+            <div className="bg-primary/5 border border-primary/10 rounded-lg p-3 mt-2 flex items-start gap-2">
+              <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <p className="text-xs text-primary font-medium leading-relaxed">
+                {deliveryCity.trim().toLowerCase() === storeCity.toLowerCase()
+                  ? "Sua cidade corresponde à da loja! Vantagens de frete reduzido ou grátis aplicadas."
+                  : `A Loja está em ${storeCity}. O frete padrão será aplicado para sua região.`}
+              </p>
+            </div>
           )}
           {gpsCity && storeCity && (
-            <p className="text-[10px] text-primary flex items-center gap-1">
-              <CheckCircle2 className="h-3 w-3" /> GPS confirma: você está em {gpsCity}.
+            <p className="text-[10px] text-muted-foreground flex items-center gap-1 font-medium pl-1">
+              GPS Automático: {gpsCity}.
             </p>
           )}
         </CardContent>
       </Card>
 
       {hasCouponAccess && (
-        <Card className="border-primary/30 bg-primary/5 shadow-inner">
-          <CardContent className="py-4 space-y-3">
+        <Card className="border-primary/40 bg-gradient-to-br from-primary/10 to-transparent shadow-sm rounded-2xl overflow-hidden relative">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 blur-3xl rounded-full -mr-16 -mt-16 pointer-events-none"></div>
+          <CardContent className="py-5 space-y-4 relative z-10">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <Ticket className="h-4 w-4 text-primary animate-pulse" />
-                Cupom VIP Mensal ({10 - couponsUsedThisMonth} restantes)
+              <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+                <Ticket className="h-4 w-4 text-primary" />
+                Benefício Mensal VIP ({10 - couponsUsedThisMonth} restantes)
               </div>
-              <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">{plan}</Badge>
+              <Badge className="text-[10px] bg-primary/20 text-primary border-primary/30 hover:bg-primary/30 uppercase font-bold tracking-wider">{plan}</Badge>
             </div>
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <Ticket className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/40" />
+                <Ticket className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/50" />
                 <Input
                   placeholder="VIPADVANCE ou VIPELITE"
                   value={vipCouponInput}
                   onChange={(e: any) => setVipCouponInput(e.target.value)}
-                  className="bg-background/50 h-9 pl-9 text-sm border-primary/20 focus:border-primary transition-all"
+                  className="bg-background/60 shadow-inner h-12 pl-10 text-sm border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all rounded-xl font-medium tracking-wide uppercase placeholder:normal-case"
                 />
               </div>
-              <Button size="sm" onClick={applyVipCoupon} className="font-bold shadow-md shadow-primary/20">
-                Aplicar
+              <Button size="lg" onClick={applyVipCoupon} className="font-bold shadow-md shadow-primary/20 rounded-xl h-12">
+                Ativar
               </Button>
             </div>
 
             {isVipCouponApplied && selectedCoupon && (
-              <div className="flex items-center gap-2 rounded-lg bg-primary/20 p-2 border border-primary/40 animate-in fade-in zoom-in duration-300">
-                <div className="bg-primary rounded-full p-1">
-                  <CheckCircle2 className="h-3 w-3 text-background" />
+              <div className="flex items-center gap-3 rounded-xl bg-primary/20 p-3 border border-primary/40 animate-in fade-in zoom-in duration-300">
+                <div className="bg-primary rounded-full p-1.5 shadow-sm">
+                  <CheckCircle2 className="h-4 w-4 text-background" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-bold text-primary leading-tight">CUPOM {selectedCoupon.id} ATIVADO!</p>
-                  <p className="text-[10px] text-primary/80">-{selectedCoupon.discount_percent}% OFF {selectedCoupon.free_shipping ? "+ Frete Grátis" : ""}</p>
+                  <p className="text-xs font-black text-primary uppercase tracking-wide">CUPOM {selectedCoupon.id} APLICADO</p>
+                  <p className="text-[11px] font-semibold text-foreground/80 mt-0.5">Desconto especial: -{selectedCoupon.discount_percent}% OFF {selectedCoupon.free_shipping ? "e Frete Grátis" : ""}</p>
                 </div>
               </div>
             )}
@@ -687,8 +576,8 @@ function CartView({
       )}
 
       {/* Coupon Section */}
-      <Card className="border-border/50 bg-card/30">
-        <CardContent className="py-4">
+      <Card className="border-border/40 bg-card/40 backdrop-blur-md shadow-sm rounded-2xl overflow-hidden">
+        <CardContent className="py-2 px-3">
           <button
             type="button"
             onClick={() => {
@@ -698,35 +587,43 @@ function CartView({
               }
               setShowCoupons(!showCoupons);
             }}
-            className="flex w-full items-center gap-2 text-sm"
+            className="flex w-full items-center gap-3 p-3 text-sm hover:opacity-80 transition-opacity"
           >
-            <Ticket className="h-4 w-4 text-primary" />
-            <span className="font-semibold text-foreground">
-              {selectedCoupon ? `Cupom ${selectedCoupon.discount_percent}% aplicado` : "Usar cupom de desconto"}
+            <div className={`p-1.5 rounded-full ${selectedCoupon ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+              <Ticket className="h-4 w-4" />
+            </div>
+            <span className="font-bold text-foreground">
+              {selectedCoupon ? `Cupom especial de ${selectedCoupon.discount_percent}% ativo` : "Adicionar outro cupom de desconto"}
             </span>
-            {!hasCouponAccess && <Badge variant="secondary" className="ml-auto text-[10px]">Premium</Badge>}
+            {!hasCouponAccess && <Badge variant="secondary" className="ml-auto text-[10px] rounded-md">Premium</Badge>}
           </button>
 
           {showCoupons && hasCouponAccess && (
-            <div className="mt-3 space-y-2">
+            <div className="px-1 pb-3 pt-1 space-y-2 animate-in slide-in-from-top-2 duration-200">
               {coupons.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Nenhum cupom disponível.</p>
+                <div className="bg-muted p-3 rounded-xl text-center">
+                  <p className="text-xs text-muted-foreground font-medium">Você não possui outros cupons disponíveis no momento.</p>
+                </div>
               ) : (
                 coupons.map((c: Coupon) => (
                   <button
                     key={c.id}
                     type="button"
                     onClick={() => { setSelectedCoupon(selectedCoupon?.id === c.id ? null : c); setShowCoupons(false); }}
-                    className={`flex w-full items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors ${selectedCoupon?.id === c.id ? "border-primary bg-primary/10" : "border-border/50 hover:border-primary/50"
+                    className={`flex w-full items-center gap-3 border p-4 text-left text-sm transition-all focus:outline-none rounded-xl shadow-sm ${selectedCoupon?.id === c.id ? "border-primary bg-primary/10 ring-2 ring-primary/20" : "border-border/50 bg-background/50 hover:border-primary/40 hover:bg-background"
                       }`}
                   >
-                    <ShieldCheck className="h-4 w-4 text-primary" />
-                    <span className="font-semibold text-foreground">{c.discount_percent}% OFF</span>
-                    {c.free_shipping && (
-                      <span className="flex items-center gap-1 text-xs text-primary">
-                        <Truck className="h-3 w-3" /> Frete grátis
-                      </span>
-                    )}
+                    <div className={selectedCoupon?.id === c.id ? "text-primary" : "text-muted-foreground"}>
+                      <ShieldCheck className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <span className="font-black text-foreground block">{c.discount_percent}% OFF em toda compra</span>
+                      {c.free_shipping && (
+                        <span className="flex items-center gap-1 text-xs font-semibold text-primary mt-0.5">
+                          <Truck className="h-3 w-3" /> Mais frete grátis nacional
+                        </span>
+                      )}
+                    </div>
                   </button>
                 ))
               )}
@@ -736,31 +633,35 @@ function CartView({
       </Card>
 
       {/* Summary */}
-      <Card className="border-border/50 bg-card/30">
-        <CardContent className="space-y-2 py-4 text-sm">
-          <div className="flex justify-between text-muted-foreground">
-            <span>Subtotal</span>
+      <Card className="border border-border/40 bg-card/60 backdrop-blur-md shadow-sm rounded-2xl">
+        <CardContent className="space-y-3 py-5 px-5">
+          <div className="flex justify-between text-muted-foreground font-medium text-sm">
+            <span>Subtotal dos Produtos</span>
             <span>R$ {subtotal.toFixed(2)}</span>
           </div>
           {selectedCoupon && (
-            <div className="flex justify-between text-primary">
+            <div className="flex justify-between text-primary font-bold text-sm">
               <span>Desconto ({selectedCoupon.discount_percent}%)</span>
               <span>- R$ {discountAmount.toFixed(2)}</span>
             </div>
           )}
-          <div className="flex justify-between text-muted-foreground">
-            <span>Frete</span>
+          <div className="flex justify-between text-muted-foreground font-medium text-sm">
+            <span>Frete e Manuseio</span>
             <span>{shippingCost > 0 ? `R$ ${shippingCost.toFixed(2)}` : "Grátis"}</span>
           </div>
-          <div className="flex justify-between border-t border-border/50 pt-2 text-base font-bold text-foreground">
-            <span>Total</span>
+          <div className="flex justify-between border-t border-border/50 pt-4 mt-2 text-lg font-black tracking-tight text-foreground">
+            <span>Total da Compra</span>
             <span>R$ {total.toFixed(2)}</span>
           </div>
         </CardContent>
       </Card>
 
-      <Button className="w-full" size="lg" onClick={onProceed} disabled={items.length === 0}>
-        Ir para pagamento • R$ {total.toFixed(2)}
+      <Button
+        className="w-full h-14 rounded-2xl text-lg font-black bg-gradient-to-r from-primary to-green-500 hover:from-primary/90 hover:to-green-500/90 shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all border-0 uppercase tracking-wide gap-2 text-primary-foreground"
+        onClick={onProceed}
+        disabled={items.length === 0}
+      >
+        Ir para Confirmação • R$ {total.toFixed(2)}
       </Button>
     </div>
   );
@@ -771,8 +672,7 @@ function CheckoutView({
   items, subtotal, discountAmount, selectedCoupon, freeShipping, total,
   deliveryAddress, deliveryCity,
   pixPayload, pixQrDataUrl, copied, onCopyPix, onConfirm, submitting, pixConfig,
-  shippingCost, paymentStatus, onVerifyPayment, verifyingPayment, onSimulatePayment,
-  paymentMethod, setPaymentMethod, paymentUrl
+  shippingCost, paymentStatus, onVerifyPayment
 }: any) {
   return (
     <div className="space-y-4">
@@ -806,119 +706,63 @@ function CheckoutView({
         </CardContent>
       </Card>
 
-      {/* Payment Method Selection */}
-      <Card className="border-border/50 bg-card/30">
-        <CardContent className="py-4 space-y-3">
-          <p className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
-            <CreditCard className="h-4 w-4 text-primary" /> Método de Pagamento
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <Button
-              variant={paymentMethod === "pix" ? "default" : "outline"}
-              className="w-full flex-col h-auto py-3 gap-1"
-              onClick={() => setPaymentMethod("pix")}
-              disabled={paymentStatus === "pending" || paymentStatus === "paid"}
-            >
-              <QrCode className="h-5 w-5" />
-              <span className="text-[10px] uppercase font-bold">PIX</span>
-            </Button>
-            <Button
-              variant={paymentMethod === "card" ? "default" : "outline"}
-              className="w-full flex-col h-auto py-3 gap-1"
-              onClick={() => setPaymentMethod("card")}
-              disabled={paymentStatus === "pending" || paymentStatus === "paid"}
-            >
-              <CreditCard className="h-5 w-5" />
-              <span className="text-[10px] uppercase font-bold">Cartão</span>
-            </Button>
+      {/* PIX Payment Direct Interface */}
+      {pixPayload && paymentStatus !== "paid" ? (
+        <Card className="border-primary/30 bg-card/30 overflow-hidden shadow-xl shadow-primary/5">
+          <div className="bg-primary px-4 py-2 text-center text-primary-foreground font-bold">
+            Pagamento Direto via PIX
           </div>
-        </CardContent>
-      </Card>
+          <CardContent className="py-6 text-center space-y-6">
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">Copie a chave para pagar no app do seu banco ou escaneie o código abaixo:</p>
+            </div>
 
-      {/* PIX Payment */}
-      {paymentMethod === "pix" && pixPayload ? (
-        <Card className="border-primary/30 bg-card/30">
-          <CardContent className="py-5 text-center space-y-4">
-            <div className="flex items-center justify-center gap-2 text-sm font-semibold text-foreground">
-              <QrCode className="h-5 w-5 text-primary" /> Pague via Pix
-            </div>
             {pixQrDataUrl && (
-              <img src={pixQrDataUrl} alt="QR Code Pix" className="mx-auto h-48 w-48 rounded-lg" />
+              <div className="mx-auto bg-white p-3 rounded-xl shadow-md inline-block">
+                <img src={pixQrDataUrl} alt="QR Code Pix" className="h-44 w-44 object-contain" />
+              </div>
             )}
-            <p className="text-xs text-muted-foreground">Escaneie o QR Code ou copie o código abaixo</p>
-            <Button variant="outline" size="sm" className="gap-2" onClick={onCopyPix}>
-              {copied ? <CheckCircle2 className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
-              {copied ? "Copiado!" : "Copiar código Pix"}
+
+            <Button size="lg" className="w-full font-bold shadow-md shadow-primary/20 gap-2 h-14" onClick={onCopyPix}>
+              {copied ? <CheckCircle2 className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
+              {copied ? "Link Copiado com sucesso!" : "Copiar Chave Pix Copia e Cola"}
             </Button>
-          </CardContent>
-        </Card>
-      ) : paymentMethod === "card" && paymentStatus === "pending" && paymentUrl ? (
-        <Card className="border-primary/30 bg-card/30">
-          <CardContent className="py-5 text-center space-y-4">
-            <div className="flex items-center justify-center gap-2 text-sm font-semibold text-foreground">
-              <CreditCard className="h-5 w-5 text-primary" /> Pagamento com Cartão
+
+            <div className="text-xs text-left bg-muted/50 p-3 rounded-lg mt-4 text-muted-foreground">
+              * Como este é um PIX pago diretamente na conta da Loja, não temos validação automática da transação no momento. Ao finalizar sua transferência, informe o pagamento abaixo.
             </div>
-            <p className="text-sm text-foreground">Clique no botão abaixo para concluir o pagamento seguro.</p>
-            <Button
-              className="w-full gap-2"
-              onClick={() => window.open(paymentUrl, '_blank')}
-            >
-              <ExternalLink className="h-4 w-4" />
-              Pagar com Cartão
-            </Button>
           </CardContent>
         </Card>
       ) : null}
 
       {/* Payment Status & Actions */}
-      {paymentStatus === "paid" ? (
-        <Card className="border-primary/30 bg-primary/10">
-          <CardContent className="py-4 text-center">
-            <div className="flex items-center justify-center gap-2 text-primary font-bold">
-              <CheckCircle2 className="h-5 w-5" />
-              Pagamento Confirmado!
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Seu pedido está sendo processado.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-3">
+      <div className="space-y-3 pt-2">
+        {!pixPayload && (
           <Button
-            className="w-full"
-            size="lg"
+            className="w-full text-lg h-14 font-bold"
             onClick={onConfirm}
-            disabled={submitting || paymentStatus === "pending"}
+            disabled={submitting}
           >
-            {submitting ? "Finalizando..." : "Confirmar Pedido"}
+            {submitting ? "Gerando PIX..." : "Gerar Chave PIX"}
           </Button>
+        )}
 
-          {paymentStatus === "pending" && (
-            <>
-              <Button
-                className="w-full"
-                size="lg"
-                variant="outline"
-                onClick={onVerifyPayment}
-                disabled={verifyingPayment}
-              >
-                {verifyingPayment ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Verificando...
-                  </>
-                ) : (
-                  <>
-                    <QrCode className="h-4 w-4 mr-2" />
-                    Já realizei o pagamento
-                  </>
-                )}
-              </Button>
-            </>
-          )}
-        </div>
-      )}
+        {paymentStatus === "pending" && (
+          <Button
+            className="w-full h-12 bg-green-600 hover:bg-green-700 text-white gap-2 font-bold"
+            onClick={onVerifyPayment}
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            Já realizei o pagamento no Banco
+          </Button>
+        )}
+
+        {paymentStatus === "verifying" && (
+          <Button className="w-full h-12" disabled>
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Atualizando o pedido...
+          </Button>
+        )}
+      </div>
 
       <div className="mt-8 flex flex-col items-center justify-center gap-2 border-t border-border/20 pt-4 opacity-70">
         <div className="flex items-center gap-2 grayscale hover:grayscale-0 transition-all duration-500">
