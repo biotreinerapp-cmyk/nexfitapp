@@ -86,6 +86,7 @@ import AdminPricingPage from "./pages/admin/AdminPricingPage";
 import ProfessionalPlanoPage from "./pages/ProfessionalPlanoPage";
 import ForbiddenPage from "./pages/Forbidden";
 import { AdminGuard } from "./components/admin/AdminGuard";
+import SplashLoader from "./components/SplashLoader";
 
 const AlunoRoute = ({ children }: { children: JSX.Element }) => {
   const { user, loading } = useAuth();
@@ -118,13 +119,13 @@ const AlunoRoute = ({ children }: { children: JSX.Element }) => {
   }, [user, loading]);
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center bg-background">Carregando...</div>;
+    return <SplashLoader />;
   }
 
   if (!user || !profileValid) return <Navigate to="/auth" replace />;
 
   if (!profileChecked) {
-    return <div className="flex min-h-screen items-center justify-center bg-background">Carregando...</div>;
+    return <SplashLoader />;
   }
 
   // Store owners e Profissionais nunca devem ver rotas de aluno
@@ -149,7 +150,7 @@ const LojaRoute = ({ children }: { children: JSX.Element }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center bg-background">Carregando...</div>;
+    return <SplashLoader />;
   }
 
   if (!user) return <Navigate to="/auth" replace />;
@@ -162,7 +163,7 @@ const ProfessionalRoute = ({ children }: { children: JSX.Element }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center bg-background">Carregando...</div>;
+    return <SplashLoader />;
   }
 
   if (!user) return <Navigate to="/auth" replace />;
@@ -175,7 +176,7 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center bg-background">Carregando...</div>;
+    return <SplashLoader />;
   }
 
   if (!user) {
@@ -368,14 +369,14 @@ const RequireOnboarding = ({ children }: { children: JSX.Element }) => {
 
   // SWR: só bloqueia em tela cheia no boot inicial sem sessão.
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center bg-background">Carregando...</div>;
+    return <SplashLoader />;
   }
 
   // Se já existe cache COMPLETO de onboarding, renderiza o app e revalida em background.
   // Se o cache existir mas não for satisfatório (onboarding pendente), DEVEMOS bloquear/mostrar loading
   // para evitar o "flicker" do dashboard antes do redirecionamento para onboarding.
   if ((roleLoading || checking) && (!hasSoftCache || !readOnboardingCache(user.id)?.onboarding_completed)) {
-    return <div className="flex min-h-screen items-center justify-center bg-background">Carregando...</div>;
+    return <SplashLoader />;
   }
 
   return children;
@@ -386,11 +387,7 @@ const AdminMasterRoute = ({ children }: { children: JSX.Element }) => {
   const { isAdmin, loading: roleLoading, error } = useAdminRole();
 
   if (loading || roleLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        Carregando...
-      </div>
-    );
+    return <SplashLoader />;
   }
 
   if (!user) {
@@ -1035,17 +1032,28 @@ const ScrollToTopOnDashboard = () => {
   return null;
 };
 
-const App = () => (
-  <AuthProvider>
-    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <UserPreferencesProvider>
-        <ActivityProvider>
-          <ScrollToTopOnDashboard />
-          <AppRoutes />
-        </ActivityProvider>
-      </UserPreferencesProvider>
-    </BrowserRouter>
-  </AuthProvider>
-);
+const App = () => {
+  useEffect(() => {
+    // Remove o splash inicial do HTML simples assim que o React assume o controle
+    const initialSplash = document.getElementById("initial-splash");
+    if (initialSplash) {
+      initialSplash.style.opacity = "0";
+      setTimeout(() => initialSplash.remove(), 500);
+    }
+  }, []);
+
+  return (
+    <AuthProvider>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <UserPreferencesProvider>
+          <ActivityProvider>
+            <ScrollToTopOnDashboard />
+            <AppRoutes />
+          </ActivityProvider>
+        </UserPreferencesProvider>
+      </BrowserRouter>
+    </AuthProvider>
+  );
+};
 
 export default App;

@@ -59,8 +59,8 @@ const onboardingSchema = z.object({
         "Sunday",
       ]),
     )
-    .min(2, "Selecione entre 2 e 6 dias da semana")
-    .max(6, "Selecione entre 2 e 6 dias da semana"),
+    .min(2, "Selecione entre 2 e 7 dias da semana")
+    .max(7, "Selecione entre 2 e 7 dias da semana"),
   focus_group: z.enum(["Balanced", "Chest", "Back", "Arms", "Legs", "Glutes", "Abs"], {
     errorMap: () => ({ message: "Selecione um grupo muscular" }),
   }),
@@ -335,7 +335,7 @@ const AlunoOnboardingPage = () => {
     if (isNaN(altura) || altura <= 0 || isNaN(peso) || peso <= 0) return 1;
     if (!v.objetivo || v.objetivo.length < 3) return 2;
     if (!v.nivel) return 3;
-    if (!Array.isArray(v.training_days) || v.training_days.length < 2 || v.training_days.length > 6) return 4;
+    if (!Array.isArray(v.training_days) || v.training_days.length < 2 || v.training_days.length > 7) return 4;
     if (!v.focus_group) return 5;
     return null;
   };
@@ -353,10 +353,10 @@ const AlunoOnboardingPage = () => {
       return;
     }
 
-    if (current.length >= 6) {
+    if (current.length >= 7) {
       toast({
         title: "Seleção inválida",
-        description: "Selecione entre 2 e 6 dias da semana",
+        description: "Selecione entre 2 e 7 dias da semana",
         variant: "destructive",
       });
       return;
@@ -379,7 +379,7 @@ const AlunoOnboardingPage = () => {
         if (firstInvalid === 4) {
           toast({
             title: "Seleção inválida",
-            description: "Selecione entre 2 e 6 dias da semana",
+            description: "Selecione entre 2 e 7 dias da semana",
             variant: "destructive",
           });
         } else {
@@ -615,7 +615,7 @@ const AlunoOnboardingPage = () => {
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="mb-4">
               <Label className="text-[10px] font-black uppercase tracking-widest text-primary/60 ml-1">Frequência Semanal</Label>
-              <p className="text-xs text-muted-foreground ml-1">Selecione de 2 a 6 dias para seu protocolo.</p>
+              <p className="text-xs text-muted-foreground ml-1">Selecione de 2 a 7 dias para seu protocolo.</p>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -757,10 +757,10 @@ const AlunoOnboardingPage = () => {
                   onClick={() => {
                     if (currentStep === 4) {
                       const days = (watch("training_days") ?? []) as string[];
-                      if (days.length < 2 || days.length > 6) {
+                      if (days.length < 2 || days.length > 7) {
                         toast({
                           title: "Seleção inválida",
-                          description: "Selecione entre 2 e 6 dias da semana",
+                          description: "Selecione entre 2 e 7 dias da semana",
                           variant: "destructive",
                         });
                         return;
