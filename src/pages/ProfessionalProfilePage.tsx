@@ -12,7 +12,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Save, User, Camera, ArrowLeft, Loader2, CreditCard } from "lucide-react";
 import { ProfessionalFloatingNavIsland } from "@/components/navigation/ProfessionalFloatingNavIsland";
-import { SPECIALTY_CATEGORIES, getSpecialtyLabel } from "@/lib/professionalSpecialties";
+import {
+    SPECIALTY_CATEGORIES,
+    getSpecialtyLabel,
+    getSpecialtiesForService,
+    getSpecialtyValueFromLabel
+} from "@/lib/professionalSpecialties";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function ProfessionalProfilePage() {
@@ -48,7 +53,7 @@ export default function ProfessionalProfilePage() {
     const loadProfile = async () => {
         if (!user) return;
         try {
-            const { data, error } = await supabase
+            const { data, error } = await (supabase as any)
                 .from("professionals")
                 .select("*")
                 .eq("user_id", user.id)
@@ -59,11 +64,17 @@ export default function ProfessionalProfilePage() {
             setProfile(data);
 
             // Fetch services
-            const { data: services } = await supabase
+            const { data: services, error: sErr } = await (supabase as any)
                 .from("telemedicina_servicos")
                 .select("*")
                 .eq("ativo", true);
-            if (services) setTelemedicinaServices(services);
+
+            if (sErr) {
+                console.error("[Profile] Error fetching services:", sErr);
+            } else if (services) {
+                console.log("[Profile] Services found:", services.length);
+                setTelemedicinaServices(services);
+            }
 
             setFormData({
                 name: data.name || "",
@@ -90,7 +101,7 @@ export default function ProfessionalProfilePage() {
         if (!user || !profile) return;
         setSaving(true);
         try {
-            const { error } = await supabase
+            const { error } = await (supabase as any)
                 .from("professionals")
                 .update({
                     name: formData.name,
@@ -195,42 +206,59 @@ export default function ProfessionalProfilePage() {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label className="text-white">Especialidade (Marketplace)</Label>
-                                <Select value={formData.specialty} onValueChange={(value) => setFormData({ ...formData, specialty: value })}>
-                                    <SelectTrigger className="bg-black/20 border-white/10 text-white">
-                                        <SelectValue placeholder="Selecione" />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-zinc-900 border-white/10">
-                                        {Object.entries(SPECIALTY_CATEGORIES).map(([key, category]) => (
-                                            <div key={key}>
-                                                <div className="px-2 py-1.5 text-xs font-bold uppercase text-muted-foreground bg-white/5">
-                                                    {category.label}
-                                                </div>
-                                                {category.specialties.map((spec) => (
-                                                    <SelectItem key={spec.value} value={spec.value} className="text-white">
-                                                        {spec.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </div>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label className="text-white">Serviço Telemedicina</Label>
+                                <Label className="text-white">Serviço Telemedicina (Categoria)</Label>
                                 <Select
                                     value={formData.telemedicina_servico_id}
-                                    onValueChange={(value) => setFormData({ ...formData, telemedicina_servico_id: value })}
+                                    onValueChange={(value) => {
+                                        setFormData({
+                                            ...formData,
+                                            telemedicina_servico_id: value,
+                                            specialty: "" // Reset specialty when category changes
+                                        });
+                                    }}
                                 >
                                     <SelectTrigger className="bg-black/20 border-white/10 text-white">
                                         <SelectValue placeholder="Selecione" />
                                     </SelectTrigger>
                                     <SelectContent className="bg-zinc-900 border-white/10">
-                                        {telemedicinaServices?.map((service) => (
-                                            <SelectItem key={service.id} value={service.id} className="text-white">
-                                                {service.nome}
-                                            </SelectItem>
-                                        ))}
+                                        {telemedicinaServices && telemedicinaServices.length > 0 ? (
+                                            telemedicinaServices.map((service) => (
+                                                <SelectItem key={service.id} value={service.id} className="text-white">
+                                                    {service.nome}
+                                                </SelectItem>
+                                            ))
+                                        ) : (
+                                            <div className="p-4 text-center text-[10px] text-zinc-500">
+                                                Nenhuma categoria ativa encontrada.
+                                            </div>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-white">Especialidade Específica</Label>
+                                <Select
+                                    value={getSpecialtyValueFromLabel(formData.specialty)}
+                                    onValueChange={(value) => setFormData({ ...formData, specialty: getSpecialtyLabel(value) })}
+                                >
+                                    <SelectTrigger className="bg-black/20 border-white/10 text-white">
+                                        <SelectValue placeholder="Selecione" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-zinc-900 border-white/10">
+                                        {(() => {
+                                            const selectedService = telemedicinaServices.find(s => s.id === formData.telemedicina_servico_id);
+                                            const availableSpecialties = selectedService ? getSpecialtiesForService(selectedService.slug) : [];
+
+                                            if (availableSpecialties.length > 0) {
+                                                return availableSpecialties.map((spec) => (
+                                                    <SelectItem key={spec.value} value={spec.value} className="text-white">
+                                                        {spec.label}
+                                                    </SelectItem>
+                                                ));
+                                            }
+
+                                            return <SelectItem value="other" className="text-white">Outros</SelectItem>;
+                                        })()}
                                     </SelectContent>
                                 </Select>
                             </div>

@@ -97,3 +97,31 @@ export const SPECIALTY_CATEGORIES = {
         )
     }
 };
+// Helper to get value from label
+export const getSpecialtyValueFromLabel = (label: string): string => {
+    const specialty = PROFESSIONAL_SPECIALTIES.find(s => s.label === label);
+    return specialty?.value || label;
+};
+
+// Map telemedicina_servicos slugs to SPECIALTY_CATEGORIES keys
+export const SERVICE_TO_CATEGORY_MAP: Record<string, string> = {
+    "educador-fisico": "fitness",
+    "educador fisico": "fitness",
+    "educador-físico": "fitness",
+    "educador físico": "fitness",
+    "nutricao": "nutrition",
+    "nutrição": "nutrition",
+    "fisioterapia": "therapy",
+    "psicologia": "mental",
+    "cardiologia": "medical",
+    "endocrinologia": "medical",
+    "ortopedia": "medical",
+    "suplementos": "fitness",
+};
+
+// Helper to get specialties for a service slug
+export const getSpecialtiesForService = (serviceSlug: string) => {
+    const categoryKey = SERVICE_TO_CATEGORY_MAP[serviceSlug.toLowerCase()];
+    if (!categoryKey) return [];
+    return SPECIALTY_CATEGORIES[categoryKey as keyof typeof SPECIALTY_CATEGORIES]?.specialties || [];
+};

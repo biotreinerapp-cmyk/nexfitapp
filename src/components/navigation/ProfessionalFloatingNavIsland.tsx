@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, MessageCircle, DollarSign, User, Lock, Calendar } from "lucide-react";
+import { Home, Megaphone, User, Lock, GraduationCap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserPlan } from "@/hooks/useUserPlan";
 
@@ -11,9 +11,8 @@ interface NavItem {
 
 const navItems: NavItem[] = [
     { icon: Home, label: "Início", path: "/professional/dashboard" },
-    { icon: Calendar, label: "Agenda", path: "/professional/agenda" },
-    { icon: MessageCircle, label: "Chat", path: "/professional/chat" },
-    { icon: DollarSign, label: "Financeiro", path: "/professional/financeiro" },
+    { icon: Megaphone, label: "Nexfit ADS", path: "/professional/ads" },
+    { icon: GraduationCap, label: "Education", path: "/professional/education" },
     { icon: User, label: "Perfil", path: "/professional/profile" },
 ];
 

@@ -57,6 +57,15 @@ import ProfessionalChatPage from "./pages/ProfessionalChatPage";
 import ProfessionalFinanceiroPage from "./pages/ProfessionalFinanceiroPage";
 import ProfessionalProfilePage from "./pages/ProfessionalProfilePage";
 import ProfessionalAgendaPage from "./pages/ProfessionalAgendaPage";
+import ProfessionalDestaquePage from "@/pages/ProfessionalDestaquePage";
+import ProfessionalEvolucaoPage from "./pages/ProfessionalEvolucaoPage";
+import ProfessionalStudentEvolutionPage from "./pages/ProfessionalStudentEvolutionPage";
+import ProfessionalTreinosPage from "./pages/ProfessionalTreinosPage";
+import ProfessionalTreinoFormPage from "./pages/ProfessionalTreinoFormPage";
+import ProfessionalConsultoriaPage from "./pages/ProfessionalConsultoriaPage";
+import ProfessionalConsultoriaEditorPage from "./pages/ProfessionalConsultoriaEditorPage";
+import ProfessionalEducationPage from "./pages/ProfessionalEducationPage";
+import ProfessionalEducationPlayerPage from "./pages/ProfessionalEducationPlayerPage";
 import RunningClubPage from "./pages/RunningClubPage";
 import RunningClubDetailPage from "./pages/RunningClubDetailPage";
 import AlunoPersonalizarAtividadePage from "./pages/AlunoPersonalizarAtividade";
@@ -909,6 +918,14 @@ const AppRoutes = () => (
         }
       />
       <Route
+        path="/professional/ads"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalDestaquePage />
+          </ProfessionalRoute>
+        }
+      />
+      <Route
         path="/professional/lp-editor"
         element={
           <ProfessionalRoute>
@@ -965,6 +982,94 @@ const AppRoutes = () => (
         element={
           <ProfessionalRoute>
             <ProfessionalPlanoPage />
+          </ProfessionalRoute>
+        }
+      />
+      <Route
+        path="/professional/evolucao"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalEvolucaoPage />
+          </ProfessionalRoute>
+        }
+      />
+      <Route
+        path="/professional/aluno/:studentId/evolucao"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalStudentEvolutionPage />
+          </ProfessionalRoute>
+        }
+      />
+      <Route
+        path="/professional/treinos"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalTreinosPage />
+          </ProfessionalRoute>
+        }
+      />
+      <Route
+        path="/professional/treinos/novo"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalTreinoFormPage />
+          </ProfessionalRoute>
+        }
+      />
+      <Route
+        path="/professional/treinos/:id/editar"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalTreinoFormPage />
+          </ProfessionalRoute>
+        }
+      />
+      <Route
+        path="/professional/consultoria"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalConsultoriaPage />
+          </ProfessionalRoute>
+        }
+      />
+      <Route
+        path="/professional/consultoria/gerenciar"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalConsultoriaEditorPage />
+          </ProfessionalRoute>
+        }
+      />
+      <Route
+        path="/professional/consultoria/gerenciar/:id"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalConsultoriaEditorPage />
+          </ProfessionalRoute>
+        }
+      />
+      <Route
+        path="/professional/education"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalEducationPage />
+          </ProfessionalRoute>
+        }
+      />
+      <Route
+        path="/professional/education/player/:courseId"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalEducationPlayerPage />
+          </ProfessionalRoute>
+        }
+      />
+      <Route
+        path="/professional/education/player/:courseId/:lessonId"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalEducationPlayerPage />
           </ProfessionalRoute>
         }
       />

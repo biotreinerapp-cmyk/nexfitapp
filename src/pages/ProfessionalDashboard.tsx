@@ -3,26 +3,28 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { ProfessionalFloatingNavIsland } from "@/components/navigation/ProfessionalFloatingNavIsland";
 import {
     User,
     LogOut,
-    Sparkles,
-    Users,
-    CheckCircle2,
-    Clock,
-    XCircle,
-    Eye,
+    Calendar,
+    MessageCircle,
     DollarSign,
-    Lock,
-    Unlock,
-    Calendar as CalendarIcon,
-    Image as ImageIcon
+    ImageIcon,
+    Megaphone,
+    Zap,
+    Users,
+    ChevronRight,
+    Clock,
+    CheckCircle2,
+    XCircle,
+    TrendingUp,
+    Dumbbell,
+    Briefcase,
+    Apple
 } from "lucide-react";
 import { getSpecialtyLabel } from "@/lib/professionalSpecialties";
-import { ProfessionalFloatingNavIsland } from "@/components/navigation/ProfessionalFloatingNavIsland";
+import { Badge } from "@/components/ui/badge";
 
 interface ProfessionalProfile {
     id: string;
@@ -60,10 +62,12 @@ export default function ProfessionalDashboard() {
     const [loading, setLoading] = useState(true);
     const [profile, setProfile] = useState<ProfessionalProfile | null>(null);
     const [hires, setHires] = useState<HireRequest[]>([]);
-    const [lpViews, setLpViews] = useState(0);
+
+    const isNutritionist = profile?.specialty?.toLowerCase().includes("nutri") ||
+        profile?.specialty?.toLowerCase().includes("diet");
 
     useEffect(() => {
-        document.title = "Dashboard Profissional - Nexfit";
+        document.title = "Painel do Profissional - Nexfit";
         loadData();
     }, [user]);
 
@@ -71,7 +75,6 @@ export default function ProfessionalDashboard() {
         if (!user) return;
 
         try {
-            // Load professional profile
             const { data: profileData, error: profileError } = await supabase
                 .from("professionals")
                 .select("*")
@@ -80,7 +83,6 @@ export default function ProfessionalDashboard() {
 
             if (profileError) {
                 if (profileError.code === "PGRST116") {
-                    // No profile found, redirect to registration
                     navigate("/professional/register");
                     return;
                 }
@@ -89,36 +91,21 @@ export default function ProfessionalDashboard() {
 
             setProfile(profileData as ProfessionalProfile);
 
-            // Load hire requests
             const { data: hiresData } = await supabase
                 .from("professional_hires")
                 .select(`
-          id,
-          status,
-          message,
-          created_at,
-          student_id,
-          profiles!professional_hires_student_id_fkey(display_name)
-        `)
+                    id,
+                    status,
+                    message,
+                    created_at,
+                    student_id,
+                    profiles!professional_hires_student_id_fkey(display_name)
+                `)
                 .eq("professional_id", profileData.id)
                 .order("created_at", { ascending: false })
                 .limit(20);
 
             setHires((hiresData || []) as any);
-
-            // Load LP views if LP exists
-            if (profileData.lp_unlocked) {
-                const { data: lpData } = await supabase
-                    .from("professional_landing_pages")
-                    .select("views_count")
-                    .eq("professional_id", profileData.id)
-                    .eq("is_active", true)
-                    .single();
-
-                if (lpData) {
-                    setLpViews(lpData.views_count || 0);
-                }
-            }
         } catch (error: any) {
             console.error("Load error:", error);
             toast({
@@ -138,158 +125,226 @@ export default function ProfessionalDashboard() {
 
     if (loading) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-black">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-            </div>
+            <main className="flex min-h-screen items-center justify-center bg-black">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            </main>
         );
     }
 
     if (!profile) return null;
 
     const pendingHires = hires.filter(h => h.status === "pending");
-    const acceptedHires = hires.filter(h => h.status === "accepted");
-
-    const stats = [
-        {
-            icon: Users,
-            label: "Alunos Ativos",
-            value: String(acceptedHires.length),
-            color: "text-blue-400",
-            path: "/professional/chat"
-        },
-        {
-            icon: CalendarIcon,
-            label: "Sua Agenda",
-            value: "Ver Sessões",
-            color: "text-purple-400",
-            path: "/professional/agenda"
-        },
-        {
-            icon: DollarSign,
-            label: "Ganhos Totais",
-            value: profile.base_price ? `R$ ${(acceptedHires.length * profile.base_price).toFixed(2)}` : "R$ 0,00",
-            color: "text-primary",
-            path: "/professional/financeiro"
-        },
-        {
-            icon: Clock,
-            label: "Pendentes",
-            value: String(pendingHires.length),
-            color: "text-yellow-400",
-            path: "/professional/dashboard"
-        },
-    ];
 
     return (
-        <main className="min-h-screen bg-black pb-28">
-            {/* Header Card */}
+        <main className="min-h-screen bg-black pb-28 safe-bottom-floating-nav">
+            {/* Premium Header Card */}
             <section className="relative px-4 pt-4">
                 <div className="relative flex min-h-[140px] flex-col justify-end overflow-hidden rounded-[32px] border border-white/5 bg-white/[0.03] p-6 backdrop-blur-xl">
                     {profile.cover_image_url && (
                         <div className="absolute inset-0 z-0">
                             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
-                            <img
-                                src={profile.cover_image_url}
-                                alt="Cover"
-                                className="h-full w-full object-cover opacity-60"
-                            />
+                            <img src={profile.cover_image_url} alt="Cover" className="h-full w-full object-cover opacity-60" />
                         </div>
                     )}
 
                     <div className="relative z-10 flex items-end gap-4">
                         <div className="relative h-20 w-20 rounded-2xl border-2 border-white/10 bg-black/40 backdrop-blur-md overflow-hidden shadow-2xl">
                             {profile.profile_image_url ? (
-                                <img
-                                    src={profile.profile_image_url}
-                                    alt={profile.name}
-                                    className="h-full w-full object-cover"
-                                />
+                                <img src={profile.profile_image_url} alt={profile.name} className="h-full w-full object-cover" />
                             ) : (
                                 <div className="flex h-full w-full items-center justify-center">
                                     <User className="h-8 w-8 text-primary" />
                                 </div>
                             )}
                         </div>
-
                         <div className="flex-1 pb-1">
-                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-1">
-                                Profissional
-                            </p>
-                            <h1 className="text-2xl font-black text-white uppercase tracking-tight leading-none drop-shadow-md">
-                                {profile.name}
-                            </h1>
-                            <p className="text-xs text-white/60 mt-1">
-                                {getSpecialtyLabel(profile.specialty)}
-                            </p>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-1">Painel do Profissional</p>
+                            <h1 className="text-2xl font-black text-white uppercase tracking-tight leading-none drop-shadow-md">{profile.name}</h1>
+                            <p className="text-xs text-white/60 mt-2 font-medium">{getSpecialtyLabel(profile.specialty)}</p>
                         </div>
 
-                        <button
-                            onClick={handleLogout}
-                            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
-                        >
-                            <LogOut className="h-5 w-5" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleLogout}
+                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                                title="Sair"
+                            >
+                                <LogOut className="h-5 w-5" />
+                            </button>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            {/* LP Management Shortcut */}
-            <section className="px-4 mt-6">
-                <Card className="border-primary/20 bg-primary/5 border-dashed">
-                    <CardContent className="p-6 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center">
-                                <ImageIcon className="h-5 w-5 text-primary" />
-                            </div>
-                            <div>
-                                <h3 className="text-white font-bold text-sm">Sua Página Pública</h3>
-                                <p className="text-[10px] text-white/50">Personalize sua landing page manual</p>
-                            </div>
+            {/* Premium Hub Buttons */}
+            <section className="mt-6 px-4 space-y-4">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-sm font-black uppercase tracking-widest text-[#56FF02] drop-shadow-[0_0_8px_rgba(86,255,2,0.4)]">
+                        Seus Módulos
+                    </h2>
+                    <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent ml-4" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                    {/* Agenda */}
+                    <button
+                        onClick={() => navigate("/professional/agenda")}
+                        className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-blue-600/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
+                    >
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-blue-400 shadow-inner">
+                            <Calendar className="h-6 w-6" />
                         </div>
-                        <Button
-                            onClick={() => navigate("/professional/lp-editor")}
-                            size="sm"
-                            className="bg-primary text-black hover:bg-primary/90 rounded-lg text-xs"
-                        >
-                            Configurar
-                        </Button>
-                    </CardContent>
-                </Card>
+                        <div className="space-y-1">
+                            <h3 className="text-sm font-bold text-white leading-none">Agenda</h3>
+                            <p className="text-[10px] text-zinc-400 font-medium">Gestão de Sessões</p>
+                        </div>
+                        <div className="absolute top-4 right-4 opacity-5 transition-opacity group-hover:opacity-10">
+                            <Calendar className="h-10 w-10 rotate-12 text-blue-400" />
+                        </div>
+                    </button>
+
+                    {/* Criar Treinos / Receitas */}
+                    <button
+                        onClick={() => navigate("/professional/treinos")}
+                        className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-primary/20 bg-gradient-to-br from-primary/10 to-primary/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
+                    >
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-primary shadow-inner">
+                            {isNutritionist ? <Apple className="h-6 w-6" /> : <Dumbbell className="h-6 w-6" />}
+                        </div>
+                        <div className="space-y-1">
+                            <h3 className="text-sm font-bold text-white leading-none">
+                                {isNutritionist ? "Criar Receitas" : "Criar Treinos"}
+                            </h3>
+                            <p className="text-[10px] text-zinc-400 font-medium">
+                                {isNutritionist ? "Planos Alimentares" : "Montagem de Fichas"}
+                            </p>
+                        </div>
+                        <div className="absolute top-4 right-4 opacity-5 transition-opacity group-hover:opacity-10">
+                            {isNutritionist ? (
+                                <Apple className="h-10 w-10 rotate-12 text-primary" />
+                            ) : (
+                                <Dumbbell className="h-10 w-10 rotate-12 text-primary" />
+                            )}
+                        </div>
+                    </button>
+
+                    {/* Evolução */}
+                    <button
+                        onClick={() => navigate("/professional/evolucao")}
+                        className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-pink-500/20 bg-gradient-to-br from-pink-500/10 to-pink-600/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
+                    >
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-pink-400 shadow-inner">
+                            <TrendingUp className="h-6 w-6" />
+                        </div>
+                        <div className="space-y-1">
+                            <h3 className="text-sm font-bold text-white leading-none">Evolução</h3>
+                            <p className="text-[10px] text-zinc-400 font-medium">Gráficos de Resultados</p>
+                        </div>
+                        <div className="absolute top-4 right-4 opacity-5 transition-opacity group-hover:opacity-10">
+                            <TrendingUp className="h-10 w-10 rotate-12 text-pink-400" />
+                        </div>
+                    </button>
+
+                    {/* Chat / Alunos */}
+                    <button
+                        onClick={() => navigate("/professional/chat")}
+                        className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-purple-600/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
+                    >
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-purple-400 shadow-inner">
+                            <MessageCircle className="h-6 w-6" />
+                        </div>
+                        <div className="space-y-1">
+                            <h3 className="text-sm font-bold text-white leading-none">Alunos</h3>
+                            <p className="text-[10px] text-zinc-400 font-medium">Chat e Evolução</p>
+                        </div>
+                        <div className="absolute top-4 right-4 opacity-5 transition-opacity group-hover:opacity-10">
+                            <MessageCircle className="h-10 w-10 rotate-12 text-purple-400" />
+                        </div>
+                    </button>
+
+                    {/* Financeiro */}
+                    <button
+                        onClick={() => navigate("/professional/financeiro")}
+                        className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
+                    >
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-emerald-400 shadow-inner">
+                            <DollarSign className="h-6 w-6" />
+                        </div>
+                        <div className="space-y-1">
+                            <h3 className="text-sm font-bold text-white leading-none">Financeiro</h3>
+                            <p className="text-[10px] text-zinc-400 font-medium">Ganhos e Relatórios</p>
+                        </div>
+                        <div className="absolute top-4 right-4 opacity-5 transition-opacity group-hover:opacity-10">
+                            <DollarSign className="h-10 w-10 rotate-12 text-emerald-400" />
+                        </div>
+                    </button>
+
+                    {/* Minha Consultoria */}
+                    <button
+                        onClick={() => navigate("/professional/consultoria")}
+                        className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
+                    >
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-cyan-400 shadow-inner">
+                            <Briefcase className="h-6 w-6" />
+                        </div>
+                        <div className="space-y-1">
+                            <h3 className="text-sm font-bold text-white leading-none">Consultoria</h3>
+                            <p className="text-[10px] text-zinc-400 font-medium">Sua Metodologia</p>
+                        </div>
+                        <div className="absolute top-4 right-4 opacity-5 transition-opacity group-hover:opacity-10">
+                            <Briefcase className="h-10 w-10 rotate-12 text-cyan-400" />
+                        </div>
+                    </button>
+
+                    {/* Página Pública (LP) */}
+                    <button
+                        onClick={() => navigate("/professional/lp-editor")}
+                        className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-orange-500/20 bg-gradient-to-br from-orange-500/10 to-orange-600/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
+                    >
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-orange-400 shadow-inner">
+                            <ImageIcon className="h-6 w-6" />
+                        </div>
+                        <div className="space-y-1">
+                            <h3 className="text-sm font-bold text-white leading-none">Página Pública</h3>
+                            <p className="text-[10px] text-zinc-400 font-medium">Sua Landing Page</p>
+                        </div>
+                        <div className="absolute top-4 right-4 opacity-5 transition-opacity group-hover:opacity-10">
+                            <ImageIcon className="h-10 w-10 rotate-12 text-orange-400" />
+                        </div>
+                    </button>
+
+                    {/* Nexfit ADS banner */}
+                    <button
+                        onClick={() => navigate("/professional/ads")}
+                        className="group relative col-span-2 flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-primary/30 bg-gradient-to-br from-primary/20 to-primary/5 p-5 text-left transition-all hover:scale-[1.01] active:scale-[0.99] backdrop-blur-md"
+                    >
+                        <div className="flex w-full items-center justify-between">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/20 text-primary shadow-inner">
+                                <Megaphone className="h-6 w-6" />
+                            </div>
+                            <Badge variant="outline" className="border-primary/50 text-primary bg-primary/10 tracking-widest text-[9px]">IMPULSIONAR PERFIL</Badge>
+                        </div>
+
+                        <div className="space-y-1">
+                            <h3 className="text-sm font-black italic text-white leading-none flex items-center gap-2">NEXFIT <span className="text-primary">ADS</span> <Zap className="h-4 w-4 text-primary fill-primary" /></h3>
+                            <p className="text-xs text-zinc-400 font-medium mt-1">Destaque seu perfil no topo para milhares <br />de alunos em busca de profissionais.</p>
+                        </div>
+                        <div className="absolute top-4 right-10 opacity-5 transition-opacity group-hover:opacity-10">
+                            <Megaphone className="h-24 w-24 rotate-12 text-primary" />
+                        </div>
+                    </button>
+                </div>
             </section>
 
-
-
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 gap-3 px-4 mt-4">
-                {stats.map((stat) => {
-                    const Icon = stat.icon;
-                    return (
-                        <button
-                            key={stat.label}
-                            onClick={() => navigate(stat.path)}
-                            className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.03] p-5 backdrop-blur-md transition-all hover:bg-white/[0.06] text-left"
-                        >
-                            <div className="flex flex-col gap-3">
-                                <div className="flex items-center gap-2">
-                                    <Icon className={`h-4 w-4 ${stat.color}`} />
-                                    <span className="text-[9px] uppercase tracking-wider text-zinc-400">
-                                        {stat.label}
-                                    </span>
-                                </div>
-                                <p className="text-xl font-black text-white">{stat.value}</p>
-                            </div>
-                        </button>
-                    );
-                })}
-            </div>
-
-            {/* Pending Hire Requests */}
+            {/* Pending Requests Section (Lojista style but for hires) */}
             {pendingHires.length > 0 && (
                 <section className="mt-8 px-4">
-                    <h2 className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-zinc-400">
-                        <Clock className="h-4 w-4 text-yellow-400" />
-                        Aguardando Resposta ({pendingHires.length})
-                    </h2>
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-zinc-400">
+                            <Clock className="h-4 w-4 text-yellow-400" />
+                            Aguardando Resposta ({pendingHires.length})
+                        </h2>
+                    </div>
                     <div className="space-y-3">
                         {pendingHires.map((hire) => (
                             <HireCard key={hire.id} hire={hire} onUpdate={loadData} />
@@ -298,11 +353,14 @@ export default function ProfessionalDashboard() {
                 </section>
             )}
 
-            {/* Recent Hires */}
+            {/* Solicitacoes Recentes */}
             <section className="mt-8 px-4">
-                <h2 className="mb-4 text-xs font-black uppercase tracking-widest text-zinc-400">
-                    Solicitações Recentes
-                </h2>
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xs font-black uppercase tracking-widest text-zinc-400">
+                        Solicitações Recentes
+                    </h2>
+                    <div className="h-px flex-1 bg-white/5 ml-4" />
+                </div>
                 {hires.length === 0 ? (
                     <div className="rounded-[24px] border border-white/5 bg-white/[0.03] p-8 text-center backdrop-blur-md">
                         <p className="text-xs text-zinc-500">
@@ -311,14 +369,13 @@ export default function ProfessionalDashboard() {
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        {hires.slice(0, 10).map((hire) => (
+                        {hires.slice(0, 5).map((hire) => (
                             <HireCard key={hire.id} hire={hire} onUpdate={loadData} />
                         ))}
                     </div>
                 )}
             </section>
 
-            {/* Floating Navigation */}
             <ProfessionalFloatingNavIsland />
         </main>
     );
@@ -359,49 +416,47 @@ function HireCard({ hire, onUpdate }: { hire: HireRequest; onUpdate: () => void 
     };
 
     return (
-        <div className="rounded-[24px] border border-white/5 bg-white/[0.03] p-4 backdrop-blur-md">
+        <div className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.03] p-4 backdrop-blur-md transition-all hover:bg-white/[0.05]">
             <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                         <p className="text-sm font-bold text-white truncate">
                             {hire.profiles?.display_name || "Aluno"}
                         </p>
-                        <Badge variant="outline" className={`${statusInfo.color} border-current`}>
-                            <StatusIcon className="mr-1 h-3 w-3" />
+                        <Badge variant="outline" className={`${statusInfo.color} border-current/20 bg-current/5 text-[9px] h-4 uppercase font-black px-1.5`}>
                             {statusInfo.label}
                         </Badge>
                     </div>
-                    <p className="text-xs text-white/60 line-clamp-2 mb-2">
-                        {hire.message || "Sem mensagem"}
+                    <p className="text-xs text-white/50 line-clamp-2 mb-2">
+                        {hire.message || "Sem mensagem de contratação."}
                     </p>
-                    <p className="text-[10px] text-white/40">
-                        {new Date(hire.created_at).toLocaleString("pt-BR", {
-                            dateStyle: "short",
-                            timeStyle: "short"
-                        })}
-                    </p>
+                    <div className="flex items-center gap-2">
+                        <Clock className="h-3 w-3 text-zinc-600" />
+                        <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-tight">
+                            {new Date(hire.created_at).toLocaleString("pt-BR", {
+                                dateStyle: "short",
+                                timeStyle: "short"
+                            })}
+                        </p>
+                    </div>
                 </div>
 
                 {hire.status === "pending" && (
-                    <div className="flex gap-2">
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 border-green-500/50 text-green-400 hover:bg-green-500/10"
+                    <div className="flex flex-col gap-2 shrink-0">
+                        <button
                             onClick={() => handleUpdateStatus("accepted")}
                             disabled={updating}
+                            className="flex h-8 w-8 items-center justify-center rounded-full bg-[#56FF02]/10 text-[#56FF02] hover:bg-[#56FF02]/20 transition-colors disabled:opacity-50"
                         >
-                            Aceitar
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 border-red-500/50 text-red-400 hover:bg-red-500/10"
+                            <CheckCircle2 className="h-5 w-5" />
+                        </button>
+                        <button
                             onClick={() => handleUpdateStatus("rejected")}
                             disabled={updating}
+                            className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors disabled:opacity-50"
                         >
-                            Rejeitar
-                        </Button>
+                            <XCircle className="h-5 w-5" />
+                        </button>
                     </div>
                 )}
             </div>
