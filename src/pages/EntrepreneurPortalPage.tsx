@@ -81,17 +81,17 @@ export default function EntrepreneurPortalPage() {
 
             const role = activeTab === "store" ? "store_owner" : "professional";
 
-            const { error: signUpError } = await supabase.auth.signUp({
-                email: formData.email.trim().toLowerCase(),
-                password: formData.password,
-                options: {
-                    data: {
-                        display_name: formData.name.trim(),
-                        role: role
-                    }
+            // Create auth user and send OTP directly via our custom edge function
+            // (admin.createUser bypasses the default Lovable email verification link)
+            const { error: otpError } = await supabase.functions.invoke("send-email-otp", {
+                body: {
+                    email: formData.email.trim().toLowerCase(),
+                    name: formData.name.trim(),
+                    password: formData.password,
+                    role: role
                 }
             });
-            if (signUpError) throw signUpError;
+            if (otpError) throw otpError;
 
             // Show OTP verification screen
             setPendingRole(activeTab);
@@ -110,12 +110,7 @@ export default function EntrepreneurPortalPage() {
         if (!otpEmail || isResendingOtp || resendCooldown > 0) return;
         setIsResendingOtp(true);
         try {
-            const { error } = await supabase.auth.resend({
-                type: "signup",
-                email: otpEmail,
-            });
-            if (error) throw error;
-
+            await supabase.functions.invoke("send-email-otp", { body: { email: otpEmail } });
             setOtpCode("");
             setResendCooldown(60);
             toast({ title: "Código reenviado!", description: "Verifique sua caixa de entrada." });
@@ -133,13 +128,15 @@ export default function EntrepreneurPortalPage() {
         }
         setIsVerifyingOtp(true);
         try {
-            const { data, error } = await supabase.auth.verifyOtp({
-                email: otpEmail,
-                token: otpCode,
-                type: "signup",
+            const { data, error } = await supabase.functions.invoke("verify-email-otp", {
+                body: { email: otpEmail, otp_code: otpCode },
             });
-
             if (error) throw error;
+            if (data?.error) throw new Error(data.error);
+
+            if (data?.autoLogin && data?.access_token && data?.refresh_token) {
+                await supabase.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token });
+            }
 
             toast({ title: "E-mail confirmado!", description: "Bem-vindo ao NexFit! 🎉" });
 
@@ -179,9 +176,10 @@ export default function EntrepreneurPortalPage() {
                                 <ShieldCheck className="h-8 w-8 text-primary" />
                             </div>
                             <CardTitle className="text-xl font-bold text-white">Confirme seu e-mail</CardTitle>
-                            <CardDescription className="text-white/60 flex items-center justify-center gap-1.5">
-                                <Mail className="h-3.5 w-3.5" />
-                                Código enviado para <span className="font-semibold text-white ml-1">{otpEmail}</span>
+                            <CardDescription className="text-white/60 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 break-all mt-1">
+                                <Mail className="h-3.5 w-3.5 shrink-0 text-primary/60" />
+                                <span className="whitespace-nowrap">Código enviado para</span>
+                                <span className="font-semibold text-white">{otpEmail}</span>
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
