@@ -1032,21 +1032,34 @@ const ScrollToTopOnDashboard = () => {
   return null;
 };
 
-const App = () => {
-  useEffect(() => {
-    // Remove o splash inicial do HTML simples assim que o React assume o controle
-    const initialSplash = document.getElementById("initial-splash");
-    if (initialSplash) {
-      initialSplash.style.opacity = "0";
-      setTimeout(() => initialSplash.remove(), 500);
-    }
-  }, []);
+const SplashManager = () => {
+  const { loading } = useAuth();
+  const location = useLocation();
 
+  useEffect(() => {
+    if (!loading) {
+      // Pequeno delay para garantir que o React renderizou o Dashboard/Login
+      const t = setTimeout(() => {
+        const initialSplash = document.getElementById("initial-splash");
+        if (initialSplash) {
+          initialSplash.style.opacity = "0";
+          setTimeout(() => initialSplash.remove(), 500);
+        }
+      }, 300);
+      return () => clearTimeout(t);
+    }
+  }, [loading]);
+
+  return null;
+};
+
+const App = () => {
   return (
     <AuthProvider>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <UserPreferencesProvider>
           <ActivityProvider>
+            <SplashManager />
             <ScrollToTopOnDashboard />
             <AppRoutes />
           </ActivityProvider>

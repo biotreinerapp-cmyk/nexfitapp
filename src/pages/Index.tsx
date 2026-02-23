@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { PwaInstallBanner } from "@/components/PwaInstallBanner";
 import { usePwaInstallPrompt } from "@/hooks/usePwaInstallPrompt";
+import SplashLoader from "@/components/SplashLoader";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -51,9 +52,13 @@ const Index = () => {
     checkRole();
   }, [user, loading, navigate, checking]);
 
+  if (loading || checking) {
+    return <SplashLoader />;
+  }
+
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-background text-muted-foreground">
-      Nexfit carregando...
+      <SplashLoader />
       <PwaInstallBanner
         showInstallBanner={showInstallBanner}
         onInstall={handleInstallClick}

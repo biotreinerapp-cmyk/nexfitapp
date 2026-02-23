@@ -35,7 +35,7 @@
   <meta name="twitter:site" content="@Lovable" />
   <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
   <style>
-    /* Critical CSS to prevent white flash */
+    /* Critical CSS to prevent white flash and provide premium splash */
     :root {
       color-scheme: dark;
     }
@@ -48,6 +48,7 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
+      font-family: 'Inter', sans-serif;
     }
 
     #initial-splash {
@@ -59,13 +60,50 @@
       align-items: center;
       justify-content: center;
       z-index: 99999;
-      transition: opacity 0.5s ease-out;
+      transition: opacity 0.4s ease-out;
+    }
+
+    .splash-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 300px;
+      height: 300px;
+      background: rgba(34, 197, 94, 0.15);
+      border-radius: 50%;
+      filter: blur(100px);
+      animation: splash-pulse 2s infinite ease-in-out;
+    }
+
+    @keyframes splash-pulse {
+
+      0%,
+      100% {
+        opacity: 0.5;
+        transform: translate(-50%, -50%) scale(1);
+      }
+
+      50% {
+        opacity: 0.8;
+        transform: translate(-50%, -50%) scale(1.1);
+      }
+    }
+
+    .splash-container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 1;
     }
 
     .splash-logo {
-      height: 60px;
+      height: 80px;
+      width: auto;
       opacity: 0;
-      transform: scale(0.9);
+      transform: scale(0.8);
+      filter: blur(10px) drop-shadow(0 0 15px rgba(34, 197, 94, 0.3));
       animation: splash-entry 0.8s ease-out forwards;
     }
 
@@ -73,17 +111,37 @@
       to {
         opacity: 1;
         transform: scale(1);
+        filter: blur(0px) drop-shadow(0 0 15px rgba(34, 197, 94, 0.3));
+      }
+    }
+
+    .splash-branding {
+      margin-top: 24px;
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.5em;
+      color: rgba(34, 197, 94, 0.6);
+      opacity: 0;
+      animation: fade-in 0.5s ease-out 0.5s forwards;
+    }
+
+    @keyframes fade-in {
+      to {
+        opacity: 1;
       }
     }
 
     .loader-line {
-      width: 100px;
+      width: 96px;
       height: 2px;
       background: rgba(255, 255, 255, 0.05);
       border-radius: 10px;
-      margin-top: 24px;
+      margin-top: 16px;
       overflow: hidden;
       position: relative;
+      opacity: 0;
+      animation: fade-in 0.5s ease-out 0.8s forwards;
     }
 
     .loader-line::after {
@@ -101,13 +159,28 @@
         left: 100%;
       }
     }
+
+    .splash-footer {
+      position: absolute;
+      bottom: 40px;
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3em;
+      color: rgba(255, 255, 255, 0.2);
+    }
   </style>
 </head>
 
 <body translate="no">
   <div id="initial-splash">
-    <img src="/nexfit-logo.png" class="splash-logo" alt="Nexfit" onerror="this.style.display='none'">
-    <div class="loader-line"></div>
+    <div class="splash-glow"></div>
+    <div class="splash-container">
+      <img src="/nexfit-logo.png" class="splash-logo" alt="Nexfit" onerror="this.style.opacity='0'">
+      <div class="splash-branding">Nexfit System</div>
+      <div class="loader-line"></div>
+    </div>
+    <div class="splash-footer">Elite Performance Intelligence</div>
   </div>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>

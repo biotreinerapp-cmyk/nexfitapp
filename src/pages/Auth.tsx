@@ -15,6 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFeedback } from "@/hooks/useFeedback";
 import { usePwaInstallPrompt } from "@/hooks/usePwaInstallPrompt";
+import SplashLoader from "@/components/SplashLoader";
 import { mapLoginError } from "@/lib/authErrors";
 import { PremiumBackground } from "@/components/ui/premium-background";
 import { IOSInstallModal } from "@/components/modals/IOSInstallModal";
@@ -157,6 +158,10 @@ const AuthPage = () => {
 
     checkUserRoleAndRedirect();
   }, [user, isAdmin, roleLoading, navigate, isUpdatePasswordMode]);
+
+  if (roleLoading) {
+    return <SplashLoader />;
+  }
 
   // --- OTP helpers ---
   const sendOtp = async (email: string, name?: string, password?: string, role?: string) => {
