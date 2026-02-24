@@ -578,9 +578,12 @@ const AuthPage = () => {
             NexFit System v2.0 • Elite Performance
           </p>
         </div>
+
+        <IOSInstallModal open={showIOSModal} onOpenChange={setShowIOSModal} />
       </main>
     </PremiumBackground>
   );
 };
+
 
 export default AuthPage;
