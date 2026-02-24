@@ -62,6 +62,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { StoreImageEditor } from "@/components/marketplace/StoreImageEditor";
+import { ImageUpload } from "@/components/shared/ImageUpload";
 import {
   Dialog,
   DialogContent,
@@ -3380,16 +3381,16 @@ const AdminMasterContent = () => {
                                 className="min-h-[70px] bg-background/60 text-sm"
                               />
                             </div>
-                            <div className="space-y-1.5">
-                              <Label htmlFor="prof-foto">URL da foto</Label>
-                              <Input
-                                id="prof-foto"
-                                value={novoProfissional.foto_url}
-                                onChange={(e) => setNovoProfissional((prev) => ({ ...prev, foto_url: e.target.value }))}
-                                placeholder="https://..."
-                                className="bg-background/60 text-sm"
-                              />
-                            </div>
+                            <ImageUpload
+                              value={novoProfissional.foto_url}
+                              onChange={(url) => setNovoProfissional((prev) => ({ ...prev, foto_url: url || "" }))}
+                              bucket="professional-images"
+                              pathPrefix="telemedicina"
+                              label="Foto do profissional"
+                              description="Formato recomendado: Quadrado (ex: 400x400px)"
+                              aspectRatio="square"
+                              className="w-full"
+                            />
                             <div className="grid grid-cols-2 gap-3">
                               <div className="space-y-1.5">
                                 <Label htmlFor="prof-preco">Preço base (R$)</Label>

@@ -82,7 +82,7 @@ export default function EntrepreneurPortalPage() {
             const role = activeTab === "store" ? "store_owner" : "professional";
 
             // Create auth user and send OTP directly via our custom edge function
-            // (admin.createUser bypasses the default Lovable email verification link)
+            // (admin.createUser ignora o link padrão de verificação externa)
             const { error: otpError } = await supabase.functions.invoke("send-email-otp", {
                 body: {
                     email: formData.email.trim().toLowerCase(),

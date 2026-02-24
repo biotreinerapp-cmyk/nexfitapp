@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ProfessionalFloatingNavIsland } from "@/components/navigation/ProfessionalFloatingNavIsland";
 import { BackIconButton } from "@/components/navigation/BackIconButton";
@@ -31,6 +31,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { ImageUpload } from "@/components/shared/ImageUpload";
 
 export default function ProfessionalConsultoriaEditorPage() {
     const { id } = useParams<{ id: string }>();
@@ -39,11 +40,9 @@ export default function ProfessionalConsultoriaEditorPage() {
     const { toast } = useToast();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [uploading, setUploading] = useState(false);
     const [activeTab, setActiveTab] = useState("geral");
 
     // Content State
-    const fileInputRef = useRef<HTMLInputElement>(null);
     const [form, setForm] = useState({
         title: "",
         description: "",
@@ -130,44 +129,7 @@ export default function ProfessionalConsultoriaEditorPage() {
         }
     };
 
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file || !user) return;
 
-        if (!file.type.startsWith("image/")) {
-            toast({ title: "Formato inválido", description: "Selecione uma imagem (JPG, PNG...)", variant: "destructive" });
-            return;
-        }
-
-        if (file.size > 2 * 1024 * 1024) { // 2MB limit
-            toast({ title: "Arquivo muito grande", description: "O limite é de 2MB por imagem.", variant: "destructive" });
-            return;
-        }
-
-        setUploading(true);
-        try {
-            const ext = file.name.split(".").pop();
-            const path = `consultancy-thumbs/${user.id}/${crypto.randomUUID()}.${ext}`;
-
-            const { error: uploadError } = await supabase.storage
-                .from("professional-images")
-                .upload(path, file);
-
-            if (uploadError) throw uploadError;
-
-            const { data: { publicUrl } } = supabase.storage
-                .from("professional-images")
-                .getPublicUrl(path);
-
-            setForm(prev => ({ ...prev, thumbnail_url: publicUrl }));
-            toast({ title: "Thumbnail carregada!" });
-        } catch (error: any) {
-            console.error("Upload error:", error);
-            toast({ title: "Erro no upload", description: error.message, variant: "destructive" });
-        } finally {
-            setUploading(false);
-        }
-    };
 
     const handleSaveGeneral = async () => {
         if (!proId) return;
@@ -352,64 +314,15 @@ export default function ProfessionalConsultoriaEditorPage() {
                         <Card className="bg-white/[0.03] border-white/5 rounded-[32px] overflow-hidden">
                             <CardContent className="p-6 space-y-6">
                                 <div className="space-y-4">
-                                    <div className="space-y-4">
-                                        <Label className="text-zinc-500 text-[10px] uppercase font-black tracking-widest pl-1">Thumbnail (Imagem)</Label>
-
-                                        <div className="flex gap-4 items-start">
-                                            {/* Preview */}
-                                            <div className="relative w-40 aspect-video rounded-3xl bg-zinc-900 border border-white/5 overflow-hidden flex-shrink-0">
-                                                {form.thumbnail_url ? (
-                                                    <>
-                                                        <img src={form.thumbnail_url} alt="Preview" className="h-full w-full object-cover" />
-                                                        <button
-                                                            onClick={() => setForm(prev => ({ ...prev, thumbnail_url: "" }))}
-                                                            className="absolute top-2 right-2 h-6 w-6 rounded-full bg-red-500 flex items-center justify-center text-white"
-                                                        >
-                                                            <X className="h-4 w-4" />
-                                                        </button>
-                                                    </>
-                                                ) : (
-                                                    <div className="h-full w-full flex items-center justify-center">
-                                                        <ImagePlus className="h-10 w-10 text-zinc-800" />
-                                                    </div>
-                                                )}
-                                                {uploading && (
-                                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {/* Control */}
-                                            <div className="flex-1 space-y-3">
-                                                <input
-                                                    type="file"
-                                                    ref={fileInputRef}
-                                                    onChange={handleFileChange}
-                                                    accept="image/*"
-                                                    className="hidden"
-                                                />
-                                                <Button
-                                                    variant="outline"
-                                                    onClick={() => fileInputRef.current?.click()}
-                                                    disabled={uploading}
-                                                    className="w-full h-12 rounded-2xl border-white/5 bg-white/5 text-zinc-300 font-bold hover:bg-white/10"
-                                                >
-                                                    {form.thumbnail_url ? "Alterar Imagem" : "Carregar Imagem"}
-                                                </Button>
-                                                <p className="text-[10px] text-zinc-600 font-medium">Recomendado: 1280x720px. Máx: 2MB.</p>
-
-                                                <div className="relative">
-                                                    <Input
-                                                        placeholder="Ou cole uma URL externa..."
-                                                        value={form.thumbnail_url}
-                                                        onChange={(e) => setForm({ ...form, thumbnail_url: e.target.value })}
-                                                        className="h-12 bg-white/5 border-white/5 text-white rounded-2xl px-5 text-xs font-mono"
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <ImageUpload
+                                        value={form.thumbnail_url}
+                                        onChange={(url) => setForm(prev => ({ ...prev, thumbnail_url: url || "" }))}
+                                        bucket="professional-images"
+                                        pathPrefix={`consultancy-thumbs/${user?.id}`}
+                                        label="Thumbnail (Imagem)"
+                                        description="Recomendado: 1280x720px. Máx: 5MB."
+                                        maxWidth="w-full"
+                                    />
 
                                     <div className="grid gap-2">
                                         <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Título do Conteúdo</Label>

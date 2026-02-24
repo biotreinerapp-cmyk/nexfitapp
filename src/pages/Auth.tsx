@@ -308,7 +308,7 @@ const AuthPage = () => {
       await withFeedback(
         async () => {
           // Invocamos a Edge Function customizada. Ela vai criar o usuário sem
-          // acionar o e-mail padrão do Supabase (para evitar links do Lovable)
+          // acionar o e-mail padrão (para evitar links externos indesejados)
           // e enviar o código OTP com nosso template customizado do Resend/Brevo.
           await sendOtp(values.email, emailToDisplayName(values.email) ?? "Usuário", values.password, "aluno");
         },
