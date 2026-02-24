@@ -4,7 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { LojaFloatingNavIsland } from "@/components/navigation/LojaFloatingNavIsland";
-import { StoreNotificationCenter } from "@/components/store/StoreNotificationCenter";
+import { NotificationCenter } from "@/components/shared/NotificationCenter";
+import { GreetingCard } from "@/components/dashboard/GreetingCard";
+import logoNexfit from "@/assets/nexfit-logo.png";
 import { Package, DollarSign, TrendingUp, ShoppingBag, LogOut, Clock, CheckCircle2, XCircle, ChevronRight, User, Lock, Megaphone, Zap, Warehouse } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useStorePlanModules } from "@/hooks/useStorePlanModules";
@@ -154,49 +156,45 @@ const LojaDashboardPage = () => {
   const recentOrders = orders.slice(0, 10);
 
   return (
-    <main className="min-h-screen bg-black pb-28 safe-bottom-floating-nav">
-      {/* Premium Header Card */}
-      <section className="relative px-4 pt-4">
-        <div className="relative flex min-h-[140px] flex-col justify-end overflow-hidden rounded-[32px] border border-white/5 bg-white/[0.03] p-6 backdrop-blur-xl">
-          {store.banner_image_url && (
-            <div className="absolute inset-0 z-0">
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
-              <img src={store.banner_image_url} alt="Banner" className="h-full w-full object-cover opacity-60" />
-            </div>
-          )}
-
-          <div className="relative z-10 flex items-end gap-4">
-            <div className="relative h-20 w-20 rounded-2xl border-2 border-white/10 bg-black/40 backdrop-blur-md overflow-hidden shadow-2xl">
-              {store.profile_image_url ? (
-                <img src={store.profile_image_url} alt={store.nome} className="h-full w-full object-cover" />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center">
-                  <Package className="h-8 w-8 text-primary" />
-                </div>
-              )}
-            </div>
-            <div className="flex-1 pb-1">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-1">Painel do Lojista</p>
-              <h1 className="text-2xl font-black text-white uppercase tracking-tight leading-none drop-shadow-md">{store.nome}</h1>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <StoreNotificationCenter />
-              <button
-                onClick={async () => {
-                  await supabase.auth.signOut();
-                  navigate("/auth", { replace: true });
-                }}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
-                title="Sair"
-                aria-label="Sair"
-              >
-                <LogOut className="h-5 w-5" />
-              </button>
-            </div>
+    <main className="min-h-screen bg-black pb-28 safe-bottom-floating-nav px-4 pt-4">
+      <header className="flex flex-col gap-3 mb-6">
+        <div className="flex items-center justify-between">
+          <img
+            src={logoNexfit}
+            alt="Logomarca Nexfit"
+            className="h-14 w-auto opacity-80"
+          />
+          <div className="flex items-center gap-2">
+            <NotificationCenter />
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                navigate("/auth", { replace: true });
+              }}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+              title="Sair"
+              aria-label="Sair"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
           </div>
         </div>
-      </section>
+
+        <GreetingCard
+          name={store.nome}
+          avatarUrl={store.profile_image_url}
+          onAvatarError={() => { }}
+          subtitle="Acesse os módulos da sua loja abaixo"
+          customBadge={
+            <div className="flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 backdrop-blur-xl shadow-[0_0_15px_-3px_rgba(var(--primary),0.2)]">
+              <div className="h-1 w-1 rounded-full bg-primary animate-pulse" />
+              <span className="text-[8px] font-black uppercase tracking-[0.2em] text-primary">
+                Lojista
+              </span>
+            </div>
+          }
+        />
+      </header>
 
       {/* Premium Hub Buttons */}
       <section className="mt-6 px-4 space-y-4">

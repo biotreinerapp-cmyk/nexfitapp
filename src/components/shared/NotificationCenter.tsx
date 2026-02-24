@@ -12,7 +12,7 @@ import {
 import { useUserNotifications } from "@/hooks/useUserNotifications";
 import { useAuth } from "@/hooks/useAuth";
 
-export function StoreNotificationCenter() {
+export function NotificationCenter() {
     const { user } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
 

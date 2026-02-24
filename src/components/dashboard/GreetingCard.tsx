@@ -10,6 +10,7 @@ type GreetingCardProps = {
   onAvatarError: () => void;
   badgeVariant?: BadgeVariant | null;
   subtitle?: string | null;
+  customBadge?: React.ReactNode;
 };
 
 const badgeStyles: Record<BadgeVariant, { label: string; icon: any; color: string; bg: string; border: string; glow: string }> = {
@@ -45,6 +46,7 @@ export const GreetingCard = ({
   onAvatarError,
   badgeVariant,
   subtitle,
+  customBadge,
 }: GreetingCardProps) => {
   const badge = badgeVariant ? badgeStyles[badgeVariant] : null;
 
@@ -86,7 +88,7 @@ export const GreetingCard = ({
           )}
 
           {/* Premium Chip (Top) */}
-          {badge && badgeVariant !== "FREE" && (
+          {badge && badgeVariant !== "FREE" && !customBadge && (
             <div className={`absolute -top-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 rounded-full border ${badge.border} ${badge.bg} px-2 py-0.5 backdrop-blur-xl ${badge.glow} animate-in fade-in slide-in-from-bottom-2 duration-700 shadow-xl`}>
               <div className={`h-1 w-1 rounded-full ${badgeVariant === "ELITE" ? "bg-amber-400" : "bg-primary"} animate-pulse`} />
               <span className={`text-[8px] font-black uppercase tracking-[0.2em] ${badge.color}`}>
@@ -94,12 +96,20 @@ export const GreetingCard = ({
               </span>
             </div>
           )}
+
+          {/* Custom Badge Support */}
+          {customBadge && (
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-20 animate-in fade-in slide-in-from-bottom-2 duration-700">
+              {customBadge}
+            </div>
+          )}
         </div>
       </div>
 
+
       <div className="flex min-w-0 flex-1 flex-col justify-center overflow-hidden gap-1 z-10">
         {name ? (
-          <span className="truncate text-xl font-black uppercase tracking-tight text-foreground drop-shadow-sm">
+          <span className="truncate text-xl font-black uppercase tracking-tight text-white leading-tight drop-shadow-sm">
             {name}
           </span>
         ) : (
