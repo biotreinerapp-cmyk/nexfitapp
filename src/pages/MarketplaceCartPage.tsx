@@ -194,7 +194,7 @@ export default function MarketplaceCartPage() {
     if (orderId) {
       await (supabase as any)
         .from("marketplace_orders")
-        .update({ last_cart_activity: new Date().toISOString() })
+        .update({ updated_at: new Date().toISOString() })
         .eq("id", orderId);
     }
 
@@ -212,7 +212,7 @@ export default function MarketplaceCartPage() {
     if (orderId) {
       await (supabase as any)
         .from("marketplace_orders")
-        .update({ last_cart_activity: new Date().toISOString() })
+        .update({ updated_at: new Date().toISOString() })
         .eq("id", orderId);
     }
     setItems((prev) => prev.filter((i) => i.id !== item.id));

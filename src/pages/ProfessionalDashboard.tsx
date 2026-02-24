@@ -123,7 +123,8 @@ export default function ProfessionalDashboard() {
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
-        navigate("/auth", { replace: true });
+        localStorage.clear();
+        window.location.href = "/auth";
     };
 
     if (loading) {

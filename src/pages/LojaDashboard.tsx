@@ -115,14 +115,14 @@ const LojaDashboardPage = () => {
         .from("marketplace_orders")
         .select(`
           id, 
-          last_cart_activity, 
+          updated_at, 
           status,
           user:profiles(id, nome, avatar_url, whatsapp)
         `)
         .eq("store_id", storeData.id)
         .eq("status", "cart")
-        .lt("last_cart_activity", oneDayAgo.toISOString())
-        .order("last_cart_activity", { ascending: false });
+        .lt("updated_at", oneDayAgo.toISOString())
+        .order("updated_at", { ascending: false });
 
       if (abandonedData) {
         setAbandonedCarts(abandonedData);
@@ -169,7 +169,8 @@ const LojaDashboardPage = () => {
             <button
               onClick={async () => {
                 await supabase.auth.signOut();
-                navigate("/auth", { replace: true });
+                localStorage.clear();
+                window.location.href = "/auth";
               }}
               className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
               title="Sair"

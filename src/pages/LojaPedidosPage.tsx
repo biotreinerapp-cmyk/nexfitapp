@@ -80,14 +80,14 @@ export default function LojaPedidosPage() {
                 .from("marketplace_orders")
                 .select(`
           id, 
-          last_cart_activity, 
+          updated_at, 
           status,
           user:profiles(id, nome, avatar_url, whatsapp)
         `)
                 .eq("store_id", storeData.id)
                 .eq("status", "cart")
-                .lt("last_cart_activity", oneDayAgo.toISOString())
-                .order("last_cart_activity", { ascending: false });
+                .lt("updated_at", oneDayAgo.toISOString())
+                .order("updated_at", { ascending: false });
 
             if (abandonedData) setAbandonedCarts(abandonedData);
 
@@ -263,7 +263,7 @@ function OrderCard({ order, navigate }: { order: OrderRow; navigate: any }) {
 }
 
 function AbandonedCartCard({ cart, isPro, navigate }: any) {
-    const date = new Date(cart.last_cart_activity);
+    const date = new Date(cart.updated_at);
     const formatted = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
     const userName = cart.user?.nome || "Aluno";
     const userAvatar = cart.user?.avatar_url;
