@@ -32,7 +32,7 @@ import {
     RefreshCw,
     ArrowRight,
     ShieldCheck,
-    Sparkles,
+    RotateCcw,
 } from "lucide-react";
 import {
     Select,
@@ -266,34 +266,22 @@ export default function AdminExercisesPage() {
         onError: (e: Error) => toast({ title: "Erro na sincronização", description: e.message, variant: "destructive" }),
     });
 
-    /** Bulk AI categorization via Gemini Edge Function */
-    const categorizeMutation = useMutation({
+    /** Reseta a agenda de TODOS os alunos — próximo login gera nova rotina a partir dos exercícios verificados */
+    const resetAgendaMutation = useMutation({
         mutationFn: async () => {
-            const { data, error } = await supabase.functions.invoke("bulk-categorize-exercises", {
-                body: { batch_size: 20, delay_ms: 500 },
-            });
+            const { error } = await (supabase as any)
+                .from("agenda_treinos")
+                .delete()
+                .neq("id", "00000000-0000-0000-0000-000000000000");
             if (error) throw error;
-            return data as { processed: number; updated: number; skipped: number; errors?: { id: string; name: string; reason: string }[] };
         },
-        onSuccess: (result) => {
-            queryClient.invalidateQueries({ queryKey: ["admin-exercises"] });
-            queryClient.invalidateQueries({ queryKey: ["exercises-muscles"] });
-            if (result.updated === 0 && result.errors && result.errors.length > 0) {
-                // Show first error to help debug
-                const firstError = result.errors[0];
-                toast({
-                    title: `⚠️ ${result.skipped} ignorados`,
-                    description: `Erro: ${firstError.reason}`,
-                    variant: "destructive",
-                });
-            } else {
-                toast({
-                    title: "✅ Categorização concluída",
-                    description: `${result.updated} categorizados, ${result.skipped} ignorados.`,
-                });
-            }
+        onSuccess: () => {
+            toast({
+                title: "✅ Agendas resetadas",
+                description: "Todos os alunos terão nova rotina gerada (somente exercícios aprovados) no próximo acesso.",
+            });
         },
-        onError: (e: Error) => toast({ title: "Erro na categorização", description: e.message, variant: "destructive" }),
+        onError: (e: Error) => toast({ title: "Erro ao resetar agendas", description: e.message, variant: "destructive" }),
     });
 
     // ── Handlers ──────────────────────────────────────────────────────────────
@@ -375,18 +363,22 @@ export default function AdminExercisesPage() {
                         {syncMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                         Sincronizar da Biblioteca
                     </Button>
-                    {/* ── AI Categorization button ─────────────────────────── */}
+                    {/* ── Reset Agendas dos Alunos ────────────────────────── */}
                     <Button
                         variant="outline"
-                        className="border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 gap-2"
-                        onClick={() => categorizeMutation.mutate()}
-                        disabled={categorizeMutation.isPending}
-                        title="Categoriza automaticamente os exercícios com target_muscle = 'Geral' usando Gemini AI"
+                        className="border-orange-500/30 bg-orange-500/10 hover:bg-orange-500/20 text-orange-300 gap-2"
+                        onClick={() => {
+                            if (window.confirm("Isso vai apagar a agenda de TODOS os alunos. Na próxima vez que abrirem o treino, será gerada uma nova rotina usando apenas exercícios aprovados.\n\nContinuar?")) {
+                                resetAgendaMutation.mutate();
+                            }
+                        }}
+                        disabled={resetAgendaMutation.isPending}
+                        title="Apaga todas as agendas para que a nova rotina use apenas exercícios verificados"
                     >
-                        {categorizeMutation.isPending
+                        {resetAgendaMutation.isPending
                             ? <Loader2 className="h-4 w-4 animate-spin" />
-                            : <Sparkles className="h-4 w-4" />}
-                        Categorizar com IA
+                            : <RotateCcw className="h-4 w-4" />}
+                        Resetar Treinos
                     </Button>
                     <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={handleOpenCreate}>
                         <Dumbbell className="mr-2 h-4 w-4" />
