@@ -270,51 +270,28 @@ const AlunoTreinosHojePage = () => {
 
         const objetivo = (perfil?.objetivo || "").toLowerCase();
 
-        let query = supabase
-          .from("biblioteca_exercicios")
-          .select("id, nome, body_part, target_muscle, equipment, video_url, instrucoes");
+        // ── Ler exercícios verificados pelo admin (exercises table) ────────
+        let exQuery = (supabase as any)
+          .from("exercises")
+          .select("id, name, target_muscle, equipment, video_url, instrucoes")
+          .eq("is_verified", true)
+          .eq("is_active", true);
 
         if (objetivo.includes("massa")) {
-          query = query.in("equipment", ["dumbbell", "barbell", "cable"]);
+          exQuery = exQuery.in("equipment", ["Barra", "Halter", "Cabo"]);
         }
 
-        const fetchBiblioteca = async () => {
-          const { data: exerciciosBase, error: exError } = await query.limit(100);
-          if (exError) throw exError;
-          return (exerciciosBase as BibliotecaExercicio[] | null) ?? [];
-        };
+        const { data: exerciciosBase, error: exError } = await exQuery.limit(100);
+        if (exError) throw exError;
 
-        let listaBase = await fetchBiblioteca();
+        let listaBase = (exerciciosBase as any[] | null) ?? [];
 
         if (!listaBase.length) {
-          const now = Date.now();
-          const throttleMs = 15 * 60 * 1000;
-          const storageKey = "biotreiner:last_sync_exercises_attempt";
-          let lastAttempt = 0;
-          try { lastAttempt = Number(localStorage.getItem(storageKey) ?? 0); } catch { }
-
-          if (lastAttempt && now - lastAttempt < throttleMs) {
-            toast({ title: "Biblioteca vazia", description: "Sincronização tentada recentemente. Tente em alguns minutos.", variant: "destructive" });
-            setIsRestDay(true); setExerciciosHoje([]); return;
-          }
-          try { localStorage.setItem(storageKey, String(now)); } catch { }
-
-          toast({ title: "Sincronizando biblioteca…", description: "Importando exercícios automaticamente." });
-
-          const { data: syncData, error: syncError } = await supabase.functions.invoke("sync-exercises", { body: {} });
-          if (syncError) { toast({ title: "Falha ao sincronizar", description: syncError.message, variant: "destructive" }); setIsRestDay(true); setExerciciosHoje([]); return; }
-
-          const imported = Number((syncData as any)?.imported ?? 0);
-          if (imported > 0) {
-            toast({ title: "Biblioteca sincronizada", description: `${imported} exercícios importados. Gerando rotina…` });
-            listaBase = await fetchBiblioteca();
-          } else {
-            toast({ title: "Biblioteca vazia", description: "Não foi possível importar exercícios. Verifique a configuração da API.", variant: "destructive" });
-            setIsRestDay(true); setExerciciosHoje([]); return;
-          }
-        }
-
-        if (!listaBase.length) {
+          toast({
+            title: "Sem exercícios disponíveis",
+            description: "Nenhum exercício verificado encontrado. O administrador precisa aprovar exercícios primeiro.",
+            variant: "destructive",
+          });
           setIsRestDay(true); setExerciciosHoje([]); return;
         }
 
@@ -326,13 +303,13 @@ const AlunoTreinosHojePage = () => {
           const selecionados: AgendaExercicioDia[] = [...listaBase]
             .sort(() => Math.random() - 0.5)
             .slice(0, 5)
-            .map((ex) => ({
+            .map((ex: any) => ({
               exercicio_id: ex.id,
-              nome: ex.nome,
-              body_part: ex.body_part,
-              target_muscle: ex.target_muscle,
-              equipment: ex.equipment,
-              video_url: ex.video_url ?? (ex as any).gifUrl ?? null,
+              nome: ex.name,           // exercises table uses "name" not "nome"
+              body_part: ex.target_muscle ?? null,
+              target_muscle: ex.target_muscle ?? null,
+              equipment: ex.equipment ?? null,
+              video_url: ex.video_url ?? null,
               instrucoes: ex.instrucoes ?? [],
               series: objetivo.includes("massa") ? 4 : 3,
               repeticoes: objetivo.includes("massa") ? 10 : 15,

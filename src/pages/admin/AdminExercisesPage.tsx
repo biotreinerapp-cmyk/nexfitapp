@@ -219,36 +219,49 @@ export default function AdminExercisesPage() {
 
     const syncMutation = useMutation({
         mutationFn: async () => {
+            // 1. Load biblioteca
             const { data: bibData, error: bibError } = await supabase.from("biblioteca_exercicios").select("*");
             if (bibError) throw bibError;
             if (!bibData?.length) throw new Error("Nenhum exercício na biblioteca.");
 
-            const { error: deleteError } = await supabase
+            // 2. Load existing exercises names (to avoid duplicates)
+            const { data: existing, error: existingError } = await supabase
                 .from("exercises")
-                .delete()
-                .neq("id", "00000000-0000-0000-0000-000000000000");
-            if (deleteError) throw deleteError;
+                .select("name");
+            if (existingError) throw existingError;
 
-            const batch = bibData.map((ex) => ({
-                name: ex.nome,
-                target_muscle: ex.target_muscle || "Geral",
-                equipment: ex.equipment || "Geral",
-                difficulty: "beginner",
-                video_url: ex.video_url,
-                is_active: true,
-                is_verified: false,
-            }));
+            const existingNames = new Set((existing ?? []).map((e) => (e.name ?? "").toLowerCase().trim()));
 
-            for (let i = 0; i < batch.length; i += 50) {
-                const { error } = await supabase.from("exercises").insert(batch.slice(i, i + 50));
+            // 3. Only insert exercises NOT already in exercises table
+            const toInsert = bibData
+                .filter((ex) => !existingNames.has((ex.nome ?? "").toLowerCase().trim()))
+                .map((ex) => ({
+                    name: ex.nome,
+                    target_muscle: ex.target_muscle || "Geral",
+                    equipment: ex.equipment || "Geral",
+                    difficulty: "beginner",
+                    video_url: ex.video_url,
+                    is_active: true,
+                    is_verified: false,  // New imports start as pending
+                }));
+
+            if (!toInsert.length) return { inserted: 0, skipped: bibData.length };
+
+            for (let i = 0; i < toInsert.length; i += 50) {
+                const { error } = await (supabase.from("exercises") as any).insert(toInsert.slice(i, i + 50));
                 if (error) throw error;
             }
-            return bibData.length;
+            return { inserted: toInsert.length, skipped: bibData.length - toInsert.length };
         },
-        onSuccess: (count) => {
+        onSuccess: ({ inserted, skipped }) => {
             queryClient.invalidateQueries({ queryKey: ["admin-exercises"] });
             queryClient.invalidateQueries({ queryKey: ["exercises-muscles"] });
-            toast({ title: "Sincronização concluída", description: `${count} exercícios importados.` });
+            toast({
+                title: "✅ Sincronização concluída",
+                description: inserted > 0
+                    ? `${inserted} novos exercícios importados. ${skipped} já existiam (preservados).`
+                    : `Nenhum exercício novo. ${skipped} já existiam na base.`,
+            });
         },
         onError: (e: Error) => toast({ title: "Erro na sincronização", description: e.message, variant: "destructive" }),
     });
