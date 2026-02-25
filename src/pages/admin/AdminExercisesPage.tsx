@@ -52,6 +52,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -89,6 +90,7 @@ interface Exercise {
     is_active: boolean;
     is_verified: boolean;
     muscle_image_url: string | null;
+    instrucoes: string[] | null;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -127,7 +129,7 @@ export default function AdminExercisesPage() {
                 .order("name", { ascending: true });
 
             if (error) throw error;
-            return { data: data as Exercise[], count };
+            return { data: data as unknown as Exercise[], count };
         },
         placeholderData: (prev) => prev,
     });
@@ -165,17 +167,19 @@ export default function AdminExercisesPage() {
 
     const saveMutation = useMutation({
         mutationFn: async (exercise: Partial<Exercise>) => {
+            // Always mark as verified when admin manually saves
+            const payload = { ...exercise, is_verified: true };
             if (exercise.id) {
-                const { error } = await supabase.from("exercises").update(exercise).eq("id", exercise.id);
+                const { error } = await supabase.from("exercises").update(payload).eq("id", exercise.id);
                 if (error) throw error;
             } else {
-                const { error } = await supabase.from("exercises").insert([exercise]);
+                const { error } = await (supabase.from("exercises") as any).insert([payload]);
                 if (error) throw error;
             }
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["admin-exercises"] });
-            toast({ title: "Exercício salvo", description: "Alterações aplicadas com sucesso." });
+            toast({ title: "✅ Exercício salvo e verificado", description: "Dados atualizados com sucesso." });
             setIsDialogOpen(false);
             setEditingExercise(null);
         },
@@ -253,18 +257,28 @@ export default function AdminExercisesPage() {
     const categorizeMutation = useMutation({
         mutationFn: async () => {
             const { data, error } = await supabase.functions.invoke("bulk-categorize-exercises", {
-                body: { batch_size: 20, delay_ms: 600 },
+                body: { batch_size: 20, delay_ms: 500 },
             });
             if (error) throw error;
-            return data as { processed: number; updated: number; skipped: number };
+            return data as { processed: number; updated: number; skipped: number; errors?: { id: string; name: string; reason: string }[] };
         },
         onSuccess: (result) => {
             queryClient.invalidateQueries({ queryKey: ["admin-exercises"] });
             queryClient.invalidateQueries({ queryKey: ["exercises-muscles"] });
-            toast({
-                title: "✅ Categorização concluída",
-                description: `${result.updated} exercícios categorizados, ${result.skipped} ignorados.`,
-            });
+            if (result.updated === 0 && result.errors && result.errors.length > 0) {
+                // Show first error to help debug
+                const firstError = result.errors[0];
+                toast({
+                    title: `⚠️ ${result.skipped} ignorados`,
+                    description: `Erro: ${firstError.reason}`,
+                    variant: "destructive",
+                });
+            } else {
+                toast({
+                    title: "✅ Categorização concluída",
+                    description: `${result.updated} categorizados, ${result.skipped} ignorados.`,
+                });
+            }
         },
         onError: (e: Error) => toast({ title: "Erro na categorização", description: e.message, variant: "destructive" }),
     });
@@ -299,6 +313,31 @@ export default function AdminExercisesPage() {
 
     const totalPages = data?.count ? Math.ceil(data.count / ITEMS_PER_PAGE) : 1;
     const youtubePreviewed = editingExercise?.video_url ? getYouTubeId(editingExercise.video_url) : null;
+
+    /** Convert instrucoes array ↔ textarea text (one step per line) */
+    const instrucoesTxt = (editingExercise?.instrucoes ?? []).join("\n");
+    const setInstrucoesFromText = (text: string) => {
+        const parsed = text.split("\n").map((s) => s.trim()).filter(Boolean);
+        setEditingExercise((prev) => prev ? { ...prev, instrucoes: parsed } : prev);
+    };
+
+    /** Multi-select helpers for target_muscle (comma-separated string) */
+    const selectedMuscles = (editingExercise?.target_muscle ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+    const toggleMuscle = (muscle: string) => {
+        const current = new Set(selectedMuscles);
+        if (current.has(muscle)) {
+            current.delete(muscle);
+        } else {
+            current.add(muscle);
+        }
+        setEditingExercise((prev) =>
+            prev ? { ...prev, target_muscle: Array.from(current).join(", ") } : prev
+        );
+    };
 
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -570,40 +609,54 @@ export default function AdminExercisesPage() {
                                 />
                             </div>
 
-                            {/* Muscle + Equipment selects */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="grid gap-1.5">
-                                    <Label>Músculo Alvo *</Label>
-                                    <Select
-                                        value={editingExercise.target_muscle ?? ""}
-                                        onValueChange={(v) => setEditingExercise({ ...editingExercise, target_muscle: v })}
-                                    >
-                                        <SelectTrigger className="bg-black/20 border-white/10 text-white">
-                                            <SelectValue placeholder="Selecione o músculo" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {TARGET_MUSCLES.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="grid gap-1.5">
-                                    <Label>Equipamento *</Label>
-                                    <Select
-                                        value={editingExercise.equipment ?? ""}
-                                        onValueChange={(v) => setEditingExercise({ ...editingExercise, equipment: v })}
-                                    >
-                                        <SelectTrigger className="bg-black/20 border-white/10 text-white">
-                                            <SelectValue placeholder="Selecione o equipamento" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {EQUIPMENT_OPTIONS.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
+                            {/* Músculos Alvo — multi-select com badges */}
+                            <div className="grid gap-2">
+                                <Label>
+                                    Músculo(s) Alvo *
+                                    <span className="ml-2 text-[10px] text-muted-foreground/60 font-normal">
+                                        {selectedMuscles.length > 0
+                                            ? `${selectedMuscles.length} selecionado(s)`
+                                            : "selecione ao menos 1"}
+                                    </span>
+                                </Label>
+                                <div className="flex flex-wrap gap-1.5 rounded-md border border-white/10 bg-black/20 p-2">
+                                    {TARGET_MUSCLES.map((m) => {
+                                        const active = selectedMuscles.includes(m);
+                                        return (
+                                            <button
+                                                key={m}
+                                                type="button"
+                                                onClick={() => toggleMuscle(m)}
+                                                className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${active
+                                                    ? "bg-primary text-primary-foreground shadow-sm"
+                                                    : "bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white"
+                                                    }`}
+                                            >
+                                                {m}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
 
-                            {/* Difficulty + Toggles */}
-                            <div className="grid grid-cols-3 gap-4 items-end">
+                            {/* Equipamento */}
+                            <div className="grid gap-1.5">
+                                <Label>Equipamento *</Label>
+                                <Select
+                                    value={editingExercise.equipment ?? ""}
+                                    onValueChange={(v) => setEditingExercise({ ...editingExercise, equipment: v })}
+                                >
+                                    <SelectTrigger className="bg-black/20 border-white/10 text-white">
+                                        <SelectValue placeholder="Selecione o equipamento" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {EQUIPMENT_OPTIONS.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Difficulty + Active toggle only (is_verified always true on save) */}
+                            <div className="grid grid-cols-2 gap-4 items-end">
                                 <div className="grid gap-1.5">
                                     <Label>Dificuldade</Label>
                                     <Select
@@ -627,14 +680,6 @@ export default function AdminExercisesPage() {
                                         onCheckedChange={(v) => setEditingExercise({ ...editingExercise, is_active: v })}
                                     />
                                     <Label htmlFor="is_active" className="cursor-pointer">Ativo</Label>
-                                </div>
-                                <div className="flex items-center gap-2 pb-0.5">
-                                    <Switch
-                                        id="is_verified"
-                                        checked={editingExercise.is_verified ?? false}
-                                        onCheckedChange={(v) => setEditingExercise({ ...editingExercise, is_verified: v })}
-                                    />
-                                    <Label htmlFor="is_verified" className="cursor-pointer text-emerald-400">Verificado</Label>
                                 </div>
                             </div>
 
@@ -663,6 +708,25 @@ export default function AdminExercisesPage() {
                                     <p className="text-xs text-amber-400">URL inválida — cole um link do YouTube válido para ver a preview.</p>
                                 )}
                             </div>
+
+                            {/* Execution guide (instrucoes) */}
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="instrucoes">
+                                    Guia de Execução
+                                    <span className="ml-2 text-[10px] text-muted-foreground/60 font-normal">(uma etapa por linha)</span>
+                                </Label>
+                                <Textarea
+                                    id="instrucoes"
+                                    value={instrucoesTxt}
+                                    onChange={(e) => setInstrucoesFromText(e.target.value)}
+                                    className="bg-black/20 border-white/10 text-white min-h-[160px] resize-y text-sm leading-relaxed"
+                                    placeholder={`Deite no banco plano com hálteres nas mãos\nAbaixe os braços até sentir o peitoral esticar\nEmpurre de volta à posição inicial`}
+                                />
+                                <p className="text-[10px] text-muted-foreground/50">
+                                    {(editingExercise.instrucoes ?? []).length} etapa(s) cadastrada(s).
+                                    Ao salvar, o exercício será marcado como <span className="text-emerald-400">Verificado</span> automaticamente.
+                                </p>
+                            </div>
                         </div>
                     )}
 
@@ -670,7 +734,6 @@ export default function AdminExercisesPage() {
                         <Button
                             variant="outline"
                             onClick={() => { setIsDialogOpen(false); setEditingExercise(null); }}
-                            className="border-white/10 bg-transparent text-white hover:bg-white/5"
                         >
                             Cancelar
                         </Button>

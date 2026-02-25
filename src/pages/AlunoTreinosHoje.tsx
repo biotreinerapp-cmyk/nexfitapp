@@ -373,6 +373,31 @@ const AlunoTreinosHojePage = () => {
         repeticoes: raw.repeticoes ?? 15,
       }));
 
+      // ── Enrich instrucoes from exercises table (admin curated guide) ──────
+      const exercicioIds = exerciciosDia
+        .map((e) => e.exercicio_id)
+        .filter(Boolean) as string[];
+
+      if (exercicioIds.length > 0) {
+        const { data: enriched } = await (supabase as any)
+          .from("exercises")
+          .select("id, instrucoes, target_muscle, equipment, video_url")
+          .in("id", exercicioIds);
+
+        if (enriched && Array.isArray(enriched)) {
+          const enrichMap = new Map(enriched.map((e: any) => [e.id, e]));
+          exerciciosDia.forEach((ex) => {
+            const found = enrichMap.get(ex.exercicio_id);
+            if (!found) return;
+            // Only overwrite if exercises table has richer data
+            if (found.instrucoes?.length) ex.instrucoes = found.instrucoes;
+            if (found.target_muscle) ex.target_muscle = found.target_muscle;
+            if (found.equipment) ex.equipment = found.equipment;
+            if (found.video_url) ex.video_url = found.video_url;
+          });
+        }
+      }
+
       setIsRestDay(false);
       setExerciciosHoje(exerciciosDia);
     } catch (error: any) {
