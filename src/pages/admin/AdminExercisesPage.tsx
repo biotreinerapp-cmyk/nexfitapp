@@ -32,6 +32,7 @@ import {
     RefreshCw,
     ArrowRight,
     ShieldCheck,
+    Sparkles,
 } from "lucide-react";
 import {
     Select,
@@ -248,6 +249,26 @@ export default function AdminExercisesPage() {
         onError: (e: Error) => toast({ title: "Erro na sincronização", description: e.message, variant: "destructive" }),
     });
 
+    /** Bulk AI categorization via Gemini Edge Function */
+    const categorizeMutation = useMutation({
+        mutationFn: async () => {
+            const { data, error } = await supabase.functions.invoke("bulk-categorize-exercises", {
+                body: { batch_size: 20, delay_ms: 600 },
+            });
+            if (error) throw error;
+            return data as { processed: number; updated: number; skipped: number };
+        },
+        onSuccess: (result) => {
+            queryClient.invalidateQueries({ queryKey: ["admin-exercises"] });
+            queryClient.invalidateQueries({ queryKey: ["exercises-muscles"] });
+            toast({
+                title: "✅ Categorização concluída",
+                description: `${result.updated} exercícios categorizados, ${result.skipped} ignorados.`,
+            });
+        },
+        onError: (e: Error) => toast({ title: "Erro na categorização", description: e.message, variant: "destructive" }),
+    });
+
     // ── Handlers ──────────────────────────────────────────────────────────────
 
     const handleOpenCreate = () => {
@@ -302,6 +323,19 @@ export default function AdminExercisesPage() {
                         {syncMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                         Sincronizar da Biblioteca
                     </Button>
+                    {/* ── AI Categorization button ─────────────────────────── */}
+                    <Button
+                        variant="outline"
+                        className="border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 gap-2"
+                        onClick={() => categorizeMutation.mutate()}
+                        disabled={categorizeMutation.isPending}
+                        title="Categoriza automaticamente os exercícios com target_muscle = 'Geral' usando Gemini AI"
+                    >
+                        {categorizeMutation.isPending
+                            ? <Loader2 className="h-4 w-4 animate-spin" />
+                            : <Sparkles className="h-4 w-4" />}
+                        Categorizar com IA
+                    </Button>
                     <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={handleOpenCreate}>
                         <Dumbbell className="mr-2 h-4 w-4" />
                         Novo Exercício
@@ -345,8 +379,8 @@ export default function AdminExercisesPage() {
                                 size="sm"
                                 onClick={() => { setPendingOnly((p) => !p); setPage(1); }}
                                 className={`border-white/10 gap-2 transition-colors ${pendingOnly
-                                        ? "bg-amber-500/20 text-amber-300 border-amber-400/30 hover:bg-amber-500/30"
-                                        : "bg-white/5 text-white hover:bg-white/10"
+                                    ? "bg-amber-500/20 text-amber-300 border-amber-400/30 hover:bg-amber-500/30"
+                                    : "bg-white/5 text-white hover:bg-white/10"
                                     }`}
                             >
                                 <Clock className="h-4 w-4" />
@@ -434,10 +468,10 @@ export default function AdminExercisesPage() {
                                             <TableCell>
                                                 {exercise.difficulty && (
                                                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${exercise.difficulty === "beginner"
-                                                            ? "border-green-500/20 bg-green-500/10 text-green-400"
-                                                            : exercise.difficulty === "intermediate"
-                                                                ? "border-yellow-500/20 bg-yellow-500/10 text-yellow-400"
-                                                                : "border-red-500/20 bg-red-500/10 text-red-400"
+                                                        ? "border-green-500/20 bg-green-500/10 text-green-400"
+                                                        : exercise.difficulty === "intermediate"
+                                                            ? "border-yellow-500/20 bg-yellow-500/10 text-yellow-400"
+                                                            : "border-red-500/20 bg-red-500/10 text-red-400"
                                                         }`}>
                                                         {exercise.difficulty === "beginner" ? "Iniciante" : exercise.difficulty === "intermediate" ? "Intermediário" : "Avançado"}
                                                     </span>

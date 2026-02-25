@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { CheckCircle2, Timer, Activity, Flame, Zap, Play, Pause, ChevronRight, Dumbbell, Target } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CheckCircle2, Timer, Activity, Flame, Zap, Play, Pause, Dumbbell, Target, Weight, Info, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { SpotifyButton } from "@/components/ui/SpotifyButton";
 import { useBluetoothHeartRate } from "@/hooks/useBluetoothHeartRate";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { translateInstructions } from "@/lib/translateExercise";
 import { Watch, BluetoothSearching, BluetoothConnected } from "lucide-react";
 
 const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY || "7abffdb721mshe6edf9169775d83p1212ffjsn4c407842489b";
@@ -27,6 +34,7 @@ interface TreinoAtivoState {
     target_muscle: string | null;
     equipment: string | null;
     video_url: string | null;
+    instrucoes?: string[] | null;
     series: number;
     repeticoes: number;
   };
@@ -327,192 +335,223 @@ const AlunoTreinoAtivoPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background px-4 pb-32 pt-6">
-      <header className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    // pb-36 reserves space for the sticky footer bar
+    <div className="flex min-h-screen flex-col bg-background px-4 pt-6 pb-36">
+
+      {/* ── Compact Header ── */}
+      <header className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-3 min-w-0">
           <BackIconButton to="/aluno/treinos" />
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Treino Ativo</p>
-            <h1 className="page-title-gradient text-2xl font-black tracking-tight uppercase leading-none">{exercicio?.nome || "Série Ativa"}</h1>
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary leading-none mb-0.5">Treino Ativo</p>
+            {/* ① Compact title — text-lg instead of text-2xl */}
+            <h1 className="text-base font-black tracking-tight uppercase leading-tight text-foreground truncate max-w-[200px]">
+              {exercicio?.nome || "Série Ativa"}
+            </h1>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           <SpotifyButton className={cn(isRunning && "animate-pulse border-[#1DB954]/40 shadow-[0_0_15px_rgba(29,185,84,0.2)]")} />
-
           <Button
             variant="ghost"
             size="icon"
             onClick={isBleConnected ? disconnectBle : connectBle}
             className={cn(
-              "h-10 w-10 rounded-2xl transition-all active:scale-90",
-              isBleConnected ? "bg-primary/20 text-primary border border-primary/40 shadow-[0_0_15px_rgba(var(--primary-rgb),0.2)]" : "bg-white/5 text-muted-foreground border border-white/5",
+              "h-9 w-9 rounded-xl transition-all active:scale-90",
+              isBleConnected
+                ? "bg-primary/20 text-primary border border-primary/40"
+                : "bg-white/5 text-muted-foreground border border-white/5",
               isBleConnecting && "animate-pulse"
             )}
           >
-            {isBleConnecting ? <BluetoothSearching className="h-5 w-5" /> : isBleConnected ? <BluetoothConnected className="h-5 w-5" /> : <Watch className="h-5 w-5" />}
+            {isBleConnecting ? <BluetoothSearching className="h-4 w-4" /> : isBleConnected ? <BluetoothConnected className="h-4 w-4" /> : <Watch className="h-4 w-4" />}
           </Button>
-
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/5 bg-white/5 text-primary">
-            <Activity className="h-5 w-5 animate-pulse" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/5 bg-white/5 text-primary">
+            <Activity className="h-4 w-4 animate-pulse" />
           </div>
         </div>
       </header>
 
       {exercicio && (
-        <section className="flex flex-1 flex-col gap-6">
-          {/* Main Media & Focus Card */}
-          <div className="relative overflow-hidden rounded-[32px] border border-white/5 bg-gradient-to-b from-white/[0.05] to-transparent p-2 backdrop-blur-xl">
-            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[24px] bg-black/40">
-              {exercicio?.video_url && exercicio.video_url.endsWith(".mp4") ? (
+        <section className="flex flex-1 flex-col gap-4">
+
+          {/* ② YouTube / Video Player — 16:9, fills width */}
+          <div className="relative overflow-hidden rounded-[28px] border border-white/5 bg-black/40">
+            <div className="aspect-video w-full">
+              {exercicio.video_url && exercicio.video_url.endsWith(".mp4") ? (
                 <SecureVideo
                   src={exercicio.video_url}
                   apiKey={RAPIDAPI_KEY}
                   className="h-full w-full object-cover"
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
+                  autoPlay loop muted playsInline
                 />
-              ) : exercicio?.video_url && getYouTubeId(exercicio.video_url) ? (
+              ) : exercicio.video_url && getYouTubeId(exercicio.video_url) ? (
                 <iframe
-                  src={`https://www.youtube.com/embed/${getYouTubeId(exercicio.video_url)}?autoplay=1&mute=1&loop=1&playlist=${getYouTubeId(exercicio.video_url)}&controls=0&modestbranding=1`}
-                  className="h-full w-full pointer-events-none"
+                  src={`https://www.youtube.com/embed/${getYouTubeId(exercicio.video_url)}?autoplay=1&mute=0&modestbranding=1&rel=0`}
+                  className="h-full w-full"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
                 />
               ) : (
                 <img
-                  src={
-                    exercicio?.video_url ||
-                    (exercicio?.body_part ? `/images/muscles/${exercicio.body_part}.png` : "/default-exercise.png")
-                  }
-                  alt={exercicio?.nome || "Exercício"}
+                  src={exercicio.video_url || "/default-exercise.png"}
+                  alt={exercicio.nome || "Exercício"}
                   className="h-full w-full object-cover"
                   loading="lazy"
                 />
               )}
 
-              {/* Overlay Goal */}
-              <div className="absolute top-4 left-4">
-                <div className="flex items-center gap-2 rounded-2xl bg-black/60 px-4 py-2 backdrop-blur-md border border-white/10">
-                  <Zap className="h-4 w-4 text-primary" />
-                  <span className="text-xs font-black text-white">{exercicio.series} SÉRIES x {exercicio.repeticoes} REPS</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-4 px-2">
-              <div className="space-y-1">
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">Foco Principal</p>
-                <div className="flex items-center gap-2">
-                  <Dumbbell className="h-4 w-4 text-primary" />
-                  <span className="text-[13px] font-black text-foreground uppercase tracking-tight">
-                    {exercicio?.target_muscle || exercicio?.body_part || "Força Geral"}
+              {/* Overlay pill — series × reps */}
+              <div className="absolute top-3 left-3">
+                <div className="flex items-center gap-1.5 rounded-xl bg-black/70 px-3 py-1.5 backdrop-blur-md border border-white/10">
+                  <Zap className="h-3.5 w-3.5 text-primary" />
+                  <span className="text-xs font-black text-white">
+                    {exercicio.series} × {exercicio.repeticoes}
                   </span>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">Equipamento</p>
-                <p className="text-[11px] font-bold text-muted-foreground capitalize">{exercicio.equipment || "Nenhum"}</p>
-              </div>
             </div>
-          </div>
 
-          {/* High Performance Stats Grid */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.03] p-4 text-center">
-              <Timer className="absolute -right-2 -top-2 h-12 w-12 text-blue-500/10" />
-              <p className="text-[9px] font-black uppercase tracking-widest text-blue-500/60 mb-1">Duração</p>
-              <p className="text-xl font-black text-foreground tabular-nums">{formattedTime}</p>
-            </div>
-            <div className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.03] p-4 text-center">
-              <Activity className="absolute -right-2 -top-2 h-12 w-12 text-primary/10" />
-              <p className="text-[9px] font-black uppercase tracking-widest text-primary/60 mb-1">Batimento</p>
-              <div className="flex items-baseline justify-center gap-1">
-                <p className="text-xl font-black text-foreground tabular-nums">{bpm}</p>
-                <span className="text-[9px] font-bold text-muted-foreground">bpm</span>
-              </div>
-            </div>
-            <div className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.03] p-4 text-center">
-              <Flame className="absolute -right-2 -top-2 h-12 w-12 text-orange-500/10" />
-              <p className="text-[9px] font-black uppercase tracking-widest text-orange-500/60 mb-1">Energia</p>
-              <div className="flex items-baseline justify-center gap-1">
-                <p className="text-xl font-black text-foreground tabular-nums">{Math.round(calories)}</p>
-                <span className="text-[9px] font-bold text-muted-foreground">kcal</span>
-              </div>
-            </div>
-            <div className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.03] p-4 text-center">
-              <Target className="absolute -right-2 -top-2 h-12 w-12 text-emerald-500/10" />
-              <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500/60 mb-1">Intensidade</p>
-              <p className="text-xl font-black text-emerald-400 tracking-tight">{intensity}</p>
-            </div>
-          </div>
-
-          {/* Progress & Controls Card */}
-          <div className="mt-2 space-y-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between px-1">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Série em andamento</p>
-                  <p className="text-lg font-black text-foreground tracking-tight">
-                    Série <span className="text-primary">{currentSet}</span> de {exercicio.series}
+            {/* ③ Status row under video — real data */}
+            <div className="flex items-center justify-between px-4 py-3 border-t border-white/5">
+              <div className="flex items-center gap-2">
+                <Dumbbell className="h-3.5 w-3.5 text-primary shrink-0" />
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40 leading-none">Grupo</p>
+                  <p className="text-xs font-black text-foreground capitalize">
+                    {exercicio.target_muscle || exercicio.body_part || "Força Geral"}
                   </p>
                 </div>
-                <div className="flex items-center gap-1">
-                  {[...Array(exercicio.series)].map((_, i) => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "h-1.5 w-6 rounded-full transition-all duration-500",
-                        i + 1 < currentSet ? "bg-primary" :
-                          i + 1 === currentSet ? "bg-primary animate-pulse w-10" :
-                            "bg-white/10"
-                      )}
-                    />
-                  ))}
+              </div>
+              <div className="h-6 w-px bg-white/5" />
+              <div className="flex items-center gap-2">
+                <Weight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40 leading-none">Equipamento</p>
+                  <p className="text-xs font-bold text-muted-foreground capitalize">
+                    {exercicio.equipment || "Peso Corporal"}
+                  </p>
                 </div>
               </div>
-
-              <div className="relative flex min-h-[140px] items-center justify-between rounded-[32px] border border-white/5 bg-white/[0.02] p-6 backdrop-blur-3xl">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">Reps na série</p>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-6xl font-black tracking-tighter text-foreground">{repsInCurrentSet}</span>
-                    <span className="text-xl font-bold text-muted-foreground/20 italic">/ {exercicio.repeticoes}</span>
-                  </div>
+              <div className="h-6 w-px bg-white/5" />
+              <div className="flex items-center gap-2">
+                <Timer className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40 leading-none">Tempo</p>
+                  <p className="text-xs font-black text-foreground tabular-nums">{formattedTime}</p>
                 </div>
+              </div>
+            </div>
+          </div>
 
-                <Button
-                  className="h-24 w-24 rounded-[32px] bg-primary text-black shadow-[0_0_30px_rgba(var(--primary-rgb),0.3)] hover:scale-105 active:scale-95 transition-all"
-                  onClick={handleAddRep}
-                >
-                  <span className="text-4xl font-black">+1</span>
-                </Button>
+          {/* Stats Grid (BPM · Kcal · Intensidade) */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="relative overflow-hidden rounded-[20px] border border-white/5 bg-white/[0.03] p-3 text-center">
+              <Activity className="absolute -right-1 -top-1 h-8 w-8 text-primary/10" />
+              <p className="text-[8px] font-black uppercase tracking-widest text-primary/60 mb-0.5">BPM</p>
+              <p className="text-lg font-black text-foreground tabular-nums">{bpm}</p>
+            </div>
+            <div className="relative overflow-hidden rounded-[20px] border border-white/5 bg-white/[0.03] p-3 text-center">
+              <Flame className="absolute -right-1 -top-1 h-8 w-8 text-orange-500/10" />
+              <p className="text-[8px] font-black uppercase tracking-widest text-orange-500/60 mb-0.5">Kcal</p>
+              <p className="text-lg font-black text-foreground tabular-nums">{Math.round(calories)}</p>
+            </div>
+            <div className="relative overflow-hidden rounded-[20px] border border-white/5 bg-white/[0.03] p-3 text-center">
+              <Target className="absolute -right-1 -top-1 h-8 w-8 text-emerald-500/10" />
+              <p className="text-[8px] font-black uppercase tracking-widest text-emerald-500/60 mb-0.5">Nível</p>
+              <p className="text-sm font-black text-emerald-400">{intensity}</p>
+            </div>
+          </div>
+
+          {/* Series progress + Rep counter */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between px-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
+                Série <span className="text-primary">{currentSet}</span> de {exercicio.series}
+              </p>
+              <div className="flex items-center gap-1">
+                {[...Array(exercicio.series)].map((_, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "h-1.5 rounded-full transition-all duration-500",
+                      i + 1 < currentSet ? "w-6 bg-primary" :
+                        i + 1 === currentSet ? "w-10 bg-primary animate-pulse" :
+                          "w-6 bg-white/10"
+                    )}
+                  />
+                ))}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 mt-4">
+            <div className="relative flex min-h-[120px] items-center justify-between rounded-[28px] border border-white/5 bg-white/[0.02] p-5 backdrop-blur-3xl">
+              <div className="space-y-0.5">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">Reps na série</p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-5xl font-black tracking-tighter text-foreground">{repsInCurrentSet}</span>
+                  <span className="text-lg font-bold text-muted-foreground/20 italic">/ {exercicio.repeticoes}</span>
+                </div>
+              </div>
               <Button
-                variant="outline-premium"
-                className="py-10 rounded-3xl"
-                onClick={handleToggleTimer}
+                className="h-20 w-20 rounded-[28px] bg-primary text-black shadow-[0_0_30px_rgba(var(--primary-rgb),0.3)] hover:scale-105 active:scale-95 transition-all"
+                onClick={handleAddRep}
               >
-                {isRunning ? <Pause className="mr-2 h-5 w-5" /> : <Play className="mr-2 h-5 w-5" />}
-                {isRunning ? "Pausar" : "Retomar"}
-              </Button>
-
-              <Button
-                className="variant-premium py-10 rounded-3xl"
-                onClick={handleFinalizar}
-                loading={isFinalizing}
-              >
-                <CheckCircle2 className="mr-2 h-5 w-5" />
-                Finalizar
+                <span className="text-3xl font-black">+1</span>
               </Button>
             </div>
           </div>
-        </section>
 
+          {/* ④ Execution Guide — Accordion (closed by default) */}
+          {exercicio.instrucoes && exercicio.instrucoes.length > 0 && (
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="guide" className="rounded-[24px] border border-white/5 bg-white/[0.02] px-4 overflow-hidden">
+                <AccordionTrigger className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 hover:no-underline py-3">
+                  <div className="flex items-center gap-2">
+                    <Info className="h-3.5 w-3.5" />
+                    Guia de Execução
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="space-y-3">
+                    {translateInstructions(exercicio.instrucoes).map((step, idx) => (
+                      <div key={idx} className="flex gap-3 items-start border-l border-white/5 pl-3">
+                        <span className="text-[10px] font-black text-primary/40 pt-0.5 shrink-0">{String(idx + 1).padStart(2, "0")}</span>
+                        <p className="text-xs leading-relaxed text-muted-foreground">{step}</p>
+                      </div>
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          )}
+
+        </section>
       )}
+
+      {/* ⑤ Sticky action bar — always visible at bottom */}
+      {exercicio && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/5 bg-background/90 backdrop-blur-xl px-4 py-3 pb-safe">
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              variant="outline-premium"
+              className="py-6 rounded-2xl text-sm font-black"
+              onClick={handleToggleTimer}
+            >
+              {isRunning ? <Pause className="mr-2 h-4 w-4" /> : <Play className="mr-2 h-4 w-4" />}
+              {isRunning ? "Pausar" : "Retomar"}
+            </Button>
+            <Button
+              className="variant-premium py-6 rounded-2xl text-sm font-black"
+              onClick={handleFinalizar}
+              loading={isFinalizing}
+            >
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              Finalizar
+            </Button>
+          </div>
+        </div>
+      )}
+
       <FloatingNavIsland />
     </div>
   );
