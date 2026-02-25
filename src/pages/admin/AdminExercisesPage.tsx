@@ -167,13 +167,20 @@ export default function AdminExercisesPage() {
 
     const saveMutation = useMutation({
         mutationFn: async (exercise: Partial<Exercise>) => {
-            // Always mark as verified when admin manually saves
-            const payload = { ...exercise, is_verified: true };
+            // Core fields — NEVER include instrucoes here (column may not exist yet)
+            const { instrucoes: _i, ...coreFields } = exercise as Exercise & { instrucoes?: string[] };
+            const corePayload = { ...coreFields, is_verified: true };
+
             if (exercise.id) {
-                const { error } = await supabase.from("exercises").update(payload).eq("id", exercise.id);
+                const { error } = await supabase.from("exercises").update(corePayload as any).eq("id", exercise.id);
                 if (error) throw error;
+
+                // Try updating instrucoes separately — fails silently if column missing
+                if (_i !== undefined) {
+                    await (supabase as any).from("exercises").update({ instrucoes: _i }).eq("id", exercise.id);
+                }
             } else {
-                const { error } = await (supabase.from("exercises") as any).insert([payload]);
+                const { error } = await (supabase as any).from("exercises").insert([corePayload]);
                 if (error) throw error;
             }
         },
@@ -190,11 +197,17 @@ export default function AdminExercisesPage() {
     const approveAndNextMutation = useMutation({
         mutationFn: async (exercise: Partial<Exercise>) => {
             if (!exercise.id) throw new Error("ID ausente");
+            const { instrucoes: _i, ...coreFields } = exercise as Exercise & { instrucoes?: string[] };
             const { error } = await supabase
                 .from("exercises")
-                .update({ ...exercise, is_verified: true })
+                .update({ ...coreFields, is_verified: true } as any)
                 .eq("id", exercise.id);
             if (error) throw error;
+
+            // instrucoes — silently ignore if column missing
+            if (_i !== undefined) {
+                await (supabase as any).from("exercises").update({ instrucoes: _i }).eq("id", exercise.id);
+            }
             return exercise.id;
         },
         onSuccess: (id) => {
