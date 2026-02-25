@@ -479,6 +479,8 @@ export type Database = {
           primary_muscle_id: string | null
           slug: string | null
           target_muscle: string
+          is_active: boolean
+          video_url: string | null
         }
         Insert: {
           created_at?: string
@@ -491,6 +493,8 @@ export type Database = {
           primary_muscle_id?: string | null
           slug?: string | null
           target_muscle: string
+          is_active?: boolean
+          video_url?: string | null
         }
         Update: {
           created_at?: string
@@ -503,6 +507,8 @@ export type Database = {
           primary_muscle_id?: string | null
           slug?: string | null
           target_muscle?: string
+          is_active?: boolean
+          video_url?: string | null
         }
         Relationships: [
           {

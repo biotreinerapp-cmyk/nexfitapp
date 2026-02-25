@@ -81,9 +81,14 @@ const AlunoTreinoAtivoPage = () => {
   const [bpm, setBpm] = useState(90);
   const [calories, setCalories] = useState(0);
 
-  // WEARABLE & PROFILE
   const { heartRate: bleHeartRate, isConnected: isBleConnected, isConnecting: isBleConnecting, connect: connectBle, disconnect: disconnectBle } = useBluetoothHeartRate();
   const { profile } = useUserProfile();
+
+  const getYouTubeId = (url: string) => {
+    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const match = url?.match(regex);
+    return match ? match[1] : null;
+  };
 
   const getStrengthStorageKey = (userId: string, sessionId: string) => `biotreiner_strength_${userId}_${sessionId}`;
 
@@ -367,6 +372,12 @@ const AlunoTreinoAtivoPage = () => {
                   loop
                   muted
                   playsInline
+                />
+              ) : exercicio?.video_url && getYouTubeId(exercicio.video_url) ? (
+                <iframe
+                  src={`https://www.youtube.com/embed/${getYouTubeId(exercicio.video_url)}?autoplay=1&mute=1&loop=1&playlist=${getYouTubeId(exercicio.video_url)}&controls=0&modestbranding=1`}
+                  className="h-full w-full pointer-events-none"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 />
               ) : (
                 <img

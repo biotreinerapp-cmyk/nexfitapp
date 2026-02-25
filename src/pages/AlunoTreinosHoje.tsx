@@ -59,6 +59,12 @@ const AlunoTreinosHojePage = () => {
   const hoje = useMemo(() => new Date(), []);
   const diaIndex = hoje.getDay();
 
+  const getYouTubeId = (url: string) => {
+    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const match = url?.match(regex);
+    return match ? match[1] : null;
+  };
+
   const carregarOuCriarAgenda = async () => {
     if (!user) return;
 
@@ -383,6 +389,12 @@ const AlunoTreinosHojePage = () => {
                           muted
                           playsInline
                         />
+                      ) : gifUrl && getYouTubeId(gifUrl) ? (
+                        <iframe
+                          src={`https://www.youtube.com/embed/${getYouTubeId(gifUrl)}?autoplay=1&mute=1&loop=1&playlist=${getYouTubeId(gifUrl)}&controls=0&modestbranding=1`}
+                          className="h-full w-full pointer-events-none opacity-80 group-hover:opacity-100 transition-opacity"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        />
                       ) : (
                         <img
                           src={gifUrl}
@@ -461,6 +473,12 @@ const AlunoTreinosHojePage = () => {
                         muted
                         playsInline
                         controls={false}
+                      />
+                    ) : gifUrl && getYouTubeId(gifUrl) ? (
+                      <iframe
+                        src={`https://www.youtube.com/embed/${getYouTubeId(gifUrl)}?autoplay=1&mute=1&loop=1&playlist=${getYouTubeId(gifUrl)}&controls=0&modestbranding=1`}
+                        className="aspect-square w-full pointer-events-none"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       />
                     ) : (
                       <img
