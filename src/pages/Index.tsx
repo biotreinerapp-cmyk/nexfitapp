@@ -1,26 +1,29 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { PwaInstallBanner } from "@/components/PwaInstallBanner";
-import { usePwaInstallPrompt } from "@/hooks/usePwaInstallPrompt";
 import SplashLoader from "@/components/SplashLoader";
 
 const Index = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
-  const { showInstallBanner, handleInstallClick, handleCloseBanner } = usePwaInstallPrompt();
-  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     if (loading) return;
+
     if (!user) {
       navigate("/auth", { replace: true });
       return;
     }
 
-    // Check if user is a store_owner or professional to redirect accordingly
+    // User exists — check role and redirect
     const checkRole = async () => {
+      const isMasterAdmin = user.email === "biotreinerapp@gmail.com";
+      if (isMasterAdmin) {
+        navigate("/admin", { replace: true });
+        return;
+      }
+
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")
@@ -40,30 +43,28 @@ const Index = () => {
       if (userRole === "store_owner" || roles.includes("store_owner")) {
         navigate("/loja/dashboard", { replace: true });
       } else if (userRole === "professional" || roles.includes("professional")) {
-        navigate("/professional/dashboard", { replace: true });
+        // Check if professional has completed onboarding
+        const { data: profData } = await (supabase as any)
+          .from("professionals")
+          .select("telemedicina_servico_id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (profData?.telemedicina_servico_id) {
+          navigate("/professional/dashboard", { replace: true });
+        } else {
+          navigate("/professional/onboarding", { replace: true });
+        }
       } else {
         navigate("/aluno/dashboard", { replace: true });
       }
-      setChecking(false);
     };
 
     checkRole();
-  }, [user, loading, navigate, checking]);
+  }, [user, loading, navigate]);
 
-  if (loading || checking) {
-    return <SplashLoader />;
-  }
-
-  return (
-    <div className="relative flex min-h-screen items-center justify-center bg-background text-muted-foreground">
-      <SplashLoader />
-      <PwaInstallBanner
-        showInstallBanner={showInstallBanner}
-        onInstall={handleInstallClick}
-        onClose={handleCloseBanner}
-      />
-    </div>
-  );
+  // Always show SplashLoader while determining where to go
+  return <SplashLoader />;
 };
 
 export default Index;
