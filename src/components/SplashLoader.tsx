@@ -1,57 +1,86 @@
-import { motion } from "framer-motion";
-import logoNexfit from "@/assets/nexfit-logo.png";
+import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useState } from "react";
+import {
+    Dumbbell,
+    ActivitySquare,
+    Flame,
+    Store,
+    Stethoscope,
+    Zap,
+    Trophy
+} from "lucide-react";
+
+const LoaderIcons = [
+    { icon: Dumbbell, color: "text-emerald-400" },
+    { icon: ActivitySquare, color: "text-blue-400" },
+    { icon: Flame, color: "text-amber-400" },
+    { icon: Zap, color: "text-yellow-400" },
+    { icon: Store, color: "text-purple-400" },
+    { icon: Stethoscope, color: "text-rose-400" },
+    { icon: Trophy, color: "text-amber-300" }
+];
 
 const SplashLoader = () => {
-    return (
-        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#050505]">
-            {/* Background Glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-primary/20 rounded-full blur-[100px] animate-pulse" />
+    const [currentIndex, setCurrentIndex] = useState(0);
 
-            <div className="relative flex flex-col items-center">
-                {/* Animated Logo */}
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentIndex((prev) => (prev + 1) % LoaderIcons.length);
+        }, 1200); // Change icon every 1.2s
+        return () => clearInterval(interval);
+    }, []);
+
+    const CurrentIcon = LoaderIcons[currentIndex].icon;
+    const currentColor = LoaderIcons[currentIndex].color;
+
+    return (
+        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#050505] overflow-hidden">
+            {/* Background Glow */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-primary/10 rounded-full blur-[100px] animate-pulse" />
+
+            <div className="relative flex flex-col items-center gap-8">
+                {/* Glassmorphic Icon Container */}
                 <motion.div
-                    initial={{ opacity: 0, scale: 0.8, filter: "blur(10px)" }}
-                    animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
-                    className="relative mb-6"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.6, ease: "easeOut" }}
+                    className="relative w-24 h-24 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-xl flex items-center justify-center shadow-[0_0_30px_rgba(0,0,0,0.5)] overflow-hidden ring-1 ring-white/5"
                 >
-                    <img
-                        src={logoNexfit}
-                        alt="Nexfit"
-                        className="h-20 w-auto object-contain drop-shadow-[0_0_15px_rgba(34,197,94,0.3)]"
-                    />
+                    {/* Inner highlight */}
+                    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={currentIndex}
+                            initial={{ opacity: 0, scale: 0.5, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.5, y: -10 }}
+                            transition={{ duration: 0.3, ease: "easeInOut" }}
+                            className="relative z-10"
+                        >
+                            <CurrentIcon className={`w-10 h-10 ${currentColor} drop-shadow-[0_0_10px_currentColor]`} strokeWidth={1.5} />
+                        </motion.div>
+                    </AnimatePresence>
                 </motion.div>
 
-                {/* Loading Text / Branding */}
+                {/* Suttle Progress Line */}
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ delay: 0.5, duration: 0.5 }}
-                    className="flex flex-col items-center gap-2"
+                    transition={{ delay: 0.3, duration: 0.5 }}
+                    className="h-[2px] w-32 bg-white/5 rounded-full overflow-hidden"
                 >
-                    <p className="text-[10px] font-black uppercase tracking-[0.5em] text-primary/60">
-                        NEXFIT SYSTEM
-                    </p>
-
-                    {/* Suttle Progress Line */}
-                    <div className="h-[2px] w-24 bg-white/5 rounded-full overflow-hidden mt-4">
-                        <motion.div
-                            className="h-full bg-primary"
-                            initial={{ width: "0%" }}
-                            animate={{ width: "100%" }}
-                            transition={{
-                                duration: 2,
-                                repeat: Infinity,
-                                ease: "easeInOut"
-                            }}
-                        />
-                    </div>
+                    <motion.div
+                        className="h-full bg-primary"
+                        initial={{ x: "-100%" }}
+                        animate={{ x: "100%" }}
+                        transition={{
+                            duration: 1.5,
+                            repeat: Infinity,
+                            ease: "easeInOut"
+                        }}
+                    />
                 </motion.div>
-            </div>
-
-            {/* Footer Branding */}
-            <div className="absolute bottom-10 text-[8px] font-bold text-white/20 uppercase tracking-[0.3em]">
-                Elite Performance Intelligence
             </div>
         </div>
     );

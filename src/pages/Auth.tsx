@@ -57,6 +57,7 @@ const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [isResetMode, setIsResetMode] = useState(false);
   const [isUpdatePasswordMode, setIsUpdatePasswordMode] = useState(false);
+  const [isRouting, setIsRouting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showIOSModal, setShowIOSModal] = useState(false);
@@ -112,6 +113,10 @@ const AuthPage = () => {
   useEffect(() => {
     if (!user || roleLoading || isUpdatePasswordMode) return;
 
+    // We have a user, so we are going to redirect. 
+    // Set isRouting to true immediately to prevent rendering the Auth UI.
+    setIsRouting(true);
+
     const isMasterAdmin = user.email === "biotreinerapp@gmail.com";
 
     if (isMasterAdmin) {
@@ -159,7 +164,7 @@ const AuthPage = () => {
     checkUserRoleAndRedirect();
   }, [user, isAdmin, roleLoading, navigate, isUpdatePasswordMode]);
 
-  if (roleLoading) {
+  if (roleLoading || isRouting) {
     return <SplashLoader />;
   }
 

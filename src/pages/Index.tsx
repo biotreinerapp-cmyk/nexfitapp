@@ -10,16 +10,14 @@ const Index = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const { showInstallBanner, handleInstallClick, handleCloseBanner } = usePwaInstallPrompt();
-  const [checking, setChecking] = useState(false);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    if (loading || checking) return;
+    if (loading) return;
     if (!user) {
       navigate("/auth", { replace: true });
       return;
     }
-
-    setChecking(true);
 
     // Check if user is a store_owner or professional to redirect accordingly
     const checkRole = async () => {
