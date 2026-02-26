@@ -99,7 +99,8 @@ export default function AdminExercisesPage() {
     const [page, setPage] = useState(1);
     const [searchTerm, setSearchTerm] = useState("");
     const [muscleFilter, setMuscleFilter] = useState("all");
-    const [pendingOnly, setPendingOnly] = useState(false);   // ← NEW: filter not verified
+    const [pendingOnly, setPendingOnly] = useState(false);
+    const [verifiedOnly, setVerifiedOnly] = useState(false);
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingExercise, setEditingExercise] = useState<Partial<Exercise> | null>(null);
@@ -110,7 +111,7 @@ export default function AdminExercisesPage() {
     // ── Data Fetching ──────────────────────────────────────────────────────────
 
     const { data, isLoading } = useQuery({
-        queryKey: ["admin-exercises", page, searchTerm, muscleFilter, pendingOnly],
+        queryKey: ["admin-exercises", page, searchTerm, muscleFilter, pendingOnly, verifiedOnly],
         queryFn: async () => {
             let query = supabase
                 .from("exercises")
@@ -119,6 +120,7 @@ export default function AdminExercisesPage() {
             if (searchTerm) query = query.ilike("name", `%${searchTerm}%`);
             if (muscleFilter !== "all") query = query.eq("target_muscle", muscleFilter);
             if (pendingOnly) query = query.eq("is_verified", false);
+            if (verifiedOnly) query = query.eq("is_verified", true);
 
             const from = (page - 1) * ITEMS_PER_PAGE;
             const to = from + ITEMS_PER_PAGE - 1;
@@ -363,7 +365,8 @@ export default function AdminExercisesPage() {
                     <h1 className="text-2xl font-bold text-white">Biblioteca de Exercícios</h1>
                     <p className="text-sm text-muted-foreground">
                         {data?.count || 0} exercícios no sistema
-                        {pendingOnly && ` · filtrando apenas não verificados`}
+                        {pendingOnly && ` · apenas pendentes`}
+                        {verifiedOnly && ` · apenas verificados`}
                     </p>
                 </div>
                 <div className="flex gap-2">
@@ -434,14 +437,27 @@ export default function AdminExercisesPage() {
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => { setPendingOnly((p) => !p); setPage(1); }}
+                                onClick={() => { setPendingOnly((p) => !p); setVerifiedOnly(false); setPage(1); }}
                                 className={`border-white/10 gap-2 transition-colors ${pendingOnly
                                     ? "bg-amber-500/20 text-amber-300 border-amber-400/30 hover:bg-amber-500/30"
                                     : "bg-white/5 text-white hover:bg-white/10"
                                     }`}
                             >
                                 <Clock className="h-4 w-4" />
-                                {pendingOnly ? "Apenas Pendentes ✓" : "Apenas Pendentes"}
+                                {pendingOnly ? "Pendentes ✓" : "Pendentes"}
+                            </Button>
+                            {/* Verified-only toggle */}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => { setVerifiedOnly((v) => !v); setPendingOnly(false); setPage(1); }}
+                                className={`border-white/10 gap-2 transition-colors ${verifiedOnly
+                                    ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/30 hover:bg-emerald-500/30"
+                                    : "bg-white/5 text-white hover:bg-white/10"
+                                    }`}
+                            >
+                                <CheckCircle2 className="h-4 w-4" />
+                                {verifiedOnly ? "Verificados ✓" : "Verificados"}
                             </Button>
                         </div>
                     </div>
@@ -756,27 +772,16 @@ export default function AdminExercisesPage() {
                             Cancelar
                         </Button>
                         <Button
-                            onClick={handleSave}
-                            disabled={saveMutation.isPending}
-                            className="border-white/10 bg-white/10 hover:bg-white/20 text-white"
+                            onClick={editingExercise?.id ? handleApproveAndNext : handleSave}
+                            disabled={approveAndNextMutation.isPending || saveMutation.isPending}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
                         >
-                            {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Salvar
+                            {(approveAndNextMutation.isPending || saveMutation.isPending)
+                                ? <Loader2 className="h-4 w-4 animate-spin" />
+                                : <ShieldCheck className="h-4 w-4" />}
+                            {editingExercise?.id ? "Salvar, Aprovar e Próximo" : "Salvar"}
+                            {editingExercise?.id && <ArrowRight className="h-4 w-4" />}
                         </Button>
-                        {/* Approve & Next — only shown when editing an existing exercise */}
-                        {editingExercise?.id && (
-                            <Button
-                                onClick={handleApproveAndNext}
-                                disabled={approveAndNextMutation.isPending}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
-                            >
-                                {approveAndNextMutation.isPending
-                                    ? <Loader2 className="h-4 w-4 animate-spin" />
-                                    : <ShieldCheck className="h-4 w-4" />}
-                                Aprovar e Próximo
-                                <ArrowRight className="h-4 w-4" />
-                            </Button>
-                        )}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
