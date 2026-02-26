@@ -260,12 +260,21 @@ export default function AdminExercisesPage() {
                     is_verified: false,  // New imports start as pending
                 }));
 
-            if (!toInsert.length) return { inserted: 0, skipped: bibData.length };
-
-            for (let i = 0; i < toInsert.length; i += 50) {
-                const { error } = await (supabase.from("exercises") as any).insert(toInsert.slice(i, i + 50));
-                if (error) throw error;
+            if (toInsert.length > 0) {
+                for (let i = 0; i < toInsert.length; i += 50) {
+                    const { error } = await (supabase.from("exercises") as any).insert(toInsert.slice(i, i + 50));
+                    if (error) throw error;
+                }
             }
+
+            // 4. Always reset all student agendas so next visit rebuilds
+            //    using the current pool of verified exercises
+            const { error: resetError } = await (supabase as any)
+                .from("agenda_treinos")
+                .delete()
+                .neq("id", "00000000-0000-0000-0000-000000000000");
+            if (resetError) throw resetError;
+
             return { inserted: toInsert.length, skipped: bibData.length - toInsert.length };
         },
         onSuccess: ({ inserted, skipped }) => {
@@ -273,9 +282,12 @@ export default function AdminExercisesPage() {
             queryClient.invalidateQueries({ queryKey: ["exercises-muscles"] });
             toast({
                 title: "✅ Sincronização concluída",
-                description: inserted > 0
-                    ? `${inserted} novos exercícios importados. ${skipped} já existiam (preservados).`
-                    : `Nenhum exercício novo. ${skipped} já existiam na base.`,
+                description: [
+                    inserted > 0
+                        ? `${inserted} novos exercícios importados.`
+                        : `Nenhum exercício novo (${skipped} já existiam).`,
+                    "Agendas dos alunos foram renovadas \u2014 nova rotina será gerada com os exercícios verificados atuais.",
+                ].join(" "),
             });
         },
         onError: (e: Error) => toast({ title: "Erro na sincronização", description: e.message, variant: "destructive" }),
