@@ -54,10 +54,12 @@ type FormValues = z.infer<typeof schema> & {
 type UpdatePasswordValues = z.infer<typeof updatePasswordSchema>;
 
 const AuthPage = () => {
+  const { user } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [isResetMode, setIsResetMode] = useState(false);
   const [isUpdatePasswordMode, setIsUpdatePasswordMode] = useState(false);
-  const [isRouting, setIsRouting] = useState(false);
+  // Start routing immediately if user already exists (avoids logo/UI flash for even a single frame)
+  const [isRouting, setIsRouting] = useState(() => !!user);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showIOSModal, setShowIOSModal] = useState(false);
@@ -72,7 +74,6 @@ const AuthPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { withFeedback } = useFeedback();
-  const { user } = useAuth();
   const { isAdmin, loading: roleLoading } = useAdminRole();
   const { isIOS, deferredPrompt, handleInstallClick } = usePwaInstallPrompt();
 
@@ -580,7 +581,7 @@ const AuthPage = () => {
 
         <div className="mt-12 w-full text-center pb-8">
           <p className="text-[10px] text-white/20 font-medium uppercase tracking-widest">
-            NexFit System v2.0 • Elite Performance
+            v2.0 • Elite Performance
           </p>
         </div>
 
