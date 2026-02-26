@@ -11,9 +11,6 @@ export interface QueuedWorkout {
   calories: number;
   avgHr?: number;
   paceAvg?: number;
-  // Using 'any' for complex JSON objects that map to JSONB in Supabase, 
-  // but strictly typing specific known fields where possible is better.
-  // For now, these mirror the database columns.
   gpsPoints?: any[];
   intensity?: { label: string | null };
   extras?: {
@@ -21,7 +18,20 @@ export interface QueuedWorkout {
     caption?: string | null;
     legacy_sessao_id?: string;
   };
-  timestamp: number; // Added when queuing
+  timestamp: number;
+}
+
+export interface QueuedStrengthSession {
+  id: string;           // workout_sessions.id (sessaoId)
+  userId: string;
+  exercicioNome: string;
+  series: number;
+  repetitions: number;
+  totalReps: number;
+  bpmMedio: number;
+  caloriasEstimadas: number;
+  finalizadoEm: string; // ISO string
+  timestamp: number;
 }
 
 interface OfflineQueueDB extends DBSchema {
@@ -37,6 +47,10 @@ interface OfflineQueueDB extends DBSchema {
       timestamp: number;
     };
   };
+  strengthQueue: {
+    key: string;
+    value: QueuedStrengthSession;
+  };
 }
 
 let db: IDBPDatabase<OfflineQueueDB> | null = null;
@@ -44,19 +58,30 @@ let db: IDBPDatabase<OfflineQueueDB> | null = null;
 async function getDB(): Promise<IDBPDatabase<OfflineQueueDB>> {
   if (db) return db;
 
-  db = await openDB<OfflineQueueDB>('biotreiner-offline', 1, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains('workoutQueue')) {
-        db.createObjectStore('workoutQueue', { keyPath: 'id' });
+  db = await openDB<OfflineQueueDB>('biotreiner-offline', 2, {
+    upgrade(db, oldVersion) {
+      // Version 1 stores
+      if (oldVersion < 1) {
+        if (!db.objectStoreNames.contains('workoutQueue')) {
+          db.createObjectStore('workoutQueue', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('activityCache')) {
+          db.createObjectStore('activityCache', { keyPath: 'key' });
+        }
       }
-      if (!db.objectStoreNames.contains('activityCache')) {
-        db.createObjectStore('activityCache', { keyPath: 'key' });
+      // Version 2: add strengthQueue for offline strength training sessions
+      if (oldVersion < 2) {
+        if (!db.objectStoreNames.contains('strengthQueue')) {
+          db.createObjectStore('strengthQueue', { keyPath: 'id' });
+        }
       }
     },
   });
 
   return db;
 }
+
+// ─── Workout (Aerobic/Outdoor) Queue ────────────────────────────────────────
 
 export async function enqueueWorkout(workout: Omit<QueuedWorkout, 'timestamp'>): Promise<void> {
   const database = await getDB();
@@ -86,7 +111,30 @@ export async function clearQueue(): Promise<void> {
   console.log('[OfflineQueue] Fila limpa');
 }
 
-// Cache de atividades
+// ─── Strength (Musculação) Queue ─────────────────────────────────────────────
+
+export async function enqueueStrengthSession(session: Omit<QueuedStrengthSession, 'timestamp'>): Promise<void> {
+  const database = await getDB();
+  await database.put('strengthQueue', {
+    ...session,
+    timestamp: Date.now(),
+  });
+  console.log('[OfflineQueue] Sessão de musculação enfileirada:', session.id);
+}
+
+export async function getQueuedStrengthSessions(): Promise<QueuedStrengthSession[]> {
+  const database = await getDB();
+  return await database.getAll('strengthQueue');
+}
+
+export async function removeQueuedStrengthSession(id: string): Promise<void> {
+  const database = await getDB();
+  await database.delete('strengthQueue', id);
+  console.log('[OfflineQueue] Sessão de musculação removida da fila:', id);
+}
+
+// ─── Activity Cache ──────────────────────────────────────────────────────────
+
 export async function cacheActivityList(key: string, data: any): Promise<void> {
   const database = await getDB();
   await database.put('activityCache', {

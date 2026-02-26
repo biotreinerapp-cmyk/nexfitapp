@@ -96,6 +96,7 @@ import ProfessionalPlanoPage from "./pages/ProfessionalPlanoPage";
 import ForbiddenPage from "./pages/Forbidden";
 import { AdminGuard } from "./components/admin/AdminGuard";
 import SplashLoader from "./components/SplashLoader";
+import { OfflineBadge } from "./components/ui/OfflineBadge";
 
 const AlunoRoute = ({ children }: { children: JSX.Element }) => {
   const { user, loading } = useAuth();
@@ -446,6 +447,7 @@ const OfflineFirstManager = () => {
 const AppRoutes = () => (
   <>
     <OfflineFirstManager />
+    <OfflineBadge />
     <Routes>
       <Route path="/" element={<Index />} />
       <Route path="/auth" element={<AuthPage />} />

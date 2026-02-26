@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { getQueuedWorkouts, removeQueuedWorkout } from '@/lib/offlineQueue';
+import {
+  getQueuedWorkouts,
+  removeQueuedWorkout,
+  getQueuedStrengthSessions,
+  removeQueuedStrengthSession,
+} from '@/lib/offlineQueue';
 import { toast } from 'sonner';
 
 const clearSessionLocalCaches = (userId: string, sessionId: string) => {
@@ -20,63 +25,49 @@ const clearSessionLocalCaches = (userId: string, sessionId: string) => {
 export function useOfflineSync() {
   const [isSyncing, setIsSyncing] = useState(false);
 
-  const syncQueue = async () => {
-    if (isSyncing) return;
+  // ─── Aerobic / Outdoor workouts → workout_history ────────────────────────
+  const syncWorkoutQueue = async () => {
+    const queued = await getQueuedWorkouts();
+    if (queued.length === 0) return 0;
 
-    setIsSyncing(true);
-    console.log('[OfflineSync] Iniciando sincronização...');
+    console.log(`[OfflineSync] ${queued.length} treino(s) aeróbico(s) na fila`);
+    let successCount = 0;
 
-    try {
-      const queued = await getQueuedWorkouts();
+    for (const workout of queued) {
+      try {
+        const { error: historyError } = await supabase
+          .from('workout_history')
+          .insert({
+            user_id: workout.userId,
+            activity_type: workout.activityType,
+            source: 'app',
+            privacy: 'public',
+            started_at: workout.startedAt,
+            ended_at: workout.endedAt,
+            duration_seconds: workout.durationSeconds,
+            distance_km: workout.distanceKm,
+            calories: workout.calories,
+            avg_hr: workout.avgHr,
+            pace_avg: workout.paceAvg,
+            gps_points: workout.gpsPoints,
+            intensity: workout.intensity,
+            extras: workout.extras,
+          });
 
-      if (queued.length === 0) {
-        console.log('[OfflineSync] Nenhum item na fila');
-        setIsSyncing(false);
-        return;
-      }
+        if (historyError) {
+          console.error(`[OfflineSync] Erro ao sincronizar histórico (${workout.id}):`, historyError);
+          continue;
+        }
 
-      console.log(`[OfflineSync] ${queued.length} treino(s) na fila`);
-
-      let successCount = 0;
-
-      for (const workout of queued) {
+        // Update session status (non-blocking)
         try {
-          // 1. Insert into workout_history
-          const { error: historyError } = await supabase
-            .from('workout_history')
-            .insert({
-              user_id: workout.userId,
-              activity_type: workout.activityType,
-              source: 'app',
-              privacy: 'public',
-              started_at: workout.startedAt,
-              ended_at: workout.endedAt,
-              duration_seconds: workout.durationSeconds,
-              distance_km: workout.distanceKm,
-              calories: workout.calories,
-              avg_hr: workout.avgHr,
-              pace_avg: workout.paceAvg,
-              gps_points: workout.gpsPoints,
-              intensity: workout.intensity,
-              extras: workout.extras,
-            });
-
-          if (historyError) {
-            console.error(`[OfflineSync] Erro ao sincronizar histórico (${workout.id}):`, historyError);
-            continue; // Skip to next, keep in queue
-          }
-
-          // 2. Update session status (closed loop)
-          // We try to update the session to "finalizada". If it doesn't exist or fails, 
-          // we honestly don't care too much because the history is the source of truth for the user profile.
-          // But we try anyway for consistency.
-          const { error: sessionError } = await supabase
-            .from("atividade_sessao")
+          await supabase
+            .from('atividade_sessao')
             .upsert({
               id: workout.id,
               user_id: workout.userId,
               tipo_atividade: workout.activityType,
-              status: "finalizada",
+              status: 'finalizada',
               confirmado: true,
               bpm_medio: workout.avgHr ?? null,
               calorias_estimadas: workout.calories,
@@ -85,39 +76,90 @@ export function useOfflineSync() {
               route: workout.gpsPoints ?? null,
               finalizado_em: workout.endedAt,
             });
-
-          if (sessionError) {
-            console.warn(`[OfflineSync] Erro não-bloqueante ao atualizar sessão (${workout.id}):`, sessionError);
-          }
-
-          // 3. Success: Remove from queue and clear local cache
-          await removeQueuedWorkout(workout.id);
-          clearSessionLocalCaches(workout.userId, workout.id);
-          console.log('[OfflineSync] Treino sincronizado com sucesso:', workout.id);
-          successCount++;
-
-        } catch (err) {
-          console.error(`[OfflineSync] Exceção ao processar item (${workout.id}):`, err);
+        } catch (sessionErr) {
+          console.warn('[OfflineSync] Sessão update não-bloqueante:', sessionErr);
         }
-      }
 
-      if (successCount > 0) {
-        toast.success(`${successCount} treino(s) sincronizado(s)!`, {
-          duration: 4000,
-        });
+        await removeQueuedWorkout(workout.id);
+        clearSessionLocalCaches(workout.userId, workout.id);
+        successCount++;
+      } catch (err) {
+        console.error(`[OfflineSync] Exceção ao processar treino aeróbico (${workout.id}):`, err);
+      }
+    }
+
+    return successCount;
+  };
+
+  // ─── Strength (Musculação) sessions → workout_sessions ─────────────────────
+  const syncStrengthQueue = async () => {
+    const queued = await getQueuedStrengthSessions();
+    if (queued.length === 0) return 0;
+
+    console.log(`[OfflineSync] ${queued.length} sessão(ões) de musculação na fila`);
+    let successCount = 0;
+
+    for (const session of queued) {
+      try {
+        const { error } = await supabase
+          .from('workout_sessions')
+          .update({
+            status: 'finalizada',
+            finalizado_em: session.finalizadoEm,
+            series: session.series,
+            repetitions: session.repetitions,
+            total_reps: session.totalReps,
+            bpm_medio: session.bpmMedio,
+            calorias_estimadas: session.caloriasEstimadas,
+            confirmado: true,
+          })
+          .eq('id', session.id)
+          .eq('user_id', session.userId);
+
+        if (error) {
+          console.error(`[OfflineSync] Erro ao sincronizar sessão de musculação (${session.id}):`, error);
+          continue;
+        }
+
+        await removeQueuedStrengthSession(session.id);
+        clearSessionLocalCaches(session.userId, session.id);
+        successCount++;
+        console.log('[OfflineSync] Sessão de musculação sincronizada:', session.id);
+      } catch (err) {
+        console.error(`[OfflineSync] Exceção ao processar musculação (${session.id}):`, err);
+      }
+    }
+
+    return successCount;
+  };
+
+  const syncQueue = async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    console.log('[OfflineSync] Iniciando sincronização...');
+
+    try {
+      const [aerobicCount, strengthCount] = await Promise.all([
+        syncWorkoutQueue(),
+        syncStrengthQueue(),
+      ]);
+
+      const totalSynced = aerobicCount + strengthCount;
+
+      if (totalSynced > 0) {
+        toast.success(`${totalSynced} treino(s) sincronizado(s)!`, { duration: 4000 });
 
         if ('Notification' in window && Notification.permission === 'granted') {
           try {
             new Notification('Nexfit', {
               body: 'Seus treinos offline foram sincronizados com sucesso.',
-              icon: '/favicon-new.png', // Ensure this path is correct in your public folder
+              icon: '/favicon-new.png',
             });
           } catch {
             // Ignore notification errors
           }
         }
       }
-
     } catch (error) {
       console.error('[OfflineSync] Erro fatal na sincronização:', error);
     } finally {

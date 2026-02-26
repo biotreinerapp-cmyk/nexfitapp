@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { CheckCircle2, Timer, Activity, Flame, Zap, Play, Pause, Dumbbell, Target, Weight, Info, ChevronDown } from "lucide-react";
+import { CheckCircle2, Timer, Activity, Flame, Zap, Play, Pause, Dumbbell, Target, Weight, Info, ChevronDown, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -22,6 +22,8 @@ import { useBluetoothHeartRate } from "@/hooks/useBluetoothHeartRate";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { translateInstructions } from "@/lib/translateExercise";
 import { Watch, BluetoothSearching, BluetoothConnected } from "lucide-react";
+import { useConnectionStatus } from "@/hooks/useConnectionStatus";
+import { enqueueStrengthSession } from "@/lib/offlineQueue";
 
 const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY || "7abffdb721mshe6edf9169775d83p1212ffjsn4c407842489b";
 
@@ -91,6 +93,7 @@ const AlunoTreinoAtivoPage = () => {
 
   const { heartRate: bleHeartRate, isConnected: isBleConnected, isConnecting: isBleConnecting, connect: connectBle, disconnect: disconnectBle } = useBluetoothHeartRate();
   const { profile } = useUserProfile();
+  const { isOnline } = useConnectionStatus({ silent: true });
 
   const getYouTubeId = (url: string) => {
     const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
@@ -265,23 +268,88 @@ const AlunoTreinoAtivoPage = () => {
   const handleFinalizar = async () => {
     if (!user || !sessaoId || !exercicio) return;
 
-    // Bloqueia clique duplo (state + ref síncrona)
     if (finalizeOnceRef.current || isFinalizing) return;
     finalizeOnceRef.current = true;
     setIsFinalizing(true);
 
+    const finalizadoEm = new Date().toISOString();
+    const caloriasArredondadas = Math.round(calories);
+
+    // ─── Helper: limpar cache local ──────────────────────────────────────────
+    const clearLocalCache = () => {
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.removeItem(`biotreiner_strength_${user.id}_${sessaoId}`);
+        } catch (e) {
+          console.warn("[AlunoTreinoAtivo] Falha ao limpar cache do treino ativo", e);
+        }
+      }
+    };
+
+    // ─── Helper: navegar para resumo ────────────────────────────────────────
+    const navigateToSummary = () => {
+      navigate("/aluno/atividade-personalizar", {
+        replace: false,
+        state: {
+          sessaoId,
+          atividadeNome: exercicio.nome || "Treino de Força",
+          elapsedSeconds,
+          bpmMedio: bpm,
+          caloriasEstimadas: calories,
+          activityType: musculacaoActivityType,
+          intensidade: intensity,
+        },
+      });
+    };
+
+    // ─── OFFLINE: salvar na fila IndexedDB ───────────────────────────────────
+    if (!isOnline) {
+      try {
+        await enqueueStrengthSession({
+          id: sessaoId,
+          userId: user.id,
+          exercicioNome: exercicio.nome || "Treino de Força",
+          series: exercicio.series,
+          repetitions: exercicio.repeticoes,
+          totalReps: totalReps || exercicio.series * exercicio.repeticoes,
+          bpmMedio: bpm,
+          caloriasEstimadas: caloriasArredondadas,
+          finalizadoEm,
+        });
+
+        clearLocalCache();
+        toast({
+          title: "Treino salvo localmente",
+          description: "Sem conexão. Seus dados serão sincronizados assim que você voltar online.",
+        });
+        navigateToSummary();
+      } catch (err: any) {
+        console.error("[AlunoTreinoAtivo] Erro ao salvar offline:", err);
+        toast({
+          title: "Erro ao salvar offline",
+          description: "Não foi possível salvar o treino. Tente novamente.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsFinalizing(false);
+        finalizeOnceRef.current = false;
+      }
+      return;
+    }
+
+    // ─── ONLINE: fluxo normal via Supabase ───────────────────────────────────
     try {
       const { error } = await supabase
         .from("workout_sessions")
         .update({
           status: "finalizada",
-          finalizado_em: new Date().toISOString(),
+          finalizado_em: finalizadoEm,
           series: exercicio.series,
           repetitions: exercicio.repeticoes,
           total_reps: totalReps || exercicio.series * exercicio.repeticoes,
           bpm_medio: bpm,
-          calorias_estimadas: Math.round(calories),
-          confirmado: true, // Confirmação explícita de treino concluído
+          calorias_estimadas: caloriasArredondadas,
+          confirmado: true,
         })
         .eq("id", sessaoId)
         .eq("user_id", user.id);
@@ -295,32 +363,12 @@ const AlunoTreinoAtivoPage = () => {
         return;
       }
 
-      // Limpa cache de persistência forte do treino de musculação para evitar restore indevido
-      if (typeof window !== "undefined") {
-        try {
-          window.localStorage.removeItem(`biotreiner_strength_${user.id}_${sessaoId}`);
-        } catch (e) {
-          console.warn("[AlunoTreinoAtivo] Falha ao limpar cache do treino ativo (musculação)", e);
-        }
-      }
-
+      clearLocalCache();
       toast({
         title: "Treino confirmado",
         description: "Seu treino foi registrado e confirmado para a frequência semanal.",
       });
-
-      navigate("/aluno/atividade-personalizar", {
-        replace: false,
-        state: {
-          sessaoId,
-          atividadeNome: exercicio.nome || "Treino de Força",
-          elapsedSeconds,
-          bpmMedio: bpm,
-          caloriasEstimadas: calories,
-          activityType: musculacaoActivityType,
-          intensidade: intensity,
-        },
-      });
+      navigateToSummary();
     } catch (error: any) {
       console.error("Erro ao finalizar workout_session", error);
       toast({
