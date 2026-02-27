@@ -14,6 +14,8 @@ import {
   DollarSign,
   Loader2,
   CreditCard,
+  PersonStanding,
+  Activity
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -35,11 +37,12 @@ type HorarioDisponivel = (typeof HORARIOS_DISPONIVEIS)[number];
 const getServicoIcon = (slug: string) => {
   const key = (slug || "").toLowerCase();
 
-  // Mapeamento simples por slug/palavras-chave (pode ajustar conforme seus slugs reais)
   if (key.includes("cardio") || key.includes("coracao") || key.includes("coração")) return HeartPulse;
-  if (key.includes("neuro") || key.includes("mente") || key.includes("psico")) return Brain;
+  if (key.includes("psico") || key.includes("mente") || key.includes("terapia")) return Brain;
   if (key.includes("nutri") || key.includes("aliment") || key.includes("dieta")) return Apple;
-  if (key.includes("fisio") || key.includes("treino") || key.includes("ortop")) return Dumbbell;
+  if (key.includes("fisio") || key.includes("ortop")) return PersonStanding;
+  if (key.includes("educador") || key.includes("treino") || key.includes("fisico")) return Dumbbell;
+  if (key.includes("endocrino")) return Activity;
 
   return Stethoscope;
 };
