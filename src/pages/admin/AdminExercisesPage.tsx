@@ -232,83 +232,30 @@ export default function AdminExercisesPage() {
         onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
     });
 
-    const syncMutation = useMutation({
-        mutationFn: async () => {
-            // 1. Load biblioteca
-            const { data: bibData, error: bibError } = await supabase.from("biblioteca_exercicios").select("*");
-            if (bibError) throw bibError;
-            if (!bibData?.length) throw new Error("Nenhum exercício na biblioteca.");
-
-            // 2. Load existing exercises names (to avoid duplicates)
-            const { data: existing, error: existingError } = await supabase
-                .from("exercises")
-                .select("name");
-            if (existingError) throw existingError;
-
-            const existingNames = new Set((existing ?? []).map((e) => (e.name ?? "").toLowerCase().trim()));
-
-            // 3. Only insert exercises NOT already in exercises table
-            const toInsert = bibData
-                .filter((ex) => !existingNames.has((ex.nome ?? "").toLowerCase().trim()))
-                .map((ex) => ({
-                    name: ex.nome,
-                    target_muscle: ex.target_muscle || "Geral",
-                    equipment: ex.equipment || "Geral",
-                    difficulty: "beginner",
-                    video_url: ex.video_url,
-                    is_active: true,
-                    is_verified: false,  // New imports start as pending
-                }));
-
-            if (toInsert.length > 0) {
-                for (let i = 0; i < toInsert.length; i += 50) {
-                    const { error } = await (supabase.from("exercises") as any).insert(toInsert.slice(i, i + 50));
-                    if (error) throw error;
-                }
-            }
-
-            // 4. Always reset all student agendas so next visit rebuilds
-            //    using the current pool of verified exercises
-            const { error: resetError } = await (supabase as any)
-                .from("agenda_treinos")
-                .delete()
-                .neq("id", "00000000-0000-0000-0000-000000000000");
-            if (resetError) throw resetError;
-
-            return { inserted: toInsert.length, skipped: bibData.length - toInsert.length };
-        },
-        onSuccess: ({ inserted, skipped }) => {
-            queryClient.invalidateQueries({ queryKey: ["admin-exercises"] });
-            queryClient.invalidateQueries({ queryKey: ["exercises-muscles"] });
-            toast({
-                title: "✅ Sincronização concluída",
-                description: [
-                    inserted > 0
-                        ? `${inserted} novos exercícios importados.`
-                        : `Nenhum exercício novo (${skipped} já existiam).`,
-                    "Agendas dos alunos foram renovadas \u2014 nova rotina será gerada com os exercícios verificados atuais.",
-                ].join(" "),
-            });
-        },
-        onError: (e: Error) => toast({ title: "Erro na sincronização", description: e.message, variant: "destructive" }),
-    });
+    // Sincronização externa (MuscleWiki) foi removida a pedido do usuário.
+    // O sistema agora opera 100% de forma interna com os exercícios já cadastrados.
 
     /** Reseta a agenda de TODOS os alunos — próximo login gera nova rotina a partir dos exercícios verificados */
     const resetAgendaMutation = useMutation({
         mutationFn: async () => {
-            const { error } = await (supabase as any)
-                .from("agenda_treinos")
-                .delete()
-                .neq("id", "00000000-0000-0000-0000-000000000000");
+            const { data, error } = await supabase.functions.invoke("sync-exercises", {
+                body: { reset_only: true }
+            });
             if (error) throw error;
+
+            if (data && data.error) {
+                throw new Error(data.error);
+            }
+
+            return data;
         },
         onSuccess: () => {
             toast({
-                title: "✅ Agendas resetadas",
-                description: "Todos os alunos terão nova rotina gerada (somente exercícios aprovados) no próximo acesso.",
+                title: "✅ Atualizações aplicadas",
+                description: "As agendas antigas foram limpas. Os alunos receberão a nova curadoria de exercícios ao abrir o app.",
             });
         },
-        onError: (e: Error) => toast({ title: "Erro ao resetar agendas", description: e.message, variant: "destructive" }),
+        onError: (e: Error) => toast({ title: "Erro ao aplicar atualizações", description: e.message, variant: "destructive" }),
     });
 
     // ── Handlers ──────────────────────────────────────────────────────────────
@@ -382,15 +329,6 @@ export default function AdminExercisesPage() {
                     </p>
                 </div>
                 <div className="flex gap-2">
-                    <Button
-                        variant="outline"
-                        className="border-white/10 bg-white/5 hover:bg-white/10 text-white"
-                        onClick={() => syncMutation.mutate()}
-                        disabled={syncMutation.isPending}
-                    >
-                        {syncMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                        Sincronizar da Biblioteca
-                    </Button>
                     {/* ── Reset Agendas dos Alunos ────────────────────────── */}
                     <Button
                         variant="outline"
@@ -406,7 +344,7 @@ export default function AdminExercisesPage() {
                         {resetAgendaMutation.isPending
                             ? <Loader2 className="h-4 w-4 animate-spin" />
                             : <RotateCcw className="h-4 w-4" />}
-                        Resetar Treinos
+                        Aplicar Atualizações aos Alunos
                     </Button>
                     <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={handleOpenCreate}>
                         <Dumbbell className="mr-2 h-4 w-4" />

@@ -234,13 +234,39 @@ const AlunoTreinosHojePage = () => {
 
   const doneCount = doneIds.size;
   const totalCount = exerciciosHoje.length;
-  const allDone = totalCount > 0 && doneCount === totalCount;
+  // ── Local Storage Key ──────────────────────────────────────────────────────
+  const [hojeStr] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  });
+
+  const getStorageKey = () => `treino_concluido_${user?.id}_${hojeStr}`;
+
+  // Hydrate doneIds from localStorage on mount
+  useEffect(() => {
+    if (!user) return;
+    try {
+      const saved = localStorage.getItem(getStorageKey());
+      if (saved) {
+        setDoneIds(new Set(JSON.parse(saved)));
+      }
+    } catch (e) {
+      console.error("Erro lendo localStorage", e);
+    }
+  }, [user, hojeStr]);
 
   // ── Toggle done ────────────────────────────────────────────────────────────
   const toggleDone = (id: string) => {
     setDoneIds((prev) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
+
+      try {
+        localStorage.setItem(getStorageKey(), JSON.stringify(Array.from(next)));
+      } catch (e) {
+        console.error("Erro salvando no localStorage", e);
+      }
+
       return next;
     });
   };
@@ -296,24 +322,38 @@ const AlunoTreinosHojePage = () => {
         }
 
         const novaAgenda: Omit<AgendaTreinoRow, "id">[] = [];
+        // Embaralha uma ÚNICA vez para distribuir ao longo da semana garantindo que não haja repetições.
+        const listaEmbaralhada = [...listaBase].sort(() => Math.random() - 0.5);
+
         for (let offset = 0; offset < 7; offset++) {
           const dia = (diaIndex + offset) % 7;
+
+          // Se for Domingo (0), não colocar exercícios por definição de dia de descanso.
+          // O usuário quer treinar 6 dias? Normalmente domingo é descanso.
+          // Caso a academia/rotina contemple domingo, nós poderíamos adaptar, mas manteremos dia 0 como descanso.
           if (dia === 0) { novaAgenda.push({ dia_semana: dia, exercicios: [] }); continue; }
 
-          const selecionados: AgendaExercicioDia[] = [...listaBase]
-            .sort(() => Math.random() - 0.5)
-            .slice(0, 5)
-            .map((ex: any) => ({
-              exercicio_id: ex.id,
-              nome: ex.name,           // exercises table uses "name" not "nome"
-              body_part: ex.target_muscle ?? null,
-              target_muscle: ex.target_muscle ?? null,
-              equipment: ex.equipment ?? null,
-              video_url: ex.video_url ?? null,
-              instrucoes: ex.instrucoes ?? [],
-              series: objetivo.includes("massa") ? 4 : 3,
-              repeticoes: objetivo.includes("massa") ? 10 : 15,
-            }));
+          // Garante que o offset de fatiamento não estoure a lista se houver menos de 35 exercicios, 
+          // caso contrário ele faz modulo wrap pra reciclar do começo.
+          const exerciciosDoDia = [];
+          for (let i = 0; i < 5; i++) {
+            // Conta quantos dias 'preenchidos' tiveram (dias > 0) para o slice correto
+            const stepAbsoluto = (offset * 5) + i;
+            const indexCircular = stepAbsoluto % listaEmbaralhada.length;
+            exerciciosDoDia.push(listaEmbaralhada[indexCircular]);
+          }
+
+          const selecionados: AgendaExercicioDia[] = exerciciosDoDia.map((ex: any) => ({
+            exercicio_id: ex.id,
+            nome: ex.name,           // exercises table uses "name" not "nome"
+            body_part: ex.target_muscle ?? null,
+            target_muscle: ex.target_muscle ?? null,
+            equipment: ex.equipment ?? null,
+            video_url: ex.video_url ?? null,
+            instrucoes: ex.instrucoes ?? [],
+            series: objetivo.includes("massa") ? 4 : 3,
+            repeticoes: objetivo.includes("massa") ? 10 : 15,
+          }));
 
           novaAgenda.push({ dia_semana: dia, exercicios: selecionados });
         }
@@ -389,6 +429,24 @@ const AlunoTreinosHojePage = () => {
           // If query returned nothing, show empty (all are unverified)
           exerciciosFiltrados = [];
         }
+      }
+
+      // ── Regeneração automática se os exercícios aprovados caírem ──────
+      // Se a rotina original tinha pelo menos 5 exercícios, mas após o filtro dos
+      // verificados sobraram menos de 5, significa que a curadoria mudou. 
+      // Em vez de mostrar um treino "básico" de 2 exercícios, resetamos tudo.
+      if (exerciciosDia.length >= 5 && exerciciosFiltrados.length < 5 && exerciciosFiltrados.length > 0) {
+        toast({
+          title: "Rotina atualizada",
+          description: "A biblioteca de exercícios foi atualizada. Regenerando seu treino...",
+        });
+        // Delete agendas
+        await supabase.from("agenda_treinos").delete().eq("aluno_id", user.id);
+        // Recursively call to rebuild once
+        // Small delay to let DB settle
+        await new Promise(r => setTimeout(r, 500));
+        await carregarOuCriarAgenda();
+        return;
       }
 
       if (!exerciciosFiltrados.length) {
