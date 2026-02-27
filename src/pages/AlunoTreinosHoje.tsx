@@ -175,13 +175,9 @@ function ExerciseCard({ ex, idx, done, onToggleDone, onOpen, onYoutube }: Exerci
           {muscleLabel}
         </Badge>
 
-        {/* Equipment + sets×reps row */}
+        {/* Equipment */}
         <div className="flex items-center gap-3 mt-0.5">
           <EquipmentChip equipment={ex.equipment} />
-          <div className="flex items-center gap-1 rounded-lg bg-primary/10 px-2 py-0.5">
-            <Layers className="h-3 w-3 text-primary" />
-            <span className="text-[11px] font-black text-primary">{ex.series} × {ex.repeticoes}</span>
-          </div>
         </div>
       </div>
 
