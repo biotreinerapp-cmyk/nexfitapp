@@ -234,6 +234,7 @@ const AlunoTreinosHojePage = () => {
 
   const doneCount = doneIds.size;
   const totalCount = exerciciosHoje.length;
+  const allDone = totalCount > 0 && doneCount === totalCount;
   // ── Local Storage Key ──────────────────────────────────────────────────────
   const [hojeStr] = useState(() => {
     const d = new Date();
