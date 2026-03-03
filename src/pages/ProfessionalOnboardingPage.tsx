@@ -430,6 +430,9 @@ export default function ProfessionalOnboardingPage() {
                                     onChange={(e) => setFormData({ ...formData, base_price: e.target.value })}
                                     className="h-14 bg-white/5 border-white/5 text-white rounded-2xl px-5 focus:border-primary/50 transition-all font-medium font-mono"
                                 />
+                                <p className="text-[10px] text-zinc-500 mt-1">
+                                    O sistema aplicará um desconto automático de 20% para usuários do plano Elite Black.
+                                </p>
                             </div>
                         </div>
                         <div className="flex gap-4">

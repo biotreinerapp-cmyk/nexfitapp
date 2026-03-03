@@ -158,13 +158,21 @@ const AlunoAtividadeMomentoPage = () => {
       if (!navigator.onLine) {
         const cached = await getCachedActivityList("explorar_atividades");
         if (Array.isArray(cached) && cached.length > 0) {
-          setActivityCards(cached as Atividade[]);
+          const restored = cached.map(ca => {
+            const defaultAct = DEFAULT_ATIVIDADES.find(d => d.id === ca.id);
+            return {
+              ...ca,
+              icone: defaultAct ? defaultAct.icone : Activity
+            };
+          });
+          setActivityCards(restored as Atividade[]);
         }
         return;
       }
 
       // Online: mantém o cache sempre “quentinho”.
-      await cacheActivityList("explorar_atividades", DEFAULT_ATIVIDADES);
+      const savableActivities = DEFAULT_ATIVIDADES.map(({ icone, ...rest }) => rest);
+      await cacheActivityList("explorar_atividades", savableActivities);
       await cacheActivityList("activity_types", ACTIVITY_TYPES);
     };
 

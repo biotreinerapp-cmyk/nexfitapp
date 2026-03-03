@@ -50,6 +50,7 @@ type Exercise = {
     load: string;
     rest_seconds: number;
     rpe: number;
+    time_minutes: number;
     technique_tip: string;
     notes: string;
 };
@@ -129,6 +130,7 @@ const emptyExercise = (): Exercise => ({
     load: "",
     rest_seconds: 60,
     rpe: 7,
+    time_minutes: 0,
     technique_tip: "",
     notes: "",
 });
@@ -234,7 +236,7 @@ function ExerciseCard({
                         </div>
                     ) : (
                         /* Layout Treino */
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-3 gap-3">
                             <div>
                                 <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5 block">
                                     Séries
@@ -257,6 +259,18 @@ function ExerciseCard({
                                     className="bg-black/40 border-white/10 text-white rounded-xl h-10 text-center font-bold"
                                 />
                             </div>
+                            <div>
+                                <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5 block">
+                                    Tempo
+                                </Label>
+                                <Input
+                                    type="number"
+                                    value={ex.time_minutes || ""}
+                                    onChange={(e) => onUpdate("time_minutes", Number(e.target.value))}
+                                    className="bg-black/40 border-white/10 text-white rounded-xl h-10 text-center font-bold placeholder:text-zinc-600"
+                                    placeholder="Ex: 15"
+                                />
+                            </div>
                         </div>
                     )}
 
@@ -266,11 +280,12 @@ function ExerciseCard({
                             {isNutritionist ? <ChefHat className="h-3 w-3" /> : <Info className="h-3 w-3" />}
                             {isNutritionist ? "Modo de Preparo / Dica" : "Dica de Técnica"}
                         </Label>
-                        <Input
-                            placeholder={isNutritionist ? "Ex: Grelhado sem óleo" : "Ex: Controle a descida"}
-                            value={ex.technique_tip}
+                        <Textarea
+                            placeholder={isNutritionist ? "Ex: Grelhado sem óleo" : "Ex: Controle a descida...\nMantenha a postura reta."}
+                            value={ex.technique_tip || ""}
                             onChange={(e) => onUpdate("technique_tip", e.target.value)}
-                            className="bg-black/40 border-white/10 text-white rounded-xl h-10 placeholder:text-zinc-600"
+                            rows={3}
+                            className="bg-black/40 border-white/10 text-white rounded-xl placeholder:text-zinc-600 resize-none"
                         />
                     </div>
 

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Apple, Dumbbell, Pill, Shirt } from "lucide-react";
+import { Apple, Dumbbell, Pill, Shirt, Gem } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { HubServiceButton } from "@/components/dashboard/HubServiceButton";
 import { BackIconButton } from "@/components/navigation/BackIconButton";
@@ -34,11 +34,11 @@ const MarketplaceCategoriesPage = () => {
             <div className="relative flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-foreground">Ofertas Exclusivas</p>
-                <p className="text-[11px] text-muted-foreground">Membros Nexfit economizam até 20%</p>
+                <p className="text-[11px] text-muted-foreground">Membros Nexfit economizam até 10% OFF e frete grátis</p>
               </div>
-              <Badge variant="secondary" className="bg-primary/20 text-primary border-none text-[10px] px-2 py-0.5">
-                VIP STATUS
-              </Badge>
+              <div className="absolute -top-6 -right-4 opacity-10 transition-opacity group-hover:opacity-20">
+                <Gem className="h-24 w-24 text-primary rotate-[15deg] blur-[1px]" />
+              </div>
             </div>
           </div>
         </header>

@@ -41,7 +41,6 @@ export default function ProfessionalProfilePage() {
         instagram: "",
         pix_key: "",
         pix_receiver_name: "",
-        pix_bank_name: "",
     });
 
     const [telemedicinaServices, setTelemedicinaServices] = useState<any[]>([]);
@@ -88,7 +87,6 @@ export default function ProfessionalProfilePage() {
                 instagram: data.instagram || "",
                 pix_key: data.pix_key || "",
                 pix_receiver_name: data.pix_receiver_name || "",
-                pix_bank_name: data.pix_bank_name || "",
             });
         } catch (error: any) {
             console.error("Load profile error:", error);
@@ -115,7 +113,6 @@ export default function ProfessionalProfilePage() {
                     instagram: formData.instagram,
                     pix_key: formData.pix_key,
                     pix_receiver_name: formData.pix_receiver_name,
-                    pix_bank_name: formData.pix_bank_name,
                 })
                 .eq("id", profile.id);
 
@@ -337,15 +334,6 @@ export default function ProfessionalProfilePage() {
                                 onChange={(e) => setFormData({ ...formData, pix_receiver_name: e.target.value })}
                                 className="bg-black/20 border-white/10 text-white"
                                 placeholder="Seu nome completo"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label className="text-white">Instituição Financeira</Label>
-                            <Input
-                                value={formData.pix_bank_name}
-                                onChange={(e) => setFormData({ ...formData, pix_bank_name: e.target.value })}
-                                className="bg-black/20 border-white/10 text-white"
-                                placeholder="Nome do seu banco"
                             />
                         </div>
                     </CardContent>
