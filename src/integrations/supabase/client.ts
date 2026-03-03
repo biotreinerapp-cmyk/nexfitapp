@@ -15,24 +15,61 @@ const supabaseAnonKey = (envKey && typeof envKey === 'string' && envKey.trim().l
 // Logs de Diagnóstico (Seguros)
 if (typeof window !== "undefined") {
     const isProduction = import.meta.env.PROD;
-    console.log(`[SupabaseInit] [PROD:${isProduction}] Verificando configuração...`);
-    console.log("[SupabaseInit] URL:", supabaseUrl);
-    console.log("[SupabaseInit] Origem da URL:", import.meta.env.VITE_SUPABASE_URL ? "ENV" : "FALLBACK");
+    console.group(`[SupabaseInit] [PROD:${isProduction}]`);
+    console.log("URL:", supabaseUrl);
+    console.log("Origem da URL:", import.meta.env.VITE_SUPABASE_URL ? "ENV" : "FALLBACK");
 
     const keyPrefix = supabaseAnonKey?.substring(0, 10);
     const keySuffix = supabaseAnonKey?.substring(supabaseAnonKey?.length - 5);
-    console.log(`[SupabaseInit] Key (${import.meta.env.VITE_SUPABASE_ANON_KEY ? "ENV" : "FALLBACK"}): ${keyPrefix}...${keySuffix}`);
+    console.log(`Key (${import.meta.env.VITE_SUPABASE_ANON_KEY ? "ENV" : "FALLBACK"}): ${keyPrefix}...${keySuffix}`);
+
+    // Validação de Projeto (Extração do ID do JWT)
+    try {
+        const payloadBase64 = supabaseAnonKey.split('.')[1];
+        if (payloadBase64) {
+            const payload = JSON.parse(atob(payloadBase64));
+            const keyProjectId = payload.ref || payload.iss?.split('.')[0];
+            const urlProjectId = supabaseUrl.split('//')[1]?.split('.')[0];
+
+            console.log("ID do Projeto (Key):", keyProjectId);
+            console.log("ID do Projeto (URL):", urlProjectId);
+
+            if (keyProjectId !== urlProjectId) {
+                console.error("CRITICAL: Mismatch detectado! O Anon Key pertence a um projeto diferente da URL.");
+            }
+        }
+    } catch (e) {
+        console.warn("Não foi possível validar o ID do projeto via Token.");
+    }
 
     if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes("REPLACE_WITH")) {
-        console.error("[SupabaseInit] CRITICAL: Invalid configuration detected!");
+        console.error("CRITICAL: Invalid configuration detected!");
     }
 
     if (isProduction && (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY)) {
-        console.warn("[SupabaseInit] WARNING: Production build is using FALLBACK values. Ensure VITE_ variables are set in Render.");
+        console.warn("WARNING: Production build is using FALLBACK values. Ensure VITE_ variables are set in Render.");
     }
+    console.groupEnd();
 }
+
+// Debugger de requisições (opcional para investigar headers no console em produção)
+const customFetch = async (url: string, options: any) => {
+    if (url.includes("/auth/v1/")) {
+        console.group(`[SupabaseAuthRequest] ${url}`);
+        console.log("Method:", options?.method);
+        console.log("Headers:", options?.headers);
+        // Não logamos o body por segurança, a menos que seja estritamente necessário
+        console.groupEnd();
+    }
+    return fetch(url, options);
+};
 
 export const supabase = createClient<Database>(
     supabaseUrl,
-    supabaseAnonKey
+    supabaseAnonKey,
+    {
+        global: {
+            fetch: customFetch
+        }
+    }
 );
