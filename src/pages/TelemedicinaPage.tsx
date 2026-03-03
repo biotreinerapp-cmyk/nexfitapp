@@ -21,7 +21,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { useToast } from "@/hooks/use-toast";
-import { createPixPayment, checkPixPaymentStatus, PixPaymentResult } from "@/lib/pixPaymentTracking";
+import { createPixPayment, PixPaymentResult } from "@/lib/pixPaymentTracking";
+import { buildPixPayload } from "@/lib/pix";
+import QRCode from "qrcode";
 import { HubServiceButton } from "@/components/dashboard/HubServiceButton";
 import { FloatingNavIsland } from "@/components/navigation/FloatingNavIsland";
 import { Button } from "@/components/ui/button";
@@ -63,6 +65,9 @@ interface TelemedProfissional {
   is_available: boolean | null;
   telemedicina_servico_id: string | null;
   profile_image_url: string | null;
+  pix_key?: string;
+  pix_receiver_name?: string;
+  pix_bank_name?: string;
 }
 
 const TelemedicinaPage = () => {
@@ -104,7 +109,7 @@ const TelemedicinaPage = () => {
           .order("nome"),
         (supabase as any)
           .from("professionals")
-          .select("id, name, bio, base_price, is_available, telemedicina_servico_id, profile_image_url")
+          .select("id, name, bio, base_price, is_available, telemedicina_servico_id, profile_image_url, pix_key, pix_receiver_name, pix_bank_name")
           .not("telemedicina_servico_id", "is", null)
           .eq("is_available", true)
           .order("name"),
@@ -143,19 +148,44 @@ const TelemedicinaPage = () => {
       if (error) throw error;
 
       if (profissional.base_price && profissional.base_price > 0) {
-        const result = await createPixPayment({
-          userId: user.id,
-          amount: profissional.base_price,
-          paymentType: "professional_service",
-          referenceId: hire.id,
-          description: `Telemedicina: ${profissional.name}`,
-          paymentMethod: method,
-        });
+        if (method === "pix") {
+          if (!profissional.pix_key) {
+            toast({ title: "Erro", description: "O profissional ainda não configurou uma chave Pix.", variant: "destructive" });
+            setSubmitting(false);
+            return;
+          }
+          const payload = buildPixPayload({
+            pixKey: profissional.pix_key,
+            receiverName: profissional.pix_receiver_name || profissional.name,
+            amount: profissional.base_price,
+            description: `Telemedicina: ${profissional.name}`.slice(0, 30) // max desc
+          });
+          const qrCode = await QRCode.toDataURL(payload, { width: 300, margin: 1, color: { dark: '#000000FF', light: '#FFFFFFFF' } });
 
-        setPixData(result);
-        setPaymentUrl(result.paymentUrl || null);
-        setShowPixDialog(true);
-        setAgendaOpen(false);
+          setPixData({
+            paymentId: hire.id, // Using the local hire ID as the reference since we bypass InfinitePay
+            pixPayload: payload,
+            pixQrCode: qrCode,
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
+          });
+          setShowPixDialog(true);
+          setAgendaOpen(false);
+        } else {
+          // Fallback to InfinitePay logic for Card payments
+          const result = await createPixPayment({
+            userId: user.id,
+            amount: profissional.base_price,
+            paymentType: "professional_service",
+            referenceId: hire.id,
+            description: `Telemedicina: ${profissional.name}`,
+            paymentMethod: method,
+          });
+
+          setPixData(result);
+          setPaymentUrl(result.paymentUrl || null);
+          setShowPixDialog(true);
+          setAgendaOpen(false);
+        }
       } else {
         toast({
           title: "Solicitação enviada!",
@@ -184,18 +214,22 @@ const TelemedicinaPage = () => {
     if (!pixData) return;
     setCheckingPayment(true);
     try {
-      const status = await checkPixPaymentStatus(pixData.paymentId);
-      if (status === "paid") {
-        setPaymentStatus("paid");
+      if (paymentMethod === "pix") {
+        // Direct Pix: simply notify professional and close
+        await (supabase as any).from("professional_hires").update({
+          payment_status: "awaiting_verification"
+        }).eq("id", pixData.paymentId);
+
         toast({
-          title: "Pagamento confirmado!",
-          description: "Sua conexão com o profissional foi liberada.",
+          title: "Comprovante enviado!",
+          description: "O profissional verificará o Pix e liberará sua consulta em breve.",
         });
+        setPaymentStatus("paid");
         setTimeout(() => setShowPixDialog(false), 2000);
-      } else if (status === "expired") {
-        setPaymentStatus("expired");
       } else {
-        toast({ title: "Aguardando pagamento..." });
+        // Leave existing InfinitePay check if used for card
+        toast({ title: "O pagamento via cartão está sendo processado." });
+        setTimeout(() => setShowPixDialog(false), 2000);
       }
     } catch (error) {
       console.error("Check error:", error);
@@ -447,7 +481,11 @@ const TelemedicinaPage = () => {
           }
         }}
       >
-        <DialogContent className="max-w-sm border-white/10 bg-black/90 p-0 backdrop-blur-3xl overflow-hidden rounded-[32px]">
+        <DialogContent className="w-[95vw] sm:max-w-sm border-white/10 bg-black/90 p-0 backdrop-blur-3xl overflow-hidden rounded-[32px] outline-none flex flex-col max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Agendar Consulta</DialogTitle>
+            <DialogDescription>Selecione um horário para agendar sua telemedicina.</DialogDescription>
+          </DialogHeader>
           {profissionalSelecionado && (
             <div className="flex flex-col">
               <div className="relative h-40 overflow-hidden">
@@ -521,19 +559,19 @@ const TelemedicinaPage = () => {
 
       {/* PIX Payment Dialog */}
       <Dialog open={showPixDialog} onOpenChange={setShowPixDialog}>
-        <DialogContent className="max-w-md border-white/10 bg-black/95 text-white backdrop-blur-3xl rounded-[32px]">
+        <DialogContent className="w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto border-white/10 bg-black/95 text-white backdrop-blur-3xl rounded-[32px] flex flex-col">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-2xl font-black">
+            <DialogTitle className="flex items-center justify-center sm:justify-start gap-2 text-2xl font-black">
               <QrCode className="h-6 w-6 text-primary" />
               Pagamento
             </DialogTitle>
-            <DialogDescription className="text-white/60 text-xs">
+            <DialogDescription className="text-white/60 text-xs text-center sm:text-left">
               Finalize o pagamento para confirmar sua contratação.
             </DialogDescription>
           </DialogHeader>
 
           {pixData && (
-            <div className="flex flex-col items-center space-y-6 py-6">
+            <div className="flex flex-col items-center space-y-6 py-6 w-full">
               {paymentStatus === "paid" ? (
                 <div className="flex flex-col items-center gap-4 text-center">
                   <div className="h-20 w-20 rounded-full bg-primary/20 flex items-center justify-center">
@@ -558,33 +596,33 @@ const TelemedicinaPage = () => {
                   </div>
 
                   {paymentMethod === "pix" ? (
-                    <>
-                      <div className="flex justify-center bg-white p-3 rounded-2xl">
-                        <img src={pixData?.pixQrCode} alt="QR Code PIX" className="h-48 w-48" />
+                    <div className="flex flex-col w-full gap-4 items-center justify-center overflow-hidden">
+                      <div className="flex justify-center bg-white p-3 rounded-2xl flex-shrink-0">
+                        <img src={pixData?.pixQrCode} alt="QR Code PIX" className="w-[200px] h-[200px] sm:w-[250px] sm:h-[250px] object-contain" />
                       </div>
 
                       <div className="w-full space-y-2">
-                        <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                        <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-zinc-500 px-1">
                           <span>Código Copia e Cola</span>
                         </div>
-                        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl p-3">
-                          <p className="text-[10px] font-mono text-zinc-400 truncate flex-1">
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-3 w-full flex flex-col gap-3">
+                          <p className="text-[10px] sm:text-xs font-mono text-zinc-300 break-all select-all">
                             {pixData?.pixPayload}
                           </p>
                           <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 text-primary"
+                            variant="secondary"
+                            className="w-full text-xs font-bold gap-2 bg-primary/20 text-primary hover:bg-primary/30 h-10"
                             onClick={() => {
                               navigator.clipboard.writeText(pixData?.pixPayload || "");
                               toast({ title: "Copiado!" });
                             }}
                           >
                             <Copy className="h-4 w-4" />
+                            Copiar Código
                           </Button>
                         </div>
                       </div>
-                    </>
+                    </div>
                   ) : (
                     <div className="w-full space-y-6 py-4">
                       <div className="flex justify-center">

@@ -13,6 +13,7 @@ import { MessageSquare, QrCode, Copy, User, Loader2, CheckCircle2 } from "lucide
 import { getSpecialtyLabel } from "@/lib/professionalSpecialties";
 import type { GeneratedLandingPage } from "@/lib/geminiAI";
 import { createPixPayment, checkPixPaymentStatus } from "@/lib/pixPaymentTracking";
+import { buildPixPayload } from "@/lib/pix";
 import QRCode from "qrcode";
 
 export default function ProfessionalLandingPage() {
@@ -116,18 +117,28 @@ export default function ProfessionalLandingPage() {
             if (error) throw error;
 
             if (professional.base_price && professional.base_price > 0) {
-                // Initiate PIX Payment
-                const result = await createPixPayment({
-                    userId: user.id,
+                // Generate Direct PIX Payload instead of using gateway
+                if (!professional.pix_key) {
+                    toast({ title: "Aviso", description: "O profissional ainda não cadastrou uma chave PIX. Notificamos ele!", variant: "destructive" });
+                    setShowHireDialog(false);
+                    return;
+                }
+
+                const payload = buildPixPayload({
+                    pixKey: professional.pix_key,
+                    receiverName: professional.pix_receiver_name || professional.name,
                     amount: professional.base_price,
-                    paymentType: "professional_service",
-                    referenceId: hire.id,
-                    pixKey: professional.pix_key || "admin@nexfit.com",
-                    receiverName: professional.pix_receiver_name || "NEXFIT TECNOLOGIA",
-                    description: `Serviço Profissional: ${professional.name}`
+                    description: `Serviço Profissional: ${professional.name}`.slice(0, 30)
                 });
 
-                setPixData(result);
+                const qrCode = await QRCode.toDataURL(payload, { width: 300, margin: 1, color: { dark: '#000000FF', light: '#FFFFFFFF' } });
+
+                setPixData({
+                    paymentId: hire.id,
+                    pixPayload: payload,
+                    pixQrCode: qrCode,
+                    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
+                });
                 setShowHireDialog(false);
                 setShowPixDialog(true);
             } else {
@@ -154,18 +165,15 @@ export default function ProfessionalLandingPage() {
         if (!pixData) return;
         setCheckingPayment(true);
         try {
-            const status = await checkPixPaymentStatus(pixData.paymentId);
-            if (status === "paid") {
-                setPaymentStatus("paid");
-                toast({
-                    title: "Pagamento confirmado!",
-                    description: "Seu acesso ao chat e consultas será liberado em breve.",
-                });
-            } else if (status === "expired") {
-                setPaymentStatus("expired");
-            } else {
-                toast({ title: "Aguardando pagamento..." });
-            }
+            await supabase.from("professional_hires").update({
+                payment_status: "awaiting_verification"
+            }).eq("id", pixData.paymentId);
+
+            setPaymentStatus("paid");
+            toast({
+                title: "Comprovante enviado!",
+                description: "O profissional verificará o Pix e liberará seu acesso em breve.",
+            });
         } catch (error) {
             console.error("Check error:", error);
         } finally {
@@ -383,7 +391,7 @@ export default function ProfessionalLandingPage() {
 
             {/* PIX Payment Dialog */}
             <Dialog open={showPixDialog} onOpenChange={setShowPixDialog}>
-                <DialogContent className="bg-zinc-900 border-white/10 text-white max-w-sm">
+                <DialogContent className="w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto bg-zinc-900 border-white/10 text-white flex flex-col overflow-hidden outline-none rounded-[32px]">
                     <DialogHeader>
                         <DialogTitle>Pagamento via PIX</DialogTitle>
                         <DialogDescription className="text-zinc-400">
@@ -391,43 +399,43 @@ export default function ProfessionalLandingPage() {
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="flex flex-col items-center space-y-6 py-4">
+                    <div className="flex flex-col items-center space-y-6 py-4 w-full">
                         {paymentStatus === "pending" ? (
-                            <>
-                                <div className="p-4 bg-white rounded-2xl">
+                            <div className="flex flex-col w-full gap-4 items-center justify-center overflow-hidden">
+                                <div className="flex justify-center bg-white p-3 rounded-2xl mx-auto items-center flex-shrink-0">
                                     {pixData?.pixQrCode && (
-                                        <img src={pixData.pixQrCode} alt="PIX QR Code" className="w-48 h-48" />
+                                        <img src={pixData.pixQrCode} alt="PIX QR Code" className="w-[200px] h-[200px] sm:w-[250px] sm:h-[250px] object-contain" />
                                     )}
                                 </div>
 
                                 <div className="w-full space-y-2">
-                                    <p className="text-[10px] uppercase font-bold text-zinc-500 text-center tracking-widest">
+                                    <p className="text-[10px] uppercase font-bold text-zinc-500 text-center tracking-widest px-1">
                                         Pix Copia e Cola
                                     </p>
-                                    <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl p-3">
-                                        <p className="text-[10px] text-zinc-400 truncate flex-1">
+                                    <div className="bg-white/5 border border-white/10 rounded-xl p-3 w-full flex flex-col gap-3">
+                                        <p className="text-[10px] sm:text-xs font-mono text-zinc-300 break-all select-all">
                                             {pixData?.pixPayload}
                                         </p>
                                         <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="h-8 w-8 text-primary"
+                                            variant="secondary"
+                                            className="w-full text-xs font-bold gap-2 bg-primary/20 text-primary hover:bg-primary/30 h-10"
                                             onClick={copyPixPayload}
                                         >
                                             <Copy className="h-4 w-4" />
+                                            Copiar Código
                                         </Button>
                                     </div>
                                 </div>
 
                                 <Button
                                     onClick={handleCheckPayment}
-                                    className="w-full bg-primary text-black hover:bg-primary/90"
+                                    className="w-full bg-primary text-black hover:bg-primary/90 mt-2 h-14 uppercase font-black text-xs tracking-widest rounded-xl"
                                     disabled={checkingPayment}
                                 >
                                     {checkingPayment ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <QrCode className="h-4 w-4 mr-2" />}
                                     Já realizei o pagamento
                                 </Button>
-                            </>
+                            </div>
                         ) : paymentStatus === "paid" ? (
                             <div className="text-center space-y-4 py-8">
                                 <div className="h-20 w-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto">
