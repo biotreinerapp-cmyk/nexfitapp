@@ -45,8 +45,11 @@ interface HireRequest {
     message: string;
     created_at: string;
     student_id: string;
+    professional_id: string;
     profiles: {
         display_name: string;
+        nome?: string | null;
+        avatar_url?: string | null;
     };
 }
 
@@ -102,7 +105,8 @@ export default function ProfessionalDashboard() {
                     message,
                     created_at,
                     student_id,
-                    profiles!professional_hires_student_id_fkey(display_name)
+                    professional_id,
+                    profiles!professional_hires_student_id_fkey(display_name, nome, avatar_url)
                 `)
                 .eq("professional_id", profileData.id)
                 .order("created_at", { ascending: false })
@@ -399,6 +403,26 @@ function HireCard({ hire, onUpdate }: { hire: HireRequest; onUpdate: () => void 
 
             if (error) throw error;
 
+            if (newStatus === "accepted") {
+                // Determine if a chat room already exists
+                const { data: existingRoom } = await supabase
+                    .from("professional_chat_rooms")
+                    .select("id")
+                    .eq("professional_id", hire.professional_id)
+                    .eq("student_id", hire.student_id)
+                    .maybeSingle();
+
+                if (!existingRoom) {
+                    await supabase
+                        .from("professional_chat_rooms")
+                        .insert({
+                            professional_id: hire.professional_id,
+                            student_id: hire.student_id,
+                            last_message_at: new Date().toISOString()
+                        });
+                }
+            }
+
             toast({
                 title: "Status atualizado",
                 description: `Solicitação ${newStatus === "accepted" ? "aceita" : "rejeitada"} com sucesso.`,
@@ -416,47 +440,74 @@ function HireCard({ hire, onUpdate }: { hire: HireRequest; onUpdate: () => void 
         }
     };
 
+    const studentName = hire.profiles?.nome || hire.profiles?.display_name || "Aluno";
+
     return (
         <div className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.03] p-4 backdrop-blur-md transition-all hover:bg-white/[0.05]">
-            <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                        <p className="text-sm font-bold text-white truncate">
-                            {hire.profiles?.display_name || "Aluno"}
-                        </p>
-                        <Badge variant="outline" className={`${statusInfo.color} border-current/20 bg-current/5 text-[9px] h-4 uppercase font-black px-1.5`}>
-                            {statusInfo.label}
-                        </Badge>
+            <div className="flex flex-col gap-3">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="h-10 w-10 shrink-0 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
+                        {hire.profiles?.avatar_url ? (
+                            <img src={hire.profiles.avatar_url} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                            <User className="h-5 w-5 text-zinc-400" />
+                        )}
                     </div>
-                    <p className="text-xs text-white/50 line-clamp-2 mb-2">
-                        {hire.message || "Sem mensagem de contratação."}
-                    </p>
-                    <div className="flex items-center gap-2">
-                        <Clock className="h-3 w-3 text-zinc-600" />
-                        <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-tight">
-                            {new Date(hire.created_at).toLocaleString("pt-BR", {
-                                dateStyle: "short",
-                                timeStyle: "short"
-                            })}
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                            <p className="text-sm font-bold text-white truncate">
+                                {studentName}
+                            </p>
+                            <Badge variant="outline" className={`${statusInfo.color} border-current/20 bg-current/5 text-[9px] h-4 uppercase font-black px-1.5`}>
+                                {statusInfo.label}
+                            </Badge>
+                        </div>
+                        <p className="text-xs text-white/50 line-clamp-2 mb-2">
+                            {hire.message || "Sem mensagem explícita de contratação."}
                         </p>
+                        <div className="flex items-center gap-2">
+                            <Clock className="h-3 w-3 text-zinc-600" />
+                            <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-tight">
+                                {new Date(hire.created_at).toLocaleString("pt-BR", {
+                                    dateStyle: "short",
+                                    timeStyle: "short"
+                                })}
+                            </p>
+                        </div>
                     </div>
                 </div>
 
                 {hire.status === "pending" && (
-                    <div className="flex flex-col gap-2 shrink-0">
+                    <div className="flex items-center gap-2 mt-2 border-t border-white/5 pt-3">
+                        <button
+                            onClick={() => window.location.href = `/professional/student/${hire.student_id}`}
+                            className="flex-1 flex h-9 items-center justify-center rounded-xl bg-white/5 text-xs font-bold text-white hover:bg-white/10 transition-colors"
+                        >
+                            Ver Perfil
+                        </button>
                         <button
                             onClick={() => handleUpdateStatus("accepted")}
                             disabled={updating}
-                            className="flex h-8 w-8 items-center justify-center rounded-full bg-[#56FF02]/10 text-[#56FF02] hover:bg-[#56FF02]/20 transition-colors disabled:opacity-50"
+                            className="flex h-9 px-4 items-center justify-center rounded-xl bg-[#56FF02]/10 text-[#56FF02] text-xs font-bold hover:bg-[#56FF02]/20 transition-colors disabled:opacity-50"
                         >
-                            <CheckCircle2 className="h-5 w-5" />
+                            <CheckCircle2 className="h-4 w-4 mr-1.5" /> Aceitar
                         </button>
                         <button
                             onClick={() => handleUpdateStatus("rejected")}
                             disabled={updating}
-                            className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors disabled:opacity-50"
                         >
-                            <XCircle className="h-5 w-5" />
+                            <XCircle className="h-4 w-4" />
+                        </button>
+                    </div>
+                )}
+                {hire.status === "accepted" && (
+                    <div className="flex items-center gap-2 mt-2 border-t border-white/5 pt-3">
+                        <button
+                            onClick={() => window.location.href = `/professional/student/${hire.student_id}`}
+                            className="flex-1 flex h-9 items-center justify-center rounded-xl bg-white/5 text-xs font-bold text-white hover:bg-white/10 transition-colors"
+                        >
+                            Ver Perfil Metabólico
                         </button>
                     </div>
                 )}

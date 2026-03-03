@@ -13,12 +13,14 @@ import { MessageSquare, QrCode, Copy, User, Loader2, CheckCircle2 } from "lucide
 import { getSpecialtyLabel } from "@/lib/professionalSpecialties";
 import type { GeneratedLandingPage } from "@/lib/geminiAI";
 import { createPixPayment, checkPixPaymentStatus } from "@/lib/pixPaymentTracking";
+import { useUserPlan } from "@/hooks/useUserPlan";
 import { buildPixPayload } from "@/lib/pix";
 import QRCode from "qrcode";
 
 export default function ProfessionalLandingPage() {
     const { professionalId } = useParams<{ professionalId: string }>();
     const { user } = useAuth();
+    const { plan } = useUserPlan();
     const { toast } = useToast();
     const navigate = useNavigate();
 
@@ -83,6 +85,13 @@ export default function ProfessionalLandingPage() {
         }
     };
 
+    const isEliteBlack = plan === "ELITE";
+    const getDiscountedPrice = (price: number | null) => {
+        if (!price) return 0;
+        if (!isEliteBlack) return price;
+        return price * 0.8;
+    };
+
     const handleHire = async () => {
         if (!user) {
             toast({
@@ -105,12 +114,13 @@ export default function ProfessionalLandingPage() {
 
         setSubmitting(true);
         try {
+            const finalAmount = getDiscountedPrice(professional.base_price);
             const { data: hire, error } = await supabase.from("professional_hires").insert({
                 professional_id: professionalId,
                 student_id: user.id,
                 message: hireMessage,
                 status: "pending",
-                paid_amount: professional.base_price || 0,
+                paid_amount: finalAmount,
                 payment_status: "pending"
             }).select("id").single();
 
@@ -124,10 +134,11 @@ export default function ProfessionalLandingPage() {
                     return;
                 }
 
+                const finalAmount = getDiscountedPrice(professional.base_price);
                 const payload = buildPixPayload({
                     pixKey: professional.pix_key,
                     receiverName: professional.pix_receiver_name || professional.name,
-                    amount: professional.base_price,
+                    amount: finalAmount,
                     description: `Serviço Profissional: ${professional.name}`.slice(0, 30)
                 });
 
@@ -395,7 +406,12 @@ export default function ProfessionalLandingPage() {
                     <DialogHeader>
                         <DialogTitle>Pagamento via PIX</DialogTitle>
                         <DialogDescription className="text-zinc-400">
-                            Para confirmar a contratação de {professional.name}, realize o pagamento de R$ {professional.base_price?.toFixed(2)}.
+                            Para confirmar a contratação de {professional.name}, realize o pagamento de R$ {getDiscountedPrice(professional.base_price).toFixed(2)}.
+                            {isEliteBlack && professional.base_price > 0 && (
+                                <span className="block text-primary text-[10px] font-bold mt-1 uppercase">
+                                    Desconto de 20% Elite Black aplicado!
+                                </span>
+                            )}
                         </DialogDescription>
                     </DialogHeader>
 

@@ -19,6 +19,7 @@ import {
     getSpecialtyValueFromLabel
 } from "@/lib/professionalSpecialties";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { unmaskCurrency } from "@/lib/maskUtils";
 
 export default function ProfessionalProfilePage() {
     const { user } = useAuth();
@@ -81,7 +82,7 @@ export default function ProfessionalProfilePage() {
                 crm_crp: data.crm_crp || "",
                 specialty: data.specialty || "",
                 telemedicina_servico_id: data.telemedicina_servico_id || "",
-                base_price: data.base_price?.toString() || "",
+                base_price: data.base_price ? data.base_price.toFixed(2) : "",
                 bio: data.bio || "",
                 phone: data.phone || "",
                 email: data.email || "",
@@ -108,7 +109,7 @@ export default function ProfessionalProfilePage() {
                     crm_crp: formData.crm_crp,
                     specialty: formData.specialty,
                     telemedicina_servico_id: formData.telemedicina_servico_id,
-                    base_price: formData.base_price ? parseFloat(formData.base_price) : null,
+                    base_price: formData.base_price ? unmaskCurrency(formData.base_price) : null,
                     bio: formData.bio,
                     phone: formData.phone,
                     email: formData.email,

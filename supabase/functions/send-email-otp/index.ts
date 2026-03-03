@@ -91,9 +91,10 @@ serve(async (req) => {
             });
 
             if (createError) {
-                if (!createError.message.toLowerCase().includes("already registered")) {
-                    return json({ error: createError.message }, { status: 400 });
+                if (createError.message.toLowerCase().includes("already registered")) {
+                    return json({ error: "Este e-mail já está cadastrado. Por favor, volte e faça login ou use 'Esqueci a senha'." }, { status: 400 });
                 }
+                return json({ error: createError.message }, { status: 400 });
             } else if (newUser?.user) {
                 await supabase.from("user_roles").insert({ user_id: newUser.user.id, role });
             }

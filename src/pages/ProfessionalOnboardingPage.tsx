@@ -34,6 +34,7 @@ import {
     getSpecialtiesForService,
     getSpecialtyLabel
 } from "@/lib/professionalSpecialties";
+import { unmaskCurrency } from "@/lib/maskUtils";
 
 export default function ProfessionalOnboardingPage() {
     const { user, loading: authLoading } = useAuth();
@@ -229,10 +230,8 @@ export default function ProfessionalOnboardingPage() {
                 }
             }
 
-            // Robust price parsing: remove currency symbols and handle commas
-            const rawPrice = formData.base_price || "";
-            const sanitizedPrice = rawPrice.replace(/[^\d.,]/g, "").replace(",", ".");
-            const finalPrice = sanitizedPrice ? parseFloat(sanitizedPrice) : null;
+            // Robust price parsing: use standardized utility
+            const finalPrice = formData.base_price ? unmaskCurrency(formData.base_price) : null;
 
             // Final check for specialty - if still empty, use a default to avoid DB error
             let finalSpecialty = formData.specialty;

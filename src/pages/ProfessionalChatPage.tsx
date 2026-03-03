@@ -32,6 +32,7 @@ interface ChatRoom {
     last_message_at: string;
     student: {
         display_name: string;
+        nome?: string | null;
         avatar_url: string | null;
     };
     unread_count?: number;
@@ -95,7 +96,7 @@ export default function ProfessionalChatPage() {
                 .from("professional_chat_rooms")
                 .select(`
                     *,
-                    student:profiles!professional_chat_rooms_student_id_fkey(display_name, avatar_url)
+                    student:profiles!professional_chat_rooms_student_id_fkey(display_name, nome, avatar_url)
                 `)
                 .eq("professional_id", prof.id)
                 .order("last_message_at", { ascending: false });
@@ -262,7 +263,7 @@ export default function ProfessionalChatPage() {
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center justify-between mb-0.5">
-                                            <p className="text-sm font-bold text-white truncate">{room.student?.display_name || "Aluno"}</p>
+                                            <p className="text-sm font-bold text-white truncate">{room.student?.nome || room.student?.display_name || "Aluno"}</p>
                                             <span className="text-[9px] text-zinc-500">
                                                 {new Date(room.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </span>
@@ -305,13 +306,23 @@ export default function ProfessionalChatPage() {
                                     )}
                                 </div>
                                 <div>
-                                    <p className="text-sm font-bold text-white leading-none">{activeRoom.student?.display_name || "Aluno"}</p>
+                                    <p className="text-sm font-bold text-white leading-none">{activeRoom.student?.nome || activeRoom.student?.display_name || "Aluno"}</p>
                                     <p className="text-[10px] text-primary mt-1 flex items-center gap-1 font-bold uppercase tracking-wider">
                                         <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" /> Online
                                     </p>
                                 </div>
                             </div>
-                            <Button variant="ghost" size="icon" className="text-zinc-400"><MoreVertical className="h-5 w-5" /></Button>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-white/10 text-xs text-white"
+                                    onClick={() => navigate(`/professional/student/${activeRoom.student_id}`)}
+                                >
+                                    Ver Perfil
+                                </Button>
+                                <Button variant="ghost" size="icon" className="text-zinc-400"><MoreVertical className="h-5 w-5" /></Button>
+                            </div>
                         </header>
 
                         <ScrollArea className="flex-1 p-4" ref={scrollRef}>

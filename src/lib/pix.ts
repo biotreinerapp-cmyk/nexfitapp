@@ -41,8 +41,8 @@ export const buildPixPayload = ({
     merchantCity: merchantCity,
     pixKey: key,
     infoAdicional: description ? normalize(description).slice(0, 50) : undefined,
-    transactionAmount: amount > 0 ? amount : undefined,
-    txid: tx,
+    transactionAmount: amount > 0 ? parseFloat(amount.toFixed(2)) : undefined,
+    txid: tx === "***" ? undefined : tx,
   });
 
   if ('message' in pix || !pix) throw new Error("Falha ao gerar o código PIX");

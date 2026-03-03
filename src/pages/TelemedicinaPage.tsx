@@ -127,6 +127,13 @@ const TelemedicinaPage = () => {
     setProfissionalSelecionado(null);
   };
 
+  const isEliteBlack = plan === "ELITE";
+  const getDiscountedPrice = (price: number | null) => {
+    if (!price) return 0;
+    if (!isEliteBlack) return price;
+    return price * 0.8;
+  };
+
   const handleContratar = async (profissional: TelemedProfissional, method: "pix" | "card" = "pix") => {
     if (!user) {
       toast({ title: "Erro", description: "Você precisa estar logado para contratar.", variant: "destructive" });
@@ -136,12 +143,13 @@ const TelemedicinaPage = () => {
     setSubmitting(true);
     setPaymentMethod(method);
     try {
+      const finalAmount = getDiscountedPrice(profissional.base_price);
       const { data: hire, error }: any = await (supabase as any).from("professional_hires").insert({
         professional_id: profissional.id,
         student_id: user.id,
         message: "Contratação via Telemedicina",
         status: "pending",
-        paid_amount: profissional.base_price || 0,
+        paid_amount: finalAmount,
         payment_status: "pending"
       }).select("id").single();
 
@@ -157,7 +165,7 @@ const TelemedicinaPage = () => {
           const payload = buildPixPayload({
             pixKey: profissional.pix_key,
             receiverName: profissional.pix_receiver_name || profissional.name,
-            amount: profissional.base_price,
+            amount: finalAmount,
             description: `Telemedicina: ${profissional.name}`.slice(0, 30) // max desc
           });
           const qrCode = await QRCode.toDataURL(payload, { width: 300, margin: 1, color: { dark: '#000000FF', light: '#FFFFFFFF' } });
@@ -174,7 +182,7 @@ const TelemedicinaPage = () => {
           // Fallback to InfinitePay logic for Card payments
           const result = await createPixPayment({
             userId: user.id,
-            amount: profissional.base_price,
+            amount: finalAmount,
             paymentType: "professional_service",
             referenceId: hire.id,
             description: `Telemedicina: ${profissional.name}`,
@@ -438,9 +446,16 @@ const TelemedicinaPage = () => {
                         <div className="h-16 w-16 rounded-2xl border-4 border-background bg-zinc-900 shadow-2xl flex items-center justify-center font-black text-primary text-xl uppercase overflow-hidden">
                           {p.profile_image_url ? <img src={p.profile_image_url} className="h-full w-full object-cover" /> : p.name.charAt(0)}
                         </div>
-                        <Badge className="bg-primary text-black font-black uppercase text-[10px] mb-2 px-3 py-1 shadow-lg shadow-primary/20">
-                          R$ {p.base_price?.toFixed(2) || "0.00"}
-                        </Badge>
+                        <div className="flex flex-col items-end gap-1 mb-2">
+                          <Badge className="bg-primary text-black font-black uppercase text-[10px] px-3 py-1 shadow-lg shadow-primary/20">
+                            R$ {getDiscountedPrice(p.base_price).toFixed(2)}
+                          </Badge>
+                          {isEliteBlack && p.base_price && p.base_price > 0 && (
+                            <span className="text-[9px] text-primary font-bold uppercase tracking-tighter animate-pulse">
+                              20% OFF ELITE
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       <div className="mt-3">
