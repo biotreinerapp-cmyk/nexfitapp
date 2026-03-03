@@ -304,19 +304,7 @@ const AuthPage = () => {
         const mapped = mapLoginError(err);
         if (mapped.code === "EMAIL_NOT_CONFIRMED") setOtpEmail(values.email);
 
-        // logs de diagnóstico detalhados para produção
-        console.group("DIAGNÓSTICO AUTH - Falha no Login");
-        console.error("Mensagem:", err?.message);
-        console.error("Código Mapeado:", mapped.code);
-        console.dir(err);
-
-        if (err?.status) {
-          console.error("HTTP Status:", err.status);
-          if (err.status === 400) {
-            console.warn("DICA: Erro 400 pode indicar credenciais inválidas ou configuração de chave Anon/URL incorreta no Render.");
-          }
-        }
-        console.groupEnd();
+        console.error("[auth/login]", { code: mapped.code, original: err });
 
         toast({
           title: mapped.code === "INVALID_CREDENTIALS" ? "Dados incorretos" : "Erro ao entrar",

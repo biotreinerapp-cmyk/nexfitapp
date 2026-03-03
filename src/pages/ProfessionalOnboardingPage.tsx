@@ -34,7 +34,7 @@ import {
     getSpecialtiesForService,
     getSpecialtyLabel
 } from "@/lib/professionalSpecialties";
-import { unmaskCurrency } from "@/lib/maskUtils";
+import { unmaskCurrency, sanitizePixKey } from "@/lib/maskUtils";
 
 export default function ProfessionalOnboardingPage() {
     const { user, loading: authLoading } = useAuth();
@@ -77,6 +77,9 @@ export default function ProfessionalOnboardingPage() {
         base_price: "",
         bio: "",
         instagram: "",
+        pix_key: "",
+        pix_receiver_name: "",
+        pix_bank_name: "",
     });
 
     const [profileImage, setProfileImage] = useState<File | null>(null);
@@ -232,6 +235,7 @@ export default function ProfessionalOnboardingPage() {
 
             // Robust price parsing: use standardized utility
             const finalPrice = formData.base_price ? unmaskCurrency(formData.base_price) : null;
+            const finalPixKey = formData.pix_key ? sanitizePixKey(formData.pix_key) : "";
 
             // Final check for specialty - if still empty, use a default to avoid DB error
             let finalSpecialty = formData.specialty;
@@ -251,6 +255,9 @@ export default function ProfessionalOnboardingPage() {
                 base_price: finalPrice,
                 bio: formData.bio,
                 instagram: formData.instagram,
+                pix_key: finalPixKey,
+                pix_receiver_name: formData.pix_receiver_name,
+                pix_bank_name: formData.pix_bank_name,
                 profile_image_url: profileImageUrl,
                 cover_image_url: coverImageUrl,
                 is_available: true

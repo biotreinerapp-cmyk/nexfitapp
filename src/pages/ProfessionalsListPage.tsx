@@ -98,7 +98,7 @@ export default function ProfessionalsListPage() {
     return (
         <div className="min-h-screen bg-black pb-20">
             {/* Header */}
-            <div className="sticky top-0 z-10 border-b border-white/10 bg-black/80 backdrop-blur-xl">
+            <div className="sticky top-0 z-10 border-b border-white/10 bg-black/80 backdrop-blur-xl safe-top">
                 <div className="container mx-auto flex items-center justify-between px-4 py-4">
                     <h1 className="text-xl font-black uppercase tracking-tight text-white">
                         Profissionais

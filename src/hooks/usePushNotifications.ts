@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -15,7 +15,7 @@ export function usePushNotifications() {
         }
     }, []);
 
-    const urlBase64ToUint8Array = (base64String: string) => {
+    const urlBase64ToUint8Array = useCallback((base64String: string) => {
         const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
         const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
         const rawData = window.atob(base64);
@@ -24,22 +24,29 @@ export function usePushNotifications() {
             outputArray[i] = rawData.charCodeAt(i);
         }
         return outputArray;
-    };
+    }, []);
 
-    const subscribeUser = async () => {
-        if (!user || !VAPID_PUBLIC_KEY) {
+    const subscribeUser = useCallback(async () => {
+        if (!user || !VAPID_PUBLIC_KEY || typeof window === "undefined" || !("serviceWorker" in navigator)) {
             return;
         }
 
         try {
             const registration = await navigator.serviceWorker.ready;
 
+            // Check if already subscribed to avoid unnecessary requests/browser limits
+            const existingSubscription = await registration.pushManager.getSubscription();
+            if (existingSubscription) {
+                setSubscription(existingSubscription);
+                return;
+            }
+
             // Request permission
             const result = await Notification.requestPermission();
             setPermission(result);
 
             if (result !== "granted") {
-                throw new Error("Permissão de notificação negada.");
+                return; // User denied permission, just exit
             }
 
             // Subscribe
@@ -49,40 +56,30 @@ export function usePushNotifications() {
             });
 
             setSubscription(sub);
-
-            // Save to Supabase
-// //              // const { error } =  // await supabase.from("push_subscriptions" as any).upsert({
-// //                 user_id: user.id,
-// //                 subscription: sub.toJSON(),
-// //                 device_info: {
-// //                     userAgent: navigator.userAgent,
-// //                     platform: navigator.platform
-// //                 }
-// //             }, { onConflict: 'user_id,subscription' });
-// // 
-// //             if (error) throw error;
-// // 
-// //             console.log("[Push] Subscribed successfully.");
-        } catch (error) {
+            console.log("[Push] Subscribed successfully.");
+        } catch (error: any) {
+            if (error.name === 'AbortError' || error.message?.includes('registration limit')) {
+                // Silent catch for browser push registration limits
+                console.warn("[Push] Registration limit/AbortError - skipped (browser protection).");
+                return;
+            }
             console.error("[Push] Error subscribing:", error);
         }
-    };
+    }, [user, urlBase64ToUint8Array]);
 
-    const unsubscribeUser = async () => {
+    const unsubscribeUser = useCallback(async () => {
         try {
-            const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
+            if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+            const registration = await navigator.serviceWorker.ready;
+            const sub = await registration.pushManager.getSubscription();
             if (sub) {
                 await sub.unsubscribe();
                 setSubscription(null);
-
-                if (user) {
-                     // await supabase.from("push_subscriptions" as any).delete().eq("user_id", user.id).eq("subscription->>endpoint", sub.endpoint);
-                }
             }
         } catch (error) {
             console.error("[Push] Error unsubscribing:", error);
         }
-    };
+    }, []);
 
     return {
         permission,

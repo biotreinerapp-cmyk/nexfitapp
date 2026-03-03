@@ -14,7 +14,7 @@ import { getSpecialtyLabel } from "@/lib/professionalSpecialties";
 import type { GeneratedLandingPage } from "@/lib/geminiAI";
 import { createPixPayment, checkPixPaymentStatus } from "@/lib/pixPaymentTracking";
 import { useUserPlan } from "@/hooks/useUserPlan";
-import { buildPixPayload } from "@/lib/pix";
+import { buildPixPayload, calculateFinalPrice } from "@/lib/pix";
 import QRCode from "qrcode";
 
 export default function ProfessionalLandingPage() {
@@ -86,11 +86,7 @@ export default function ProfessionalLandingPage() {
     };
 
     const isEliteBlack = plan === "ELITE";
-    const getDiscountedPrice = (price: number | null) => {
-        if (!price) return 0;
-        if (!isEliteBlack) return price;
-        return price * 0.8;
-    };
+    const getDiscountedPrice = (price: number | null) => calculateFinalPrice(price, plan);
 
     const handleHire = async () => {
         if (!user) {
@@ -402,7 +398,7 @@ export default function ProfessionalLandingPage() {
 
             {/* PIX Payment Dialog */}
             <Dialog open={showPixDialog} onOpenChange={setShowPixDialog}>
-                <DialogContent className="w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto bg-zinc-900 border-white/10 text-white flex flex-col overflow-hidden outline-none rounded-[32px]">
+                <DialogContent className="w-[98vw] max-w-[400px] sm:max-w-md max-h-[92vh] overflow-y-auto bg-black/95 border-white/10 text-white flex flex-col outline-none rounded-[32px] p-4 sm:p-6 backdrop-blur-3xl">
                     <DialogHeader>
                         <DialogTitle>Pagamento via PIX</DialogTitle>
                         <DialogDescription className="text-zinc-400">
@@ -417,24 +413,28 @@ export default function ProfessionalLandingPage() {
 
                     <div className="flex flex-col items-center space-y-6 py-4 w-full">
                         {paymentStatus === "pending" ? (
-                            <div className="flex flex-col w-full gap-4 items-center justify-center overflow-hidden">
-                                <div className="flex justify-center bg-white p-3 rounded-2xl mx-auto items-center flex-shrink-0">
+                            <div className="flex flex-col w-full gap-5 items-center justify-center">
+                                <div className="flex justify-center bg-white p-4 rounded-3xl shadow-2xl shadow-white/5 w-fit mx-auto">
                                     {pixData?.pixQrCode && (
-                                        <img src={pixData.pixQrCode} alt="PIX QR Code" className="w-[200px] h-[200px] sm:w-[250px] sm:h-[250px] object-contain" />
+                                        <img
+                                            src={pixData.pixQrCode}
+                                            alt="PIX QR Code"
+                                            className="w-[180px] h-[180px] xs:w-[220px] xs:h-[220px] sm:w-[260px] sm:h-[260px] object-contain"
+                                        />
                                     )}
                                 </div>
 
                                 <div className="w-full space-y-2">
-                                    <p className="text-[10px] uppercase font-bold text-zinc-500 text-center tracking-widest px-1">
+                                    <p className="text-[10px] uppercase font-black text-zinc-500 text-center tracking-widest px-1 mb-2">
                                         Pix Copia e Cola
                                     </p>
-                                    <div className="bg-white/5 border border-white/10 rounded-xl p-3 w-full flex flex-col gap-3">
-                                        <p className="text-[10px] sm:text-xs font-mono text-zinc-300 break-all select-all">
+                                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 w-full flex flex-col gap-4">
+                                        <p className="text-[10px] sm:text-xs font-mono text-zinc-400 break-all select-all text-center leading-relaxed">
                                             {pixData?.pixPayload}
                                         </p>
                                         <Button
                                             variant="secondary"
-                                            className="w-full text-xs font-bold gap-2 bg-primary/20 text-primary hover:bg-primary/30 h-10"
+                                            className="w-full text-xs font-black uppercase tracking-widest gap-2 bg-primary text-black hover:bg-primary/90 h-12 rounded-xl transition-all active:scale-95"
                                             onClick={copyPixPayload}
                                         >
                                             <Copy className="h-4 w-4" />

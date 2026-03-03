@@ -234,35 +234,46 @@ All colors MUST be HSL.
     outline-offset: 2px;
   }
 
+  .safe-top {
+    padding-top: constant(safe-area-inset-top);
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-top-padded {
+    padding-top: calc(1rem + constant(safe-area-inset-top));
+    padding-top: calc(1rem + env(safe-area-inset-top));
+  }
+
   .safe-bottom {
     padding-bottom: constant(safe-area-inset-bottom);
     padding-bottom: env(safe-area-inset-bottom);
   }
 
   .safe-bottom-nav {
-    padding-bottom: calc(0.75rem + constant(safe-area-inset-bottom));
-    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+    padding-bottom: calc(0.5rem + constant(safe-area-inset-bottom));
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
   }
 
   .safe-bottom-main {
-    padding-bottom: calc(7rem + constant(safe-area-inset-bottom));
-    padding-bottom: calc(7rem + env(safe-area-inset-bottom));
-  }
-
-  .safe-bottom-content {
     padding-bottom: calc(6rem + constant(safe-area-inset-bottom));
     padding-bottom: calc(6rem + env(safe-area-inset-bottom));
   }
 
-  /* Safe bottom padding for pages with floating nav island */
+  .safe-bottom-content {
+    padding-bottom: calc(5rem + constant(safe-area-inset-bottom));
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+
+  /* Safe bottom padding for pages with floating nav island (Pill style) */
+  /* Reduced from 7rem to 5.5rem for a tighter look */
   .safe-bottom-floating-nav {
-    padding-bottom: calc(7rem + constant(safe-area-inset-bottom));
-    padding-bottom: calc(7rem + env(safe-area-inset-bottom));
+    padding-bottom: calc(5.5rem + constant(safe-area-inset-bottom));
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
   }
 
   .safe-bottom-banner {
-    bottom: calc(1rem + constant(safe-area-inset-bottom));
-    bottom: calc(1rem + env(safe-area-inset-bottom));
+    bottom: calc(0.5rem + constant(safe-area-inset-bottom));
+    bottom: calc(0.5rem + env(safe-area-inset-bottom));
   }
 }
 

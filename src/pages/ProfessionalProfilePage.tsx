@@ -19,7 +19,7 @@ import {
     getSpecialtyValueFromLabel
 } from "@/lib/professionalSpecialties";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { unmaskCurrency } from "@/lib/maskUtils";
+import { unmaskCurrency, sanitizePixKey } from "@/lib/maskUtils";
 
 export default function ProfessionalProfilePage() {
     const { user } = useAuth();
@@ -114,7 +114,7 @@ export default function ProfessionalProfilePage() {
                     phone: formData.phone,
                     email: formData.email,
                     instagram: formData.instagram,
-                    pix_key: formData.pix_key,
+                    pix_key: formData.pix_key ? sanitizePixKey(formData.pix_key) : "",
                     pix_receiver_name: formData.pix_receiver_name,
                     pix_bank_name: formData.pix_bank_name,
                 })

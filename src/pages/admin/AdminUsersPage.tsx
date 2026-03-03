@@ -65,6 +65,12 @@ export const AdminUsersPage = () => {
     const [editPlan, setEditPlan] = useState("");
     const [isSaving, setIsSaving] = useState(false);
 
+    // Plan Change State
+    const [planUser, setPlanUser] = useState<AdminUser | null>(null);
+    const [isPlanOpen, setIsPlanOpen] = useState(false);
+    const [newPlan, setNewPlan] = useState("");
+    const [isUpdatingPlan, setIsUpdatingPlan] = useState(false);
+
     // Ban State
     const [banningUser, setBanningUser] = useState<AdminUser | null>(null);
     const [isBanOpen, setIsBanOpen] = useState(false);
@@ -134,6 +140,36 @@ export const AdminUsersPage = () => {
             toast({ title: "Erro", description: error.message, variant: "destructive" });
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    // 1.5 Update Plan Only
+    const openPlanModal = (user: AdminUser) => {
+        setPlanUser(user);
+        setNewPlan(user.subscription_plan || "FREE");
+        setIsPlanOpen(true);
+    };
+
+    const handleUpdatePlan = async () => {
+        if (!planUser) return;
+        setIsUpdatingPlan(true);
+        try {
+            const { error } = await supabase
+                .from("profiles")
+                .update({
+                    subscription_plan: newPlan as any
+                })
+                .eq("id", planUser.id);
+
+            if (error) throw error;
+
+            toast({ title: "Plano Atualizado", description: `O plano de ${planUser.display_name} foi alterado para ${newPlan}.` });
+            setIsPlanOpen(false);
+            refetch();
+        } catch (error: any) {
+            toast({ title: "Erro", description: error.message, variant: "destructive" });
+        } finally {
+            setIsUpdatingPlan(false);
         }
     };
 
@@ -279,9 +315,9 @@ export const AdminUsersPage = () => {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">Todos os Planos</SelectItem>
-                                    <SelectItem value="FREE">Free</SelectItem>
-                                    <SelectItem value="ADVANCE">Advance</SelectItem>
-                                    <SelectItem value="ELITE">Elite</SelectItem>
+                                    <SelectItem value="FREE">Gratuito (FREE)</SelectItem>
+                                    <SelectItem value="ADVANCE">Advance Pro</SelectItem>
+                                    <SelectItem value="ELITE">Elite Black</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -371,6 +407,12 @@ export const AdminUsersPage = () => {
                                                             onClick={() => openEditModal(user)}
                                                         >
                                                             <Pencil className="mr-2 h-4 w-4" /> Editar Perfil
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            className="focus:bg-white/10 cursor-pointer text-primary focus:text-primary"
+                                                            onClick={() => openPlanModal(user)}
+                                                        >
+                                                            <Shield className="mr-2 h-4 w-4" /> Alterar Plano
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator className="bg-white/10" />
                                                         <DropdownMenuItem
@@ -462,10 +504,10 @@ export const AdminUsersPage = () => {
                                 <SelectTrigger className="col-span-3 bg-white/5 border-white/10 text-white">
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="FREE">Free</SelectItem>
-                                    <SelectItem value="ADVANCE">Advance</SelectItem>
-                                    <SelectItem value="ELITE">Elite</SelectItem>
+                                <SelectContent className="bg-[#1a1a1a] border-white/10 text-white">
+                                    <SelectItem value="FREE">Gratuito (FREE)</SelectItem>
+                                    <SelectItem value="ADVANCE">Advance Pro</SelectItem>
+                                    <SelectItem value="ELITE">Elite Black</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -474,6 +516,43 @@ export const AdminUsersPage = () => {
                         <Button variant="ghost" onClick={() => setIsEditOpen(false)} className="text-white hover:bg-white/10">Cancelar</Button>
                         <Button onClick={handleSaveUser} disabled={isSaving} className="bg-primary text-black hover:bg-green-500">
                             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Salvar
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* UPDATE PLAN DIALOG */}
+            <Dialog open={isPlanOpen} onOpenChange={setIsPlanOpen}>
+                <DialogContent className="bg-black/90 border-white/10 text-white">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Shield className="h-5 w-5 text-primary" /> Alterar Plano de Assinatura
+                        </DialogTitle>
+                        <DialogDescription className="text-zinc-400">
+                            Selecione o novo plano para <strong className="text-white">{planUser?.display_name || planUser?.email}</strong>.
+                            <br />Esta alteração é imediata e concede acesso aos recursos do plano selecionado.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-6">
+                        <div className="space-y-4">
+                            <Label htmlFor="plan-select" className="text-zinc-300">Selecione o Plano</Label>
+                            <Select value={newPlan} onValueChange={setNewPlan}>
+                                <SelectTrigger id="plan-select" className="bg-white/5 border-white/10 text-white h-12">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-[#1a1a1a] border-white/10 text-white">
+                                    <SelectItem value="FREE">Gratuito (FREE)</SelectItem>
+                                    <SelectItem value="ADVANCE">Advance Pro (ADVANCE)</SelectItem>
+                                    <SelectItem value="ELITE">Elite Black (ELITE)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setIsPlanOpen(false)} className="text-white hover:bg-white/10">Cancelar</Button>
+                        <Button onClick={handleUpdatePlan} disabled={isUpdatingPlan} className="bg-primary text-black hover:bg-green-500 h-10 px-8">
+                            {isUpdatingPlan ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                            Confirmar Alteração
                         </Button>
                     </DialogFooter>
                 </DialogContent>

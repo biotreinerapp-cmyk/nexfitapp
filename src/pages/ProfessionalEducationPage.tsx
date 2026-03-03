@@ -113,8 +113,8 @@ export default function ProfessionalEducationPage() {
     );
 
     return (
-        <main className="min-h-screen bg-black pb-28 safe-bottom-floating-nav">
-            <div className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/5 px-4 py-4">
+        <main className="min-h-screen bg-black safe-bottom-floating-nav">
+            <div className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/5 px-4 py-4 safe-top">
                 <div className="flex items-center gap-4">
                     <BackIconButton />
                     <h1 className="text-xl font-black uppercase tracking-tight text-white italic">e-Education</h1>

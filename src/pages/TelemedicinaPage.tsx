@@ -22,7 +22,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { useToast } from "@/hooks/use-toast";
 import { createPixPayment, PixPaymentResult } from "@/lib/pixPaymentTracking";
-import { buildPixPayload } from "@/lib/pix";
+import { buildPixPayload, calculateFinalPrice } from "@/lib/pix";
 import QRCode from "qrcode";
 import { HubServiceButton } from "@/components/dashboard/HubServiceButton";
 import { FloatingNavIsland } from "@/components/navigation/FloatingNavIsland";
@@ -128,11 +128,7 @@ const TelemedicinaPage = () => {
   };
 
   const isEliteBlack = plan === "ELITE";
-  const getDiscountedPrice = (price: number | null) => {
-    if (!price) return 0;
-    if (!isEliteBlack) return price;
-    return price * 0.8;
-  };
+  const getDiscountedPrice = (price: number | null) => calculateFinalPrice(price, plan);
 
   const handleContratar = async (profissional: TelemedProfissional, method: "pix" | "card" = "pix") => {
     if (!user) {
@@ -282,9 +278,9 @@ const TelemedicinaPage = () => {
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-background pb-32">
+    <main className="flex min-h-screen flex-col bg-background safe-bottom-floating-nav">
       {/* Premium Header */}
-      <div className="sticky top-0 z-50 border-b border-white/5 bg-background/80 px-4 py-4 backdrop-blur-xl">
+      <div className="sticky top-0 z-50 border-b border-white/5 bg-background/80 px-4 py-4 backdrop-blur-xl safe-top">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -574,7 +570,7 @@ const TelemedicinaPage = () => {
 
       {/* PIX Payment Dialog */}
       <Dialog open={showPixDialog} onOpenChange={setShowPixDialog}>
-        <DialogContent className="w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto border-white/10 bg-black/95 text-white backdrop-blur-3xl rounded-[32px] flex flex-col">
+        <DialogContent className="w-[98vw] max-w-[400px] sm:max-w-md max-h-[92vh] overflow-y-auto border-white/10 bg-black/95 text-white backdrop-blur-3xl rounded-[32px] flex flex-col p-4 sm:p-6 outline-none">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-center sm:justify-start gap-2 text-2xl font-black">
               <QrCode className="h-6 w-6 text-primary" />
@@ -611,25 +607,29 @@ const TelemedicinaPage = () => {
                   </div>
 
                   {paymentMethod === "pix" ? (
-                    <div className="flex flex-col w-full gap-4 items-center justify-center overflow-hidden">
-                      <div className="flex justify-center bg-white p-3 rounded-2xl flex-shrink-0">
-                        <img src={pixData?.pixQrCode} alt="QR Code PIX" className="w-[200px] h-[200px] sm:w-[250px] sm:h-[250px] object-contain" />
+                    <div className="flex flex-col w-full gap-5 items-center justify-center">
+                      <div className="flex justify-center bg-white p-4 rounded-3xl shadow-2xl shadow-white/5 w-fit mx-auto">
+                        <img
+                          src={pixData?.pixQrCode}
+                          alt="QR Code PIX"
+                          className="w-[180px] h-[180px] xs:w-[220px] xs:h-[220px] sm:w-[260px] sm:h-[260px] object-contain"
+                        />
                       </div>
 
                       <div className="w-full space-y-2">
                         <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-zinc-500 px-1">
                           <span>Código Copia e Cola</span>
                         </div>
-                        <div className="bg-white/5 border border-white/10 rounded-xl p-3 w-full flex flex-col gap-3">
-                          <p className="text-[10px] sm:text-xs font-mono text-zinc-300 break-all select-all">
+                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 w-full flex flex-col gap-4">
+                          <p className="text-[10px] sm:text-xs font-mono text-zinc-400 break-all select-all text-center leading-relaxed">
                             {pixData?.pixPayload}
                           </p>
                           <Button
                             variant="secondary"
-                            className="w-full text-xs font-bold gap-2 bg-primary/20 text-primary hover:bg-primary/30 h-10"
+                            className="w-full text-xs font-black uppercase tracking-widest gap-2 bg-primary text-black hover:bg-primary/90 h-12 rounded-xl transition-all active:scale-95"
                             onClick={() => {
                               navigator.clipboard.writeText(pixData?.pixPayload || "");
-                              toast({ title: "Copiado!" });
+                              toast({ title: "Copiado!", description: "Código PIX pronto para colar." });
                             }}
                           >
                             <Copy className="h-4 w-4" />

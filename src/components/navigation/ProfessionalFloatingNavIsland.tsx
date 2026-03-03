@@ -28,8 +28,8 @@ export const ProfessionalFloatingNavIsland = () => {
 
     return (
         <nav
-            className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-4 pt-2"
-            style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}
+            className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-2"
+            style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}
         >
             <div
                 className="flex w-full max-w-sm items-center justify-around rounded-xl border border-white/10 px-2 py-3"
