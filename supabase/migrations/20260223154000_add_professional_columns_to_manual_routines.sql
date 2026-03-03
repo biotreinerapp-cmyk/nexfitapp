@@ -9,6 +9,7 @@ CREATE INDEX IF NOT EXISTS idx_manual_routines_is_template ON public.manual_rout
 
 -- Update RLS Policies
 -- Allow professionals to manage their own templates
+DROP POLICY IF EXISTS "Professionals can manage own templates" ON public.manual_routines;
 CREATE POLICY "Professionals can manage own templates"
   ON public.manual_routines FOR ALL
   TO authenticated

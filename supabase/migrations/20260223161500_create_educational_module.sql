@@ -61,16 +61,19 @@ ALTER TABLE public.educational_lessons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.educational_purchases ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for educational_contents
+DROP POLICY IF EXISTS "Anyone can view published contents" ON public.educational_contents;
 CREATE POLICY "Anyone can view published contents"
     ON public.educational_contents FOR SELECT
     USING (is_published = true OR (auth.uid() IN (SELECT user_id FROM professionals WHERE id = professional_id)));
 
+DROP POLICY IF EXISTS "Professionals can manage own contents" ON public.educational_contents;
 CREATE POLICY "Professionals can manage own contents"
     ON public.educational_contents FOR ALL
     TO authenticated
     USING (auth.uid() IN (SELECT user_id FROM professionals WHERE id = professional_id));
 
 -- RLS Policies for educational_modules
+DROP POLICY IF EXISTS "Anyone can view modules of published contents" ON public.educational_modules;
 CREATE POLICY "Anyone can view modules of published contents"
     ON public.educational_modules FOR SELECT
     USING (EXISTS (
@@ -78,6 +81,7 @@ CREATE POLICY "Anyone can view modules of published contents"
         WHERE c.id = content_id AND (c.is_published = true OR auth.uid() IN (SELECT user_id FROM professionals WHERE id = c.professional_id))
     ));
 
+DROP POLICY IF EXISTS "Professionals can manage own modules" ON public.educational_modules;
 CREATE POLICY "Professionals can manage own modules"
     ON public.educational_modules FOR ALL
     TO authenticated
@@ -87,6 +91,7 @@ CREATE POLICY "Professionals can manage own modules"
     ));
 
 -- RLS Policies for educational_lessons
+DROP POLICY IF EXISTS "Buyers and owners can view lessons" ON public.educational_lessons;
 CREATE POLICY "Buyers and owners can view lessons"
     ON public.educational_lessons FOR SELECT
     USING (EXISTS (
@@ -101,6 +106,7 @@ CREATE POLICY "Buyers and owners can view lessons"
         )
     ));
 
+DROP POLICY IF EXISTS "Professionals can manage own lessons" ON public.educational_lessons;
 CREATE POLICY "Professionals can manage own lessons"
     ON public.educational_lessons FOR ALL
     TO authenticated
@@ -111,22 +117,26 @@ CREATE POLICY "Professionals can manage own lessons"
     ));
 
 -- RLS Policies for educational_purchases
+DROP POLICY IF EXISTS "Users can view own purchases" ON public.educational_purchases;
 CREATE POLICY "Users can view own purchases"
     ON public.educational_purchases FOR SELECT
     TO authenticated
     USING (auth.uid() = buyer_id);
 
+DROP POLICY IF EXISTS "Users can insert own purchases" ON public.educational_purchases;
 CREATE POLICY "Users can insert own purchases"
     ON public.educational_purchases FOR INSERT
     TO authenticated
     WITH CHECK (auth.uid() = buyer_id);
 
 -- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_educational_contents_updated_at ON public.educational_contents;
 CREATE TRIGGER update_educational_contents_updated_at
     BEFORE UPDATE ON public.educational_contents
     FOR EACH ROW
     EXECUTE FUNCTION public.handle_updated_at();
 
+DROP TRIGGER IF EXISTS update_educational_lessons_updated_at ON public.educational_lessons;
 CREATE TRIGGER update_educational_lessons_updated_at
     BEFORE UPDATE ON public.educational_lessons
     FOR EACH ROW
