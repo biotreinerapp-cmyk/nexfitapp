@@ -14,16 +14,21 @@ const supabaseAnonKey = (envKey && typeof envKey === 'string' && envKey.trim().l
 
 // Logs de Diagnóstico (Seguros)
 if (typeof window !== "undefined") {
-    console.log("[SupabaseInit] Verificando configuração...");
+    const isProduction = import.meta.env.PROD;
+    console.log(`[SupabaseInit] [PROD:${isProduction}] Verificando configuração...`);
     console.log("[SupabaseInit] URL:", supabaseUrl);
     console.log("[SupabaseInit] Origem da URL:", import.meta.env.VITE_SUPABASE_URL ? "ENV" : "FALLBACK");
 
     const keyPrefix = supabaseAnonKey?.substring(0, 10);
-    const keySuffix = supabaseAnonKey?.substring(supabaseAnonKey.length - 5);
+    const keySuffix = supabaseAnonKey?.substring(supabaseAnonKey?.length - 5);
     console.log(`[SupabaseInit] Key (${import.meta.env.VITE_SUPABASE_ANON_KEY ? "ENV" : "FALLBACK"}): ${keyPrefix}...${keySuffix}`);
 
     if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes("REPLACE_WITH")) {
         console.error("[SupabaseInit] CRITICAL: Invalid configuration detected!");
+    }
+
+    if (isProduction && (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY)) {
+        console.warn("[SupabaseInit] WARNING: Production build is using FALLBACK values. Ensure VITE_ variables are set in Render.");
     }
 }
 
