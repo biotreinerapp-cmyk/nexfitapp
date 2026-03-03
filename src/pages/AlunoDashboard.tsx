@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { useConnectionStatus } from "@/hooks/useConnectionStatus";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -579,8 +580,23 @@ const AlunoDashboardPage = () => {
                   const fileName = `${user.id}-${lastSession.id}-${Date.now()}.png`;
                   const path = `${user.id}/${fileName}`;
 
-                  const response = await fetch(storedUrl);
-                  const blob = await response.blob();
+                  let blob: Blob;
+                  if (storedUrl.startsWith("data:")) {
+                    // Converter de DataURL para Blob manualmente de forma robusta
+                    const arr = storedUrl.split(',');
+                    const mimeMatch = arr[0].match(/:(.*?);/);
+                    const mime = mimeMatch ? mimeMatch[1] : "image/png";
+                    const bstr = atob(arr[1]);
+                    let n = bstr.length;
+                    const u8arr = new Uint8Array(n);
+                    while (n--) {
+                      u8arr[n] = bstr.charCodeAt(n);
+                    }
+                    blob = new Blob([u8arr], { type: mime });
+                  } else {
+                    const response = await fetch(storedUrl);
+                    blob = await response.blob();
+                  }
 
                   const { error: uploadError } = await supabase.storage
                     .from("running_activities")
@@ -762,13 +778,17 @@ const AlunoDashboardPage = () => {
               </DialogTrigger>
               <DialogContent className="max-w-md border border-white/10 bg-black/90 backdrop-blur-2xl text-foreground sm:rounded-3xl">
                 <DialogHeader className="pb-4 border-b border-white/5">
-                  <DialogTitle className="text-lg font-black uppercase tracking-tight text-white flex items-center gap-2">
+                  <VisuallyHidden>
+                    <DialogTitle>Notificações</DialogTitle>
+                    <DialogDescription>Visualize todas as notificações da sua conta.</DialogDescription>
+                  </VisuallyHidden>
+                  <p className="text-lg font-black uppercase tracking-tight text-white flex items-center gap-2">
                     <Bell className="h-5 w-5 text-primary" />
                     Central de Notificações
-                  </DialogTitle>
-                  <DialogDescription className="text-xs text-muted-foreground">
+                  </p>
+                  <p className="text-xs text-muted-foreground">
                     Acompanhe avisos do sistema e atualizações de pagamentos.
-                  </DialogDescription>
+                  </p>
                 </DialogHeader>
                 <div className="space-y-4 py-2">
                   <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
@@ -881,14 +901,18 @@ const AlunoDashboardPage = () => {
 
         <Dialog open={showSharePrompt} onOpenChange={setShowSharePrompt}>
           <DialogContent className="max-w-sm border border-white/10 bg-black/90 backdrop-blur-2xl text-foreground sm:rounded-3xl">
-            <DialogHeader>
-              <DialogTitle className="text-lg font-black uppercase tracking-tight text-white">
+            <VisuallyHidden>
+              <DialogTitle>Atividade Concluída</DialogTitle>
+              <DialogDescription>Detalhes e opções de compartilhamento após finalizar a atividade.</DialogDescription>
+            </VisuallyHidden>
+            <div className="flex flex-col space-y-1.5 text-center sm:text-left mb-6">
+              <p className="text-lg font-black uppercase tracking-tight text-white">
                 Parabéns! <span className="text-primary">Atividade Concluída</span>
-              </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground">
+              </p>
+              <p className="text-xs text-muted-foreground">
                 Compartilhe sua conquista com a comunidade do Running Club.
-              </DialogDescription>
-            </DialogHeader>
+              </p>
+            </div>
 
             {userClubs.length > 0 ? (
               <div className="space-y-3 py-4">

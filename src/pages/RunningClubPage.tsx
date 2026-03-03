@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Users, Trophy, Target, Link2, Share2, Copy, Plus, MapPin, Clock, ArrowLeft } from "lucide-react";
+import { Users, Trophy, Target, Link2, Share2, Copy, Plus, MapPin, Clock, ArrowLeft, Search, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserPlan } from "@/hooks/useUserPlan";
@@ -592,51 +592,41 @@ const RunningClubPage = () => {
 
           {clubs.length > 0 && (
             <>
-              <div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button size="lg" className="w-full text-[13px]">
-                      Filtrar clubes
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="center" className="z-50 w-80 bg-card p-3">
-                    <div className="space-y-2">
-                      <Input
-                        placeholder="Buscar clube pelo nome"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="h-9 text-xs"
-                      />
-                      <Select
-                        value={visibilityFilter}
-                        onValueChange={(value: "all" | "public" | "private") => setVisibilityFilter(value)}
-                      >
-                        <SelectTrigger className="h-9 w-full text-xs">
-                          <SelectValue placeholder="Tipo" />
-                        </SelectTrigger>
-                        <SelectContent className="z-50">
-                          <SelectItem value="all">Todos</SelectItem>
-                          <SelectItem value="public">Públicos</SelectItem>
-                          <SelectItem value="private">Privados</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        placeholder="Estado"
-                        value={stateFilter}
-                        onChange={(e) => setStateFilter(e.target.value)}
-                        className="h-9 text-xs"
-                      />
-                      <Input
-                        placeholder="Cidade"
-                        value={cityFilter}
-                        onChange={(e) => setCityFilter(e.target.value)}
-                        className="h-9 text-xs"
-                      />
-                    </div>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+              {/* Premium Search & Filters */}
+              <div className="flex flex-col gap-4 mb-4">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-muted-foreground">
+                    <Search className="h-4 w-4" />
+                  </div>
+                  <Input
+                    placeholder="Buscar clube pelo nome ou cidade..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 h-12 bg-white/5 border-white/10 rounded-2xl text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-primary/50 text-sm"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+                  {[
+                    { id: "all", label: "Todos os Clubes" },
+                    { id: "public", label: "Públicos" },
+                    { id: "private", label: "Privados" },
+                  ].map((filter) => (
+                    <button
+                      key={filter.id}
+                      onClick={() => setVisibilityFilter(filter.id as any)}
+                      className={`whitespace-nowrap px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${visibilityFilter === filter.id
+                        ? "bg-primary text-white shadow-lg shadow-primary/20"
+                        : "bg-white/5 text-muted-foreground border border-white/5 hover:bg-white/10 hover:text-white"
+                        }`}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="mt-6 space-y-3">
+
+              <div className="space-y-3">
                 {filteredClubs.map((club) => {
                   const city = club.city || "Cidade não informada";
                   const state = club.state || "Estado não informado";
@@ -659,12 +649,15 @@ const RunningClubPage = () => {
                         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 text-primary ring-1 ring-white/10 group-hover:bg-primary/20 group-hover:text-white transition-colors">
                           <Users className="h-5 w-5" />
                         </div>
-                        <div className="flex flex-1 flex-col">
-                          <span className="text-base font-black italic uppercase tracking-tight text-foreground">{club.name}</span>
-                          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
-                            <MapPin className="h-3 w-3" />
-                            {city} • {state}
+                        <div className="flex flex-1 flex-col justify-center">
+                          <span className="text-base font-black italic uppercase tracking-tight text-foreground line-clamp-1">{club.name}</span>
+                          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase font-bold tracking-wider opacity-80 mt-0.5">
+                            <MapPin className="h-3 w-3 text-primary/70" />
+                            <span className="truncate">{city}</span>
                           </div>
+                          <span className={`w-fit mt-1.5 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${club.visibility === 'private' ? 'bg-orange-500/10 text-orange-500' : 'bg-primary/10 text-primary'}`}>
+                            {club.visibility === 'private' ? 'Privado' : 'Aberto'}
+                          </span>
                         </div>
                         <div className="flex flex-col items-end text-right">
                           <span className="text-xl font-black text-primary tracking-tighter">{totalKm.toFixed(1)} <span className="text-[10px] uppercase font-bold tracking-normal italic">KM</span></span>
@@ -684,40 +677,46 @@ const RunningClubPage = () => {
         </section>
 
         {emptyState && (
-          <section className="mt-4 space-y-3">
-            <Card className="border border-accent/50 bg-card/80">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Comece seu Running Club</CardTitle>
-                <CardDescription className="text-[11px]">
-                  Crie um clube em menos de 1 minuto, convide amigos e transforme treino em comunidade.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-2 text-[11px] text-muted-foreground space-y-1">
-                <p>
-                  • Crie um clube público ou privado.
+          <section className="mt-6 space-y-4 text-center">
+            <div className="rounded-3xl border border-primary/20 bg-primary/5 p-8 relative overflow-hidden backdrop-blur-sm">
+              <div className="absolute -top-[50%] -right-[20%] w-64 h-64 bg-primary/20 blur-3xl rounded-full pointer-events-none" />
+              <div className="absolute -bottom-[50%] -left-[20%] w-64 h-64 bg-primary/10 blur-3xl rounded-full pointer-events-none" />
+
+              <div className="relative z-10 flex flex-col items-center">
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/20 text-primary shadow-[0_0_20px_rgba(var(--primary),0.3)]">
+                  <Users className="h-8 w-8" />
+                </div>
+                <h2 className="text-2xl font-black italic uppercase tracking-tighter text-foreground mb-3 leading-tight drop-shadow-md">
+                  Correr sozinho é bom, <br /><span className="text-primary">correr em bando é de elite.</span>
+                </h2>
+                <p className="text-[13px] text-muted-foreground mb-6 font-medium leading-relaxed max-w-sm">
+                  Crie ou encontre seu Running Club. Compartilhe seus treinos, suba no ranking semanal e desafie seus limites junto com a comunidade.
                 </p>
-                <p>
-                  • Compartilhe o link exclusivo pelo WhatsApp.
-                </p>
-                <p>
-                  • Registre corridas, participe de desafios e acompanhe rankings semanais.
-                </p>
-              </CardContent>
-            </Card>
+                <div className="flex flex-col gap-3 w-full sm:w-auto">
+                  <Button
+                    variant="premium"
+                    className="w-full text-xs font-black uppercase tracking-widest py-6 shadow-xl shadow-primary/20"
+                    onClick={() => setCreateDialogOpen(true)}
+                  >
+                    <Plus className="mr-2 h-4 w-4" /> Fundar Meu Clube
+                  </Button>
+                </div>
+              </div>
+            </div>
           </section>
         )}
 
         <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Criar meu clube de corrida</DialogTitle>
-              <DialogDescription className="text-xs">
+          <DialogContent className="border-white/10 bg-black/95 backdrop-blur-3xl sm:rounded-[32px] max-w-md">
+            <DialogHeader className="mb-2">
+              <DialogTitle className="text-xl font-black italic tracking-tighter text-foreground uppercase">Criar meu clube de corrida</DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground font-medium">
                 Defina um nome, uma descrição curta e escolha se ele será público ou privado.
               </DialogDescription>
             </DialogHeader>
             <Form {...createForm}>
               <form
-                className="space-y-3"
+                className="space-y-4"
                 onSubmit={createForm.handleSubmit((values) => void handleCreateClub(values))}
               >
                 <FormField
@@ -726,9 +725,9 @@ const RunningClubPage = () => {
                   rules={{ required: "Informe o nome do clube" }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nome do clube</FormLabel>
+                      <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Nome do clube</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ex: Pelotão 5AM" {...field} />
+                        <Input placeholder="Ex: Pelotão 5AM" {...field} className="h-12 bg-white/5 border-white/10 rounded-2xl text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-primary/50 text-sm" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -739,23 +738,23 @@ const RunningClubPage = () => {
                   name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Descrição curta</FormLabel>
+                      <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Descrição curta</FormLabel>
                       <FormControl>
-                        <Textarea rows={2} placeholder="Clube para quem quer constância e corridas leves durante a semana." {...field} />
+                        <Textarea rows={2} placeholder="Clube para quem quer constância..." {...field} className="min-h-[80px] bg-white/5 border-white/10 rounded-2xl text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-primary/50 text-sm resize-none p-4" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={createForm.control}
                     name="city"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Cidade</FormLabel>
+                        <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Cidade</FormLabel>
                         <FormControl>
-                          <Input placeholder="Ex: São Paulo" {...field} />
+                          <Input placeholder="Ex: São Paulo" {...field} className="h-12 bg-white/5 border-white/10 rounded-2xl text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-primary/50 text-sm" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -766,9 +765,9 @@ const RunningClubPage = () => {
                     name="state"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Estado</FormLabel>
+                        <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Estado</FormLabel>
                         <FormControl>
-                          <Input placeholder="Ex: SP" {...field} />
+                          <Input placeholder="Ex: SP" {...field} className="h-12 bg-white/5 border-white/10 rounded-2xl text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-primary/50 text-sm uppercase" maxLength={2} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -780,17 +779,17 @@ const RunningClubPage = () => {
                   name="visibility"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Visibilidade</FormLabel>
+                      <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Visibilidade</FormLabel>
                       <Select
                         value={field.value}
                         onValueChange={(v) => field.onChange(v as "public" | "private")}
                       >
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger className="h-12 rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-foreground focus:ring-2 focus:ring-primary/50 outline-none transition-all">
                             <SelectValue placeholder="Selecione" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
+                        <SelectContent className="bg-[#121212] border-white/10 rounded-2xl">
                           <SelectItem value="public">Público (entrada direta)</SelectItem>
                           <SelectItem value="private">Privado (apenas com aprovação)</SelectItem>
                         </SelectContent>
@@ -799,9 +798,9 @@ const RunningClubPage = () => {
                     </FormItem>
                   )}
                 />
-                <DialogFooter className="mt-2">
-                  <Button type="submit" className="w-full" disabled={isCreatingClub}>
-                    {isCreatingClub ? "Criando..." : "Criar clube agora"}
+                <DialogFooter className="mt-4 pt-4 border-t border-white/10 sm:justify-end">
+                  <Button type="submit" variant="premium" className="w-full sm:w-auto rounded-2xl h-12 px-8 font-black uppercase tracking-widest" disabled={isCreatingClub}>
+                    {isCreatingClub ? "Fundando..." : "Fundar Clube"}
                   </Button>
                 </DialogFooter>
               </form>
@@ -810,46 +809,55 @@ const RunningClubPage = () => {
         </Dialog>
 
         <Dialog open={shareDialogOpen && !!selectedClub} onOpenChange={setShareDialogOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Compartilhar clube</DialogTitle>
-              <DialogDescription className="text-xs">
+          <DialogContent className="border-white/10 bg-black/95 backdrop-blur-3xl sm:rounded-[32px] max-w-sm">
+            <DialogHeader className="mb-2">
+              <DialogTitle className="text-xl font-black italic tracking-tighter text-foreground uppercase text-center">Compartilhar Convite</DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground font-medium text-center">
                 Use o link exclusivo para convidar amigos e montar sua comunidade de corrida.
               </DialogDescription>
             </DialogHeader>
             {selectedClub && (
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <p className="text-[11px] text-muted-foreground">Link do clube</p>
-                  <div className="flex items-center gap-2">
-                    <Input readOnly value={getInviteUrl(selectedClub.invite_code)} className="text-[11px]" />
-                    <Button type="button" size="icon" variant="outline" onClick={handleCopyInvite}>
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
+              <div className="space-y-6">
+                <div className="relative">
+                  <input
+                    type="text"
+                    readOnly
+                    value={getInviteUrl(selectedClub.invite_code)}
+                    className="w-full h-12 rounded-2xl border border-white/10 bg-white/5 px-4 pr-12 text-sm text-foreground focus:outline-none"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1 h-10 w-10 text-primary hover:bg-primary/20 hover:text-primary rounded-xl"
+                    onClick={handleCopyInvite}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                <div className="grid grid-cols-2 gap-3">
                   <Button
                     type="button"
                     variant="outline"
-                    className="w-full"
+                    className="w-full rounded-2xl h-12 bg-transparent border border-white/10 text-foreground hover:bg-white/5"
                     onClick={handleCopyInvite}
                   >
-                    <Share2 className="mr-1 h-3 w-3" /> WhatsApp
+                    <Share2 className="mr-2 h-4 w-4" /> WhatsApp
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
-                    className="w-full"
+                    className="w-full rounded-2xl h-12 bg-transparent border border-white/10 text-foreground hover:bg-white/5"
                     onClick={handleCopyInvite}
                   >
-                    <Link2 className="mr-1 h-3 w-3" /> Outras redes
+                    <Link2 className="mr-2 h-4 w-4" /> Copiar Link
                   </Button>
                 </div>
-                <p className="text-[10px] text-muted-foreground">
-                  Dica: envie o link em grupos de WhatsApp, salve no Instagram ou compartilhe com seu treinador para manter o
-                  pelotão sempre ativo.
-                </p>
+                <div className="bg-white/5 rounded-xl p-3 border border-white/10 flex gap-3 items-center">
+                  <Zap className="h-5 w-5 text-primary flex-shrink-0" />
+                  <p className="text-[10px] text-muted-foreground font-medium leading-relaxed">
+                    Envie o link em grupos de WhatsApp, salve no Instagram ou compartilhe com seu treinador para manter o pelotão ativo.
+                  </p>
+                </div>
               </div>
             )}
           </DialogContent>

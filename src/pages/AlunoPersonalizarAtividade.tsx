@@ -16,9 +16,12 @@ import type { ActivityType, ActivityCategory } from "@/lib/activityTypes";
 import { getActivityTypeById } from "@/lib/activityTypes";
 import { useFeedback } from "@/hooks/useFeedback";
 import { isPermissionOrRlsError, logPermissionError } from "@/lib/supabaseClient";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { enqueueWorkout } from "@/lib/offlineQueue";
 import { BackIconButton } from "@/components/navigation/BackIconButton";
 import { FloatingNavIsland } from "@/components/navigation/FloatingNavIsland";
+import { Download } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 
 interface PersonalizarState {
   sessaoId?: string;
@@ -260,6 +263,7 @@ const AlunoPersonalizarAtividadePage = () => {
   const [profileName, setProfileName] = useState<string | null>(null);
   const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
   const [showSuccessView, setShowSuccessView] = useState(false);
+  const [intensityValue, setIntensityValue] = useState<number>(5);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const finalizeOnceRef = useRef(false);
   const shareOnceRef = useRef(false);
@@ -397,6 +401,13 @@ const AlunoPersonalizarAtividadePage = () => {
     return null;
   }, [clubs, selectedClubId]);
 
+  const derivedIntensityLabel = useMemo(() => {
+    if (intensityValue <= 3) return "Baixa";
+    if (intensityValue <= 6) return "Moderada";
+    if (intensityValue <= 8) return "Alta";
+    return "Muito Alta";
+  }, [intensityValue]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (f) {
@@ -495,7 +506,7 @@ const AlunoPersonalizarAtividadePage = () => {
           avgHr: bpmMedio ?? undefined,
           paceAvg: paceVal ?? undefined,
           gpsPoints: usesGps && gpsRoute && gpsRoute.length > 0 ? gpsRoute : undefined,
-          intensity: { label: intensidade ?? null },
+          intensity: { label: derivedIntensityLabel, rpe: intensityValue },
           extras: { generatedUrl: generatedUrl ?? null, caption: caption ?? null },
         });
         localStorage.removeItem(`biotreiner_activity_${user.id}_${sessaoId}`);
@@ -517,7 +528,7 @@ const AlunoPersonalizarAtividadePage = () => {
         avg_hr: bpmMedio ?? null,
         pace_avg: paceVal,
         gps_points: usesGps && gpsRoute && gpsRoute.length > 0 ? gpsRoute : null,
-        intensity: { label: intensidade ?? null },
+        intensity: { label: derivedIntensityLabel, rpe: intensityValue },
         extras: { legacy_sessao_id: sessaoId, generatedUrl: generatedUrl ?? null, caption: caption ?? null },
       });
 
@@ -574,21 +585,20 @@ const AlunoPersonalizarAtividadePage = () => {
     }
   };
 
-  const handleCompartilharRedes = async () => {
+  const handleBaixarImagem = () => {
     if (!generatedUrl) return;
     try {
-      if (navigator.share) {
-        const blob = await fetch(generatedUrl).then(r => r.blob());
-        const file = new File([blob], "nexfit-story.png", { type: "image/png" });
-        await navigator.share({
-          title: "Meu treino Nexfit",
-          text: caption || `Treino de ${atividadeNome}`,
-          files: [file],
-        });
-      } else {
-        toast({ title: "Use o botão de baixar", description: "Seu navegador não suporta compartilhamento direto." });
-      }
-    } catch { }
+      const link = document.createElement("a");
+      link.href = generatedUrl;
+      link.download = `nexfit-treino-${new Date().getTime()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast({ title: "Imagem baixada", description: "Verifique a galeria do seu dispositivo." });
+    } catch (err) {
+      console.error("Erro ao baixar a imagem", err);
+      toast({ title: "Erro ao baixar", description: "Não foi possível realizar o download da imagem.", variant: "destructive" });
+    }
   };
 
   const handleConcluir = async () => {
@@ -705,12 +715,36 @@ const AlunoPersonalizarAtividadePage = () => {
             </div>
           </div>
 
+          {/* Intensity Slider */}
+          <div className="relative overflow-hidden rounded-[24px] border border-white/10 bg-black/40 p-5 shadow-lg backdrop-blur-md">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-xs font-black uppercase tracking-widest text-white">Nível de Esforço (RPE)</h3>
+              <span className="rounded-full bg-primary/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">
+                {derivedIntensityLabel} ({intensityValue}/10)
+              </span>
+            </div>
+            <Slider
+              value={[intensityValue]}
+              onValueChange={(val) => setIntensityValue(val[0])}
+              max={10}
+              min={1}
+              step={1}
+              className="py-4"
+            />
+            <div className="flex justify-between text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50 mt-1">
+              <span>Leve</span>
+              <span>Moderado</span>
+              <span>Intenso</span>
+              <span>Extremo</span>
+            </div>
+          </div>
+
           <div className="mt-auto space-y-3 pb-4">
             {file && (
               <Button
                 className="w-full h-14 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold tracking-wide shadow-lg shadow-purple-500/20"
                 onClick={() => void gerarImagem()}
-                disabled={isProcessing}
+                loading={isProcessing}
               >
                 {isProcessing ? "PROCESSANDO..." : "GERAR STORY"}
               </Button>
@@ -721,7 +755,7 @@ const AlunoPersonalizarAtividadePage = () => {
                 variant="outline"
                 className="w-full h-14 rounded-2xl border-white/10 bg-white/5 hover:bg-white/10 text-xs font-bold uppercase tracking-widest"
                 onClick={() => void handleConcluir()}
-                disabled={isProcessing}
+                loading={isProcessing}
               >
                 Pular e Finalizar
               </Button>
@@ -738,8 +772,11 @@ const AlunoPersonalizarAtividadePage = () => {
                 </div>
                 <img src={generatedUrl} className="w-full rounded-2xl border border-white/5 shadow-inner" />
                 <div className="mt-4 grid gap-2">
-                  <Button onClick={handleCompartilharRedes} className="w-full h-12 rounded-xl font-bold">Compartilhar</Button>
-                  <Button variant="secondary" onClick={handleConcluir} disabled={isProcessing} className="w-full h-12 rounded-xl font-bold text-black">Finalizar Treino</Button>
+                  <Button onClick={handleBaixarImagem} className="w-full h-12 rounded-xl font-bold bg-white text-black hover:bg-gray-200">
+                    <Download className="mr-2 h-4 w-4" />
+                    Baixar Imagem
+                  </Button>
+                  <Button variant="secondary" onClick={handleConcluir} loading={isProcessing} className="w-full h-12 rounded-xl font-bold text-white bg-white/10 hover:bg-white/20">Finalizar Treino</Button>
                 </div>
               </div>
             </div>
@@ -781,7 +818,7 @@ const AlunoPersonalizarAtividadePage = () => {
             activityDate={activityDateText}
             clubName={selectedClubName}
             activityCategory={activityCategory}
-            intensidade={intensidade}
+            intensidade={derivedIntensityLabel}
             userName={profileName}
             userAvatarUrl={profileAvatarUrl ?? undefined}
           />
@@ -791,6 +828,10 @@ const AlunoPersonalizarAtividadePage = () => {
       {/* Premium Processing Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-w-[280px] border-none bg-transparent shadow-none p-0 flex flex-col items-center justify-center outline-none">
+          <VisuallyHidden>
+            <DialogTitle>Gerando Imagem</DialogTitle>
+            <DialogDescription>Aguarde enquanto sua imagem é processada.</DialogDescription>
+          </VisuallyHidden>
           <div className="relative flex flex-col items-center justify-center gap-4 rounded-[32px] border border-white/10 bg-black/60 p-8 backdrop-blur-2xl shadow-2xl">
             <div className="relative h-16 w-16">
               <div className="absolute inset-0 rounded-full border-4 border-primary/20"></div>

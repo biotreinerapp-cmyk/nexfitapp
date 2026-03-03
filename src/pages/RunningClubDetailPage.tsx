@@ -757,11 +757,11 @@ const RunningClubDetailPage = () => {
 
                           {/* Imagem Premium */}
                           {post.image_url ? (
-                            <div className="bg-black relative group">
+                            <div className="bg-black relative group w-full">
                               <img
                                 src={post.image_url}
                                 alt={post.caption || "Atividade do clube"}
-                                className="aspect-square w-full object-cover group-hover:opacity-90 transition-opacity"
+                                className="w-full h-auto object-cover max-h-[600px]"
                                 loading="lazy"
                               />
                             </div>
@@ -777,14 +777,14 @@ const RunningClubDetailPage = () => {
                             </div>
                           )}
 
-                          {/* Barra de ações */}
-                          <div className="flex items-center justify-between px-3 pt-2 text-[11px]">
-                            <div className="flex items-center gap-1">
+                          {/* Barra de ações (Instagram style) */}
+                          <div className="flex items-center justify-between px-3 pt-3 pb-2">
+                            <div className="flex items-center gap-3">
                               <Button
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7 p-0 text-foreground hover:bg-accent/20"
+                                className={`h-8 w-8 p-0 rounded-full hover:bg-white/10 transition-colors ${liked ? 'text-red-500' : 'text-foreground'}`}
                                 onClick={async () => {
                                   if (!user) return;
                                   const newLiked = !liked;
@@ -824,72 +824,78 @@ const RunningClubDetailPage = () => {
                                   }
                                 }}
                               >
-                                {liked ? "❤" : "♡"}
+                                {liked ? (
+                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+                                    <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
+                                  </svg>
+                                ) : (
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+                                  </svg>
+                                )}
                               </Button>
                               <Button
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7 p-0 text-foreground hover:bg-accent/20"
+                                className="h-8 w-8 p-0 text-foreground hover:bg-white/10 rounded-full transition-colors"
                                 onClick={() => setCommentDialogPostId(post.id)}
                                 aria-label="Ver comentários do post"
                               >
-                                <MessageCircle className="h-4 w-4" />
+                                <MessageCircle className="h-6 w-6" />
                               </Button>
-                              {comments.length > 0 && (
-                                <span className="ml-1 text-[10px] text-muted-foreground">
-                                  {comments.length === 1
-                                    ? "1 comentário"
-                                    : `${comments.length} comentários`}
-                                </span>
-                              )}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 p-0 text-foreground hover:bg-white/10 rounded-full transition-colors"
+                                onClick={() => handleOpenDetailDialog(post)}
+                                aria-label="Compartilhar post"
+                              >
+                                <Share2 className="h-5 w-5" />
+                              </Button>
                             </div>
-                            <Share2 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                           </div>
 
                           {/* Metricas + legenda */}
-                          <div className="space-y-1 px-3 pt-1 pb-2 text-[11px]">
+                          <div className="space-y-1.5 px-4 pb-4 text-[12px]">
                             {likeCount > 0 && (
-                              <p className="font-semibold text-foreground">
+                              <p className="font-semibold text-foreground text-[13px]">
                                 {likeCount === 1 ? "1 curtida" : `${likeCount} curtidas`}
                               </p>
                             )}
 
-                            <p className="text-foreground">
+                            <p className="text-foreground leading-tight">
                               <span className="font-semibold mr-1">{post.author_name || "Corredor"}</span>
                               {post.caption || "Compartilhou um treino com o clube."}
                             </p>
 
-                            <p className="text-muted-foreground">
-                              {post.distance_km.toFixed(2)} km • {post.duration_minutes} min
-                              {post.distance_km > 0 && pace > 0 && ` • Ritmo ~ ${pace.toFixed(1)} min/km`}
-                              {post.calories ? ` • ${Math.round(post.calories)} kcal` : ""}
-                            </p>
-
-                            <Button
-                              type="button"
-                              variant="default"
-                              size="sm"
-                              className="mt-1 h-7 px-2 text-[10px]"
-                              onClick={() => {
-                                void handleOpenDetailDialog(post);
-                              }}
-                            >
-                              Ver detalhes do treino
-                            </Button>
+                            <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-medium text-primary">
+                              {post.distance_km > 0 && (
+                                <span className="bg-primary/10 px-2 py-0.5 rounded-sm">🏃 {post.distance_km.toFixed(2)} km</span>
+                              )}
+                              {post.duration_minutes > 0 && (
+                                <span className="bg-primary/10 px-2 py-0.5 rounded-sm">⏱ {post.duration_minutes} min</span>
+                              )}
+                              {post.distance_km > 0 && pace > 0 && (
+                                <span className="bg-primary/10 px-2 py-0.5 rounded-sm">⚡ {pace.toFixed(1)} min/km</span>
+                              )}
+                              {post.calories && (
+                                <span className="bg-primary/10 px-2 py-0.5 rounded-sm">🔥 {Math.round(post.calories)} kcal</span>
+                              )}
+                            </div>
 
                             {comments.length > 0 && (
                               <button
                                 type="button"
-                                className="mt-1 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+                                className="pt-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
                                 onClick={() => setCommentDialogPostId(post.id)}
                               >
-                                Ver todos os comentários
+                                {comments.length === 1 ? "Ver 1 comentário" : `Ver todos os ${comments.length} comentários`}
                               </button>
                             )}
-
-                            <p className="pt-1 text-[9px] uppercase tracking-wide text-muted-foreground">
-                              {date.toLocaleDateString("pt-BR")}
+                            <p className="pt-0.5 text-[9px] uppercase tracking-wide text-muted-foreground">
+                              {timeLabel}
                             </p>
                           </div>
                         </article>
@@ -1012,41 +1018,47 @@ const RunningClubDetailPage = () => {
 
       {/* Comments Dialog */}
       <Dialog open={Boolean(commentDialogPostId)} onOpenChange={(open) => !open && setCommentDialogPostId(null)}>
-        <DialogContent className="max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Comentários do post</DialogTitle>
-            <DialogDescription>
-              Veja o que outros membros comentaram e participe da conversa.
+        <DialogContent className="max-h-[85vh] overflow-y-auto border-white/10 bg-black/95 backdrop-blur-3xl sm:rounded-[32px]">
+          <DialogHeader className="mb-2">
+            <DialogTitle className="text-xl font-black italic tracking-tighter text-foreground uppercase">Comentários</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground font-medium">
+              Veja o que outros membros comentaram e participe.
             </DialogDescription>
           </DialogHeader>
 
           {commentDialogPostId && (
-            <div className="space-y-3 text-[11px]">
-              <div className="space-y-2 max-h-64 overflow-y-auto border border-border/40 rounded-md p-2 bg-muted/40">
+            <div className="space-y-4">
+              <div className="space-y-3 max-h-[50vh] overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-white/10">
                 {(commentsByPost[commentDialogPostId] ?? []).map((comment) => {
                   const commentDate = new Date(comment.created_at);
                   return (
-                    <div key={comment.id} className="flex items-start justify-between gap-2">
-                      <p className="flex-1 text-foreground">
-                        <span className="font-semibold mr-1">Membro</span>
-                        {comment.comment}
-                      </p>
-                      <span className="text-[9px] text-muted-foreground">
-                        {commentDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </span>
+                    <div key={comment.id} className="flex gap-3 bg-white/5 p-3 rounded-2xl border border-white/5">
+                      <div className="flex flex-1 flex-col">
+                        <div className="flex justify-between items-baseline mb-1">
+                          <span className="text-xs font-bold text-foreground">Membro</span>
+                          <span className="text-[9px] font-bold text-muted-foreground uppercase opacity-60">
+                            {commentDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-foreground/90 leading-relaxed">
+                          {comment.comment}
+                        </p>
+                      </div>
                     </div>
                   );
                 })}
 
                 {(commentsByPost[commentDialogPostId] ?? []).length === 0 && (
-                  <p className="text-[11px] text-muted-foreground">Seja o primeiro a comentar neste post.</p>
+                  <div className="flex flex-col items-center justify-center p-8 bg-white/5 rounded-2xl border border-dashed border-white/10">
+                    <p className="text-[11px] font-black italic uppercase tracking-widest text-muted-foreground/50 text-center">Nenhum comentário ainda.<br />Seja o primeiro a incentivar!</p>
+                  </div>
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 pt-2 border-t border-white/10">
                 <Input
-                  placeholder="Adicione um comentário..."
-                  className="h-8 text-[11px]"
+                  placeholder="Seu comentário..."
+                  className="h-12 text-xs bg-white/5 border-white/10 rounded-2xl text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-primary/50 flex-1"
                   value={commentInputs[commentDialogPostId] ?? ""}
                   onChange={(e) =>
                     setCommentInputs((prev) => ({
@@ -1054,11 +1066,18 @@ const RunningClubDetailPage = () => {
                       [commentDialogPostId]: e.target.value,
                     }))
                   }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      const submitBtn = document.getElementById("submit-comment-btn");
+                      if (submitBtn && !submitBtn.hasAttribute("disabled")) submitBtn.click();
+                    }
+                  }}
                 />
                 <Button
+                  id="submit-comment-btn"
                   type="button"
-                  size="sm"
-                  className="h-8 px-3 text-[11px]"
+                  className="h-12 w-12 rounded-2xl bg-primary text-white hover:bg-primary/90 flex-shrink-0"
                   disabled={
                     !user ||
                     !commentDialogPostId ||
@@ -1107,7 +1126,7 @@ const RunningClubDetailPage = () => {
                     }
                   }}
                 >
-                  Publicar
+                  <Share2 className="h-5 w-5" style={{ transform: 'rotate(45deg)' }} />
                 </Button>
               </div>
             </div>
@@ -1125,57 +1144,65 @@ const RunningClubDetailPage = () => {
           }
         }}
       >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Detalhes do treino</DialogTitle>
-            <DialogDescription>Resumo completo da sessão compartilhada com o clube.</DialogDescription>
+        <DialogContent className="max-w-md border-white/10 bg-black/95 backdrop-blur-3xl sm:rounded-[32px] overflow-hidden">
+          <DialogHeader className="mb-2">
+            <DialogTitle className="text-xl font-black italic tracking-tighter text-foreground uppercase">Detalhes da Sessão</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground font-medium">Resumo completo da atividade compartilhada com o clube.</DialogDescription>
           </DialogHeader>
 
-          {!detailDialogPost && <p className="text-xs text-muted-foreground">Nenhum treino selecionado.</p>}
+          {!detailDialogPost && <p className="text-xs text-muted-foreground p-4 text-center">Nenhum treino selecionado.</p>}
 
           {detailDialogPost && (
-            <div className="space-y-3 text-xs">
-              {isDetailLoading && <p className="text-muted-foreground">Carregando detalhes do treino...</p>}
+            <div className="space-y-4">
+              {isDetailLoading && <p className="text-sm font-bold text-muted-foreground text-center py-4">Carregando detalhes...</p>}
 
               {!isDetailLoading && (
-                <>
+                <div className="max-h-[60vh] overflow-y-auto pr-1 space-y-4 scrollbar-thin scrollbar-thumb-white/10">
                   {detailDialogPost.image_url && (
-                    <img
-                      src={detailDialogPost.image_url}
-                      alt={detailDialogPost.caption || "Imagem do treino"}
-                      className="w-full rounded-md object-cover"
-                    />
+                    <div className="rounded-2xl overflow-hidden border border-white/10 bg-black">
+                      <img
+                        src={detailDialogPost.image_url}
+                        alt={detailDialogPost.caption || "Imagem do treino"}
+                        className="w-full h-auto object-cover max-h-64"
+                      />
+                    </div>
                   )}
 
                   <div className="space-y-1">
-                    <p className="font-semibold text-foreground">
+                    <p className="text-lg font-black italic tracking-tight text-foreground uppercase">
                       {detailDialogPost.author_name || "Corredor"}
                     </p>
-                    <p className="text-muted-foreground">{detailDialogPost.caption}</p>
+                    {detailDialogPost.caption && (
+                      <p className="text-xs text-muted-foreground font-medium leading-relaxed bg-white/5 p-3 rounded-xl border border-white/5">
+                        "{detailDialogPost.caption}"
+                      </p>
+                    )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 rounded-md border border-border/60 bg-background/80 p-2">
-                    <div>
-                      <span className="text-[10px] text-muted-foreground">Distância</span>
-                      <p className="text-sm font-semibold">
-                        {detailActivity?.distance_km ?? detailDialogPost.distance_km} km
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-white/5 rounded-2xl p-3 border border-white/5 flex flex-col justify-center">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Distância</span>
+                      <p className="text-2xl font-black italic text-primary tracking-tighter">
+                        {detailActivity?.distance_km ?? detailDialogPost.distance_km} <span className="text-[10px] font-bold tracking-normal text-foreground/60 not-italic">km</span>
                       </p>
                     </div>
-                    <div>
-                      <span className="text-[10px] text-muted-foreground">Duração</span>
-                      <p className="text-sm font-semibold">{detailDialogPost.duration_minutes} min</p>
+                    <div className="bg-white/5 rounded-2xl p-3 border border-white/5 flex flex-col justify-center">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Duração</span>
+                      <p className="text-2xl font-black italic text-primary tracking-tighter">
+                        {detailDialogPost.duration_minutes} <span className="text-[10px] font-bold tracking-normal text-foreground/60 not-italic">min</span>
+                      </p>
                     </div>
-                    <div>
-                      <span className="text-[10px] text-muted-foreground">Ritmo médio</span>
-                      <p className="text-sm font-semibold">
+                    <div className="bg-white/5 rounded-2xl p-3 border border-white/5 flex flex-col justify-center">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Ritmo</span>
+                      <p className="text-lg font-black text-foreground tracking-tight">
                         {detailActivity?.pace_avg
                           ? `${detailActivity.pace_avg.toFixed(1)} min/km`
                           : detailDialogPost.pace ?? "--"}
                       </p>
                     </div>
-                    <div>
-                      <span className="text-[10px] text-muted-foreground">Calorias</span>
-                      <p className="text-sm font-semibold">
+                    <div className="bg-white/5 rounded-2xl p-3 border border-white/5 flex flex-col justify-center">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Calorias</span>
+                      <p className="text-lg font-black text-foreground tracking-tight">
                         {detailActivity?.calorias_estimadas
                           ? `${Math.round(detailActivity.calorias_estimadas)} kcal`
                           : detailDialogPost.calories
@@ -1183,28 +1210,30 @@ const RunningClubDetailPage = () => {
                             : "--"}
                       </p>
                     </div>
-                    <div>
-                      <span className="text-[10px] text-muted-foreground">BPM médio</span>
-                      <p className="text-sm font-semibold">
+                    <div className="bg-white/5 rounded-2xl p-3 border border-white/5 flex flex-col justify-center">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-60">BPM Médio</span>
+                      <p className="text-sm font-bold text-foreground">
                         {detailActivity?.bpm_medio ? `${detailActivity.bpm_medio} bpm` : "--"}
                       </p>
                     </div>
-                    <div>
-                      <span className="text-[10px] text-muted-foreground">Tipo de atividade</span>
-                      <p className="text-sm font-semibold">
+                    <div className="bg-white/5 rounded-2xl p-3 border border-white/5 flex flex-col justify-center">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Tipo</span>
+                      <p className="text-sm font-bold text-foreground capitalize">
                         {detailActivity?.tipo_atividade ?? detailDialogPost.activity_type ?? "--"}
                       </p>
                     </div>
                   </div>
 
-                  <p className="text-[10px] text-muted-foreground">
-                    {detailActivity?.iniciado_em && detailActivity?.finalizado_em
-                      ? `Início: ${new Date(detailActivity.iniciado_em).toLocaleString("pt-BR")} • Fim: ${new Date(
-                        detailActivity.finalizado_em,
-                      ).toLocaleString("pt-BR")}`
-                      : `Publicado em ${new Date(detailDialogPost.created_at).toLocaleString("pt-BR")}`}
-                  </p>
-                </>
+                  <div className="pt-2 text-center border-t border-white/5">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground opacity-60">
+                      {detailActivity?.iniciado_em && detailActivity?.finalizado_em
+                        ? `Início: ${new Date(detailActivity.iniciado_em).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' })} • Fim: ${new Date(
+                          detailActivity.finalizado_em,
+                        ).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' })} • ${new Date(detailActivity.finalizado_em).toLocaleDateString("pt-BR")}`
+                        : `Publicado em ${new Date(detailDialogPost.created_at).toLocaleString("pt-BR")}`}
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -1213,10 +1242,10 @@ const RunningClubDetailPage = () => {
 
       {/* Edit Club Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Editar clube</DialogTitle>
-            <DialogDescription>Atualize as informações do seu clube.</DialogDescription>
+        <DialogContent className="border-white/10 bg-black/95 backdrop-blur-3xl sm:rounded-[32px]">
+          <DialogHeader className="mb-2">
+            <DialogTitle className="text-xl font-black italic tracking-tighter text-foreground uppercase">Editar Clube</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground font-medium">Atualize as informações do seu clube.</DialogDescription>
           </DialogHeader>
           <Form {...editForm}>
             <form
@@ -1228,9 +1257,9 @@ const RunningClubDetailPage = () => {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nome</FormLabel>
+                    <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Nome</FormLabel>
                     <FormControl>
-                      <Input placeholder="Nome do clube" {...field} />
+                      <Input placeholder="Nome do clube" {...field} className="h-12 bg-white/5 border-white/10 rounded-2xl text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-primary/50 text-sm" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1241,61 +1270,65 @@ const RunningClubDetailPage = () => {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Descrição</FormLabel>
+                    <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Descrição</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Descrição do clube" {...field} />
+                      <Textarea placeholder="Descrição do clube" {...field} className="min-h-[100px] bg-white/5 border-white/10 rounded-2xl text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-primary/50 text-sm resize-none p-4" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <FormField
-                control={editForm.control}
-                name="city"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cidade</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Cidade" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={editForm.control}
-                name="state"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Estado</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Estado" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={editForm.control}
+                  name="city"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Cidade</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Cidade" {...field} className="h-12 bg-white/5 border-white/10 rounded-2xl text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-primary/50 text-sm" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="state"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Estado</FormLabel>
+                      <FormControl>
+                        <Input placeholder="UF" {...field} className="h-12 bg-white/5 border-white/10 rounded-2xl text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-primary/50 text-sm uppercase" maxLength={2} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               <FormField
                 control={editForm.control}
                 name="visibility"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Visibilidade</FormLabel>
+                    <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Visibilidade</FormLabel>
                     <FormControl>
-                      <select {...field} className="w-full rounded border border-border bg-background px-2 py-1 text-sm">
-                        <option value="public">Público</option>
-                        <option value="private">Privado</option>
+                      <select {...field} className="w-full h-12 rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-foreground focus:ring-2 focus:ring-primary/50 outline-none transition-all">
+                        <option value="public" className="bg-background">Público (Aberto para todos)</option>
+                        <option value="private" className="bg-background">Privado (Requer convite)</option>
                       </select>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
+              <div className="flex justify-end gap-3 pt-4 border-t border-white/10 mt-2">
+                <Button type="button" variant="ghost" onClick={() => setEditDialogOpen(false)} className="rounded-xl px-6 text-muted-foreground hover:text-white hover:bg-white/10">
                   Cancelar
                 </Button>
-                <Button type="submit">Salvar</Button>
+                <Button type="submit" variant="premium" className="rounded-xl px-8 font-bold tracking-widest uppercase">
+                  Salvar Clube
+                </Button>
               </div>
             </form>
           </Form>
@@ -1304,25 +1337,34 @@ const RunningClubDetailPage = () => {
 
       {/* Share Invite Dialog */}
       <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Compartilhar convite</DialogTitle>
-            <DialogDescription>
-              Compartilhe o link abaixo para convidar novos membros para o clube.
+        <DialogContent className="border-white/10 bg-black/95 backdrop-blur-3xl sm:rounded-[32px] max-w-sm">
+          <DialogHeader className="mb-2">
+            <DialogTitle className="text-xl font-black italic tracking-tighter text-foreground uppercase text-center">Convite de Elite</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground font-medium text-center">
+              Compartilhe o link abaixo para recrutar novos corredores.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-2">
-            <input
-              type="text"
-              readOnly
-              value={club ? getInviteUrl(club.invite_code) : ""}
-              className="w-full rounded border border-border bg-muted px-2 py-1 text-sm"
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShareDialogOpen(false)}>
-                Fechar
+          <div className="flex flex-col gap-4">
+            <div className="relative">
+              <input
+                type="text"
+                readOnly
+                value={club ? getInviteUrl(club.invite_code) : ""}
+                className="w-full h-12 rounded-2xl border border-white/10 bg-white/5 px-4 pr-12 text-sm text-foreground focus:outline-none"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1 h-10 w-10 text-primary hover:bg-primary/20 hover:text-primary rounded-xl"
+                onClick={handleCopyInviteLink}
+              >
+                <Copy className="h-4 w-4" />
               </Button>
-              <Button onClick={handleCopyInviteLink}>Copiar link</Button>
+            </div>
+            <div className="flex justify-center pt-2">
+              <Button variant="premium" className="w-full rounded-2xl h-12 font-bold tracking-widest uppercase" onClick={handleCopyInviteLink}>
+                <Share2 className="mr-2 h-4 w-4" /> Copiar Link
+              </Button>
             </div>
           </div>
         </DialogContent>
@@ -1330,18 +1372,20 @@ const RunningClubDetailPage = () => {
 
       {/* Leave Club Confirmation Dialog */}
       <AlertDialog open={isLeavingClub} onOpenChange={setIsLeavingClub}>
-        <AlertDialogContent>
+        <AlertDialogContent className="border-white/10 bg-black/95 backdrop-blur-3xl sm:rounded-[32px] max-w-sm">
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar saída</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja sair do clube? Você perderá acesso às atividades e desafios.
+            <AlertDialogTitle className="text-xl font-black italic tracking-tighter text-foreground uppercase text-center">Desertar o Pelotão?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground font-medium text-center mt-2 leading-relaxed">
+              Você perderá acesso imediato às atividades, posts e rankings deste Running Club. Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setIsLeavingClub(false)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleLeaveClub} className="text-destructive">
-              Sair do clube
+          <AlertDialogFooter className="mt-6 flex flex-col gap-3 sm:flex-col sm:space-x-0">
+            <AlertDialogAction onClick={handleLeaveClub} className="w-full h-12 rounded-2xl bg-destructive text-destructive-foreground hover:bg-destructive/90 font-black tracking-widest uppercase">
+              Sim, Sair do Clube
             </AlertDialogAction>
+            <AlertDialogCancel onClick={() => setIsLeavingClub(false)} className="w-full h-12 rounded-2xl mt-0 bg-transparent border border-white/10 text-muted-foreground hover:bg-white/5 hover:text-white font-bold uppercase tracking-widest">
+              Ficar no Clube
+            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
