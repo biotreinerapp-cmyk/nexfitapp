@@ -115,7 +115,17 @@ const TelemedicinaPage = () => {
           .order("name"),
       ]);
 
-      setServicos((servicosData as any) ?? []);
+      // Deduplicate service categories by name (case-insensitive) — keep first occurrence
+      const rawServicos: TelemedServico[] = (servicosData as any) ?? [];
+      const seenNomes = new Set<string>();
+      const servicosUnicos = rawServicos.filter(s => {
+        const key = s.nome.trim().toLowerCase();
+        if (seenNomes.has(key)) return false;
+        seenNomes.add(key);
+        return true;
+      });
+
+      setServicos(servicosUnicos);
       setProfissionais((profData as any) ?? []);
       setLoading(false);
     };
