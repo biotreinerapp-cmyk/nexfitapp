@@ -1,29 +1,53 @@
 -- ============================================================
 -- Fix: Educador Físico duplicado em telemedicina_servicos
+-- Versão corrigida: migra referências FK antes de deletar
 -- ============================================================
 
--- 1. Ver o que existe no banco (diagnóstico)
-SELECT id, nome, slug, ativo FROM public.telemedicina_servicos ORDER BY nome;
+-- 1. Migrar referências de qualquer duplicata de 'educador'
+--    para o registro canônico (slug = 'educador-fisico')
 
--- 2. Manter apenas UM registro por nome (o mais antigo, com slug canônico)
---    Deleta todos os "Educador Físico" exceto o com slug = 'educador-fisico'
+-- Na tabela telemedicina_profissionais
+UPDATE public.telemedicina_profissionais
+SET servico_id = (
+    SELECT id FROM public.telemedicina_servicos
+    WHERE slug = 'educador-fisico'
+    LIMIT 1
+)
+WHERE servico_id IN (
+    SELECT id FROM public.telemedicina_servicos
+    WHERE nome ILIKE '%educador%'
+      AND slug <> 'educador-fisico'
+);
+
+-- Na tabela professionals (coluna telemedicina_servico_id)
+UPDATE public.professionals
+SET telemedicina_servico_id = (
+    SELECT id FROM public.telemedicina_servicos
+    WHERE slug = 'educador-fisico'
+    LIMIT 1
+)
+WHERE telemedicina_servico_id IN (
+    SELECT id FROM public.telemedicina_servicos
+    WHERE nome ILIKE '%educador%'
+      AND slug <> 'educador-fisico'
+);
+
+-- 2. Agora é seguro deletar os duplicados
 DELETE FROM public.telemedicina_servicos
 WHERE nome ILIKE '%educador%'
   AND slug <> 'educador-fisico';
 
--- Se por acaso não existir 'educador-fisico', mantém o mais antigo e padroniza
--- (corre apenas se o DELETE acima não resolver — seguro rodar mesmo assim)
+-- 3. Padroniza o registro canônico
 UPDATE public.telemedicina_servicos
-SET slug = 'educador-fisico',
-    nome = 'Educador Físico'
+SET nome = 'Educador Físico',
+    slug = 'educador-fisico'
 WHERE nome ILIKE '%educador%';
 
--- 3. Garantir que não aconteça mais: adicionar unique constraint no nome
+-- 4. Adiciona UNIQUE constraint no nome (impede recorrência)
 ALTER TABLE public.telemedicina_servicos
     DROP CONSTRAINT IF EXISTS telemedicina_servicos_nome_unique;
-
 ALTER TABLE public.telemedicina_servicos
     ADD CONSTRAINT telemedicina_servicos_nome_unique UNIQUE (nome);
 
--- 4. Verificação final
-SELECT id, nome, slug, ativo FROM public.telemedicina_servicos ORDER BY nome;
+-- 5. Verificação final
+SELECT nome, slug, ativo FROM public.telemedicina_servicos ORDER BY nome;
