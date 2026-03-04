@@ -140,6 +140,32 @@ const TelemedicinaPage = () => {
     setPaymentMethod(method);
     try {
       const finalAmount = getDiscountedPrice(profissional.base_price);
+
+      // ── Deduplication: abort if an active hire already exists for this pair ──
+      const { data: existingHire } = await (supabase as any)
+        .from("professional_hires")
+        .select("id, status")
+        .eq("professional_id", profissional.id)
+        .eq("student_id", user.id)
+        .in("status", ["pending", "awaiting_verification", "accepted"])
+        .maybeSingle();
+
+      if (existingHire) {
+        const statusMsg: Record<string, string> = {
+          pending: "aguardando aprovação do profissional",
+          awaiting_verification: "aguardando verificação do pagamento",
+          accepted: "já ativa — acesse o chat para falar com o profissional",
+        };
+        toast({
+          title: "Solicitação já existe",
+          description: `Você já tem uma contratação com este profissional ${statusMsg[existingHire.status] ?? "em andamento"}.`,
+        });
+        setSubmitting(false);
+        setAgendaOpen(false);
+        return;
+      }
+      // ───────────────────────────────────────────────────────────────────────
+
       const { data: hire, error }: any = await (supabase as any).from("professional_hires").insert({
         professional_id: profissional.id,
         student_id: user.id,
@@ -150,6 +176,7 @@ const TelemedicinaPage = () => {
       }).select("id").single();
 
       if (error) throw error;
+
 
       if (profissional.base_price && profissional.base_price > 0) {
         if (method === "pix") {
