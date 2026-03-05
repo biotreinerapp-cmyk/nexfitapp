@@ -137,7 +137,12 @@ export default function AlunoChatPage() {
                     filter: `room_id=eq.${roomId}`,
                 },
                 (payload) => {
-                    setMessages((current) => [...current, payload.new as Message]);
+                    setMessages((current) => {
+                        const incoming = payload.new as Message;
+                        // Deduplicate: ignore if already present (optimistic UI already added it)
+                        if (current.some((m) => m.id === incoming.id)) return current;
+                        return [...current, incoming];
+                    });
                 }
             )
             .subscribe();
