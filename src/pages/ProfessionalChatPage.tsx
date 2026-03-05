@@ -157,14 +157,30 @@ export default function ProfessionalChatPage() {
         const content = newMessage;
         setNewMessage("");
 
+        // Optimistic UI: show message immediately
+        const optimisticMsg: Message = {
+            id: `optimistic-${Date.now()}`,
+            room_id: activeRoom.id,
+            sender_id: user.id,
+            content,
+            created_at: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, optimisticMsg]);
+
         try {
-            const { error } = await supabase.from("professional_chat_messages").insert({
+            const { data: sent, error } = await supabase.from("professional_chat_messages").insert({
                 room_id: activeRoom.id,
                 sender_id: user.id,
                 content: content,
-            });
+            }).select("*").single();
 
             if (error) throw error;
+
+            if (sent) {
+                setMessages((prev) =>
+                    prev.map((m) => m.id === optimisticMsg.id ? sent as Message : m)
+                );
+            }
 
             // Update last message timestamp in room
             await supabase
@@ -173,8 +189,11 @@ export default function ProfessionalChatPage() {
                 .eq("id", activeRoom.id);
 
         } catch (error: any) {
+            // Remove optimistic message and restore text on failure
+            setMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
+            setNewMessage(content);
             toast({
-                title: "Erro ao enviar",
+                title: "Erro ao enviar mensagem",
                 description: error.message,
                 variant: "destructive",
             });

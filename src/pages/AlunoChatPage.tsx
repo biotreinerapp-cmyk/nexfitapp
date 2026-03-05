@@ -154,14 +154,31 @@ export default function AlunoChatPage() {
         const content = newMessage;
         setNewMessage("");
 
+        // Optimistic UI: show message immediately before server confirms
+        const optimisticMsg: Message = {
+            id: `optimistic-${Date.now()}`,
+            room_id: activeRoom.id,
+            sender_id: user.id,
+            content,
+            created_at: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, optimisticMsg]);
+
         try {
-            const { error } = await supabase.from("professional_chat_messages").insert({
+            const { data: sent, error } = await supabase.from("professional_chat_messages").insert({
                 room_id: activeRoom.id,
                 sender_id: user.id,
                 content: content,
-            });
+            }).select("*").single();
 
             if (error) throw error;
+
+            // Replace optimistic message with real one from server
+            if (sent) {
+                setMessages((prev) =>
+                    prev.map((m) => m.id === optimisticMsg.id ? sent as Message : m)
+                );
+            }
 
             await supabase
                 .from("professional_chat_rooms")
@@ -169,8 +186,11 @@ export default function AlunoChatPage() {
                 .eq("id", activeRoom.id);
 
         } catch (error: any) {
+            // Remove optimistic message if send failed
+            setMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
+            setNewMessage(content); // Restore message text
             toast({
-                title: "Erro ao enviar",
+                title: "Erro ao enviar mensagem",
                 description: error.message,
                 variant: "destructive",
             });
