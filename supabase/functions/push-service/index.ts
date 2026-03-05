@@ -13,7 +13,15 @@ serve(async (req) => {
     }
 
     try {
-        const { userId, title, body, url: targetUrl, segment } = await req.json()
+        const payload = await req.json()
+
+        // Suporta tanto o formato direto quanto o formato de Database Webhook do Supabase
+        const record = payload.record || {}
+        const userId = payload.userId || record.user_id
+        const title = payload.title || record.title
+        const body = payload.body || record.body
+        const targetUrl = payload.url || record.link
+        const segment = payload.segment || record.segment
 
         const supabase = createClient(
             Deno.env.get('SUPABASE_URL') ?? '',
@@ -57,25 +65,25 @@ serve(async (req) => {
         }
 
         // 2. Send pushes
-        const payload = JSON.stringify({
+        const pushPayload = JSON.stringify({
             title,
             body,
             url: targetUrl || '/'
         })
 
         const results = await Promise.allSettled(
-            subscriptions.map(s =>
-                webpush.sendNotification(s.subscription, payload)
+            subscriptions.map((s: any) =>
+                webpush.sendNotification(s.subscription, pushPayload)
             )
         )
 
         // 3. Cleanup failed subscriptions (404/410)
         const failedIndices = results
-            .map((res, i) => (res.status === 'rejected' && (res.reason.statusCode === 404 || res.reason.statusCode === 410)) ? i : -1)
-            .filter(i => i !== -1)
+            .map((res: any, i: number) => (res.status === 'rejected' && (res.reason.statusCode === 404 || res.reason.statusCode === 410)) ? i : -1)
+            .filter((i: number) => i !== -1)
 
         if (failedIndices.length > 0) {
-            const failedEndpoints = failedIndices.map(i => subscriptions[i].subscription.endpoint)
+            const failedEndpoints = failedIndices.map((i: number) => subscriptions[i].subscription.endpoint)
             await supabase
                 .from('push_subscriptions')
                 .delete()
@@ -84,7 +92,7 @@ serve(async (req) => {
 
         return new Response(JSON.stringify({
             success: true,
-            sent: results.filter(r => r.status === 'fulfilled').length,
+            sent: results.filter((r: any) => r.status === 'fulfilled').length,
             failed: failedIndices.length
         }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
