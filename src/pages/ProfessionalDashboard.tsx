@@ -252,27 +252,6 @@ export default function ProfessionalDashboard() {
                 </section>
             )}
 
-            {/* ── Meus Alunos (active bindings) ────────────────────────────── */}
-            {bindings.length > 0 && (
-                <section className="mt-4 mb-6">
-                    <div className="flex items-center justify-between mb-3">
-                        <h2 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-zinc-400">
-                            <Users className="h-4 w-4 text-primary shrink-0" />
-                            Meus Alunos ({bindings.length})
-                        </h2>
-                        <div className="h-px flex-1 bg-white/5 ml-4" />
-                    </div>
-                    <div className="space-y-3">
-                        {bindings.map((binding) => (
-                            <StudentBindingCard
-                                key={binding.id}
-                                binding={binding}
-                                onOpenChat={() => navigate("/professional/chat")}
-                            />
-                        ))}
-                    </div>
-                </section>
-            )}
 
             {/* ── Premium Hub Buttons ───────────────────────────────────────── */}
             <section className="mt-6 space-y-4">
@@ -648,57 +627,5 @@ function HireCard({
                 )}
             </div>
         </div>
-    );
-}
-
-// ─── StudentBindingCard ───────────────────────────────────────────────────────
-
-function StudentBindingCard({
-    binding,
-    onOpenChat,
-}: {
-    binding: StudentBinding;
-    onOpenChat: () => void;
-}) {
-    const studentName = binding.profiles?.nome || binding.profiles?.display_name || "Aluno";
-
-    return (
-        <button
-            onClick={onOpenChat}
-            className="w-full text-left group relative overflow-hidden rounded-[24px] border border-primary/20 bg-gradient-to-br from-primary/10 to-transparent p-4 backdrop-blur-md transition-all hover:border-primary/30"
-        >
-            <div className="flex items-center gap-3">
-                <div className="h-12 w-12 shrink-0 rounded-2xl bg-white/10 flex items-center justify-center overflow-hidden border border-white/5 shadow-inner">
-                    {binding.profiles?.avatar_url ? (
-                        <img src={binding.profiles.avatar_url} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                        <User className="h-5 w-5 text-zinc-400" />
-                    )}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-white truncate">{studentName}</p>
-                    {binding.profiles?.email && (
-                        <p className="text-[10px] text-zinc-500 truncate">{binding.profiles.email}</p>
-                    )}
-                    <div className="flex flex-wrap gap-2 mt-1">
-                        {binding.profiles?.objetivo && (
-                            <span className="rounded-lg bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary uppercase">
-                                {binding.profiles.objetivo}
-                            </span>
-                        )}
-                        {binding.profiles?.nivel && (
-                            <span className="rounded-lg bg-white/5 px-2 py-0.5 text-[9px] font-bold text-zinc-400 uppercase">
-                                {binding.profiles.nivel}
-                            </span>
-                        )}
-                    </div>
-                </div>
-
-                <div className="shrink-0 flex items-center justify-center h-8 w-8 rounded-xl bg-white/5 text-zinc-400 group-hover:bg-primary/20 group-hover:text-primary transition-colors">
-                    <MessageCircle className="h-4 w-4" />
-                </div>
-            </div>
-        </button>
     );
 }
