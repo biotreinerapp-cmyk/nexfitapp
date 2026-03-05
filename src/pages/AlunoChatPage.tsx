@@ -52,14 +52,15 @@ export default function AlunoChatPage() {
     const [loadingMessages, setLoadingMessages] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const { isElite, isMaster, loading: loadingPlan } = useUserPlan();
-    const canAccessChat = isElite || isMaster;
     const scrollRef = useRef<HTMLDivElement>(null);
 
+    // Always load rooms - we use the presence of rooms to determine if a
+    // free-plan student has hired a professional and should have chat access.
     useEffect(() => {
-        if (canAccessChat && user) {
+        if (user) {
             loadRooms();
         }
-    }, [user, canAccessChat]);
+    }, [user]);
 
     useEffect(() => {
         if (activeRoom) {
@@ -101,6 +102,10 @@ export default function AlunoChatPage() {
             setLoadingRooms(false);
         }
     };
+
+    // A student can access chat if they're Elite/Master OR have active rooms (from free hire)
+    const hasActiveRooms = rooms.length > 0;
+    const canAccessChat = isElite || isMaster || hasActiveRooms;
 
     const loadMessages = async (roomId: string) => {
         setLoadingMessages(true);
@@ -172,7 +177,7 @@ export default function AlunoChatPage() {
         }
     };
 
-    if (loadingPlan) {
+    if (loadingPlan || loadingRooms) {
         return (
             <div className="flex h-screen items-center justify-center bg-zinc-950">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
