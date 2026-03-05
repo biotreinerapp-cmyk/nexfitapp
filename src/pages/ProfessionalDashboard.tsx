@@ -672,49 +672,49 @@ function StudentBindingCard({
     const studentName = binding.profiles?.nome || binding.profiles?.display_name || "Aluno";
 
     return (
-        <div className="group relative overflow-hidden rounded-[24px] border border-primary/10 bg-gradient-to-br from-primary/5 to-transparent p-4 backdrop-blur-md transition-all hover:border-primary/20">
-            <div className="flex items-center gap-3">
-                <div className="h-12 w-12 shrink-0 rounded-2xl bg-white/10 flex items-center justify-center overflow-hidden border border-white/5">
-                    {binding.profiles?.avatar_url ? (
-                        <img src={binding.profiles.avatar_url} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                        <User className="h-5 w-5 text-zinc-400" />
-                    )}
-                </div>
+        <div className="group relative overflow-hidden rounded-[24px] border border-primary/20 bg-gradient-to-br from-primary/10 to-transparent p-4 backdrop-blur-md transition-all hover:border-primary/30">
+            <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 shrink-0 rounded-2xl bg-white/10 flex items-center justify-center overflow-hidden border border-white/5 shadow-inner">
+                        {binding.profiles?.avatar_url ? (
+                            <img src={binding.profiles.avatar_url} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                            <User className="h-5 w-5 text-zinc-400" />
+                        )}
+                    </div>
 
-                <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-white truncate">{studentName}</p>
-                    {binding.profiles?.email && (
-                        <p className="text-[10px] text-zinc-500 truncate">{binding.profiles.email}</p>
-                    )}
-                    <div className="flex flex-wrap gap-2 mt-1">
-                        {binding.profiles?.objetivo && (
-                            <span className="rounded-lg bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary uppercase">
-                                {binding.profiles.objetivo}
-                            </span>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-white truncate">{studentName}</p>
+                        {binding.profiles?.email && (
+                            <p className="text-[10px] text-zinc-500 truncate">{binding.profiles.email}</p>
                         )}
-                        {binding.profiles?.nivel && (
-                            <span className="rounded-lg bg-white/5 px-2 py-0.5 text-[9px] font-bold text-zinc-400 uppercase">
-                                {binding.profiles.nivel}
-                            </span>
-                        )}
+                        <div className="flex flex-wrap gap-2 mt-1">
+                            {binding.profiles?.objetivo && (
+                                <span className="rounded-lg bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary uppercase">
+                                    {binding.profiles.objetivo}
+                                </span>
+                            )}
+                            {binding.profiles?.nivel && (
+                                <span className="rounded-lg bg-white/5 px-2 py-0.5 text-[9px] font-bold text-zinc-400 uppercase">
+                                    {binding.profiles.nivel}
+                                </span>
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-2 shrink-0">
+                <div className="flex items-center gap-2 border-t border-white/5 pt-3">
                     <button
                         onClick={onViewEvolution}
-                        className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                        title="Ver Evolução"
+                        className="flex flex-1 h-9 items-center justify-center rounded-xl bg-primary/10 text-primary text-xs font-bold hover:bg-primary/20 transition-colors gap-1.5"
                     >
-                        <TrendingUp className="h-4 w-4" />
+                        <TrendingUp className="h-3.5 w-3.5" /> Evolução
                     </button>
                     <button
                         onClick={onOpenChat}
-                        className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-colors"
-                        title="Chat"
+                        className="flex flex-1 h-9 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400 text-xs font-bold hover:bg-purple-500/20 transition-colors gap-1.5"
                     >
-                        <MessageCircle className="h-4 w-4" />
+                        <MessageCircle className="h-3.5 w-3.5" /> Conversar
                     </button>
                 </div>
             </div>

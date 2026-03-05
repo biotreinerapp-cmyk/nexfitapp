@@ -97,10 +97,14 @@ export default function ProfessionalEvolucaoPage() {
                             >
                                 <div className="relative">
                                     <div className="h-16 w-16 rounded-2xl bg-primary/20 flex items-center justify-center overflow-hidden border-2 border-primary/10 group-hover:border-primary/50 transition-all shadow-xl shadow-primary/5">
-                                        {hire.profiles.avatar_url ? (
-                                            <img src={hire.profiles.avatar_url} alt="" className="h-full w-full object-cover" />
+                                        {hire.profiles?.avatar_url ? (
+                                            <img
+                                                src={hire.profiles.avatar_url}
+                                                alt={hire.profiles.display_name || 'Aluno'}
+                                                className="h-full w-full object-cover"
+                                            />
                                         ) : (
-                                            <span className="text-xl font-black text-primary">{hire.profiles.display_name?.charAt(0)}</span>
+                                            <span className="text-xl font-black text-primary">{hire.profiles?.display_name?.charAt(0)}</span>
                                         )}
                                     </div>
                                     <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-lg bg-green-500 border-2 border-black flex items-center justify-center">
@@ -110,7 +114,7 @@ export default function ProfessionalEvolucaoPage() {
 
                                 <div className="space-y-1">
                                     <h3 className="text-sm font-black text-white truncate max-w-[120px]">
-                                        {hire.profiles.display_name}
+                                        {hire.profiles?.display_name || hire.profiles?.nome || 'Aluno'}
                                     </h3>
                                     <div className="flex flex-col items-center">
                                         <span className="text-[9px] font-bold text-primary uppercase tracking-tight italic">Contratado</span>
