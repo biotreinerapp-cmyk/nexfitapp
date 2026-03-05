@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
-import { Users, Trophy, Target, MapPin, Clock, ArrowLeft, Share2, Copy, Link2, ShieldCheck, MoreVertical, MessageCircle, Zap } from "lucide-react";
+import { Users, Trophy, Target, MapPin, Clock, ArrowLeft, Share2, Copy, ShieldCheck, MoreVertical, MessageCircle, Zap, Medal, Plus, UserMinus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -87,7 +87,42 @@ interface RankingEntry {
   user_id: string;
   total_distance: number;
   runs: number;
+  name?: string;
 }
+
+interface ClubMemberProfile {
+  id: string;
+  user_id: string;
+  role: "admin" | "member";
+  status: "active" | "pending";
+  name: string;
+  initials: string;
+  avatar_url: string | null;
+}
+
+interface ClubMedal {
+  id: string;
+  user_id: string;
+  medal_type: string;
+  title: string;
+  awarded_at: string;
+}
+
+const MEDAL_ICONS: Record<string, string> = {
+  first_run: "\uD83C\uDFC3",
+  top_runner: "\uD83E\uDD47",
+  challenge_complete: "\uD83C\uDFC6",
+  consistency: "\uD83D\uDD25",
+  custom: "\u2B50",
+};
+
+const MEDAL_LABELS: Record<string, string> = {
+  first_run: "Primeiro Treino",
+  top_runner: "Mais Veloz",
+  challenge_complete: "Desafio Completo",
+  consistency: "Mais Constante",
+  custom: "Destaque Especial",
+};
 
 const getInviteUrl = (inviteCode: string) => {
   if (typeof window === "undefined") return inviteCode;
@@ -107,9 +142,17 @@ const RunningClubDetailPage = () => {
   const [activities, setActivities] = useState<RunningActivity[]>([]);
   const [posts, setPosts] = useState<ClubPost[]>([]);
   const [challenges, setChallenges] = useState<RunningChallenge[]>([]);
+  const [members, setMembers] = useState<ClubMemberProfile[]>([]);
+  const [medals, setMedals] = useState<ClubMedal[]>([]);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [isLeavingClub, setIsLeavingClub] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [createChallengeOpen, setCreateChallengeOpen] = useState(false);
+  const [medalDialogMember, setMedalDialogMember] = useState<ClubMemberProfile | null>(null);
+  const [isAwardingMedal, setIsAwardingMedal] = useState(false);
+  const [selectedMedalType, setSelectedMedalType] = useState<string>("custom");
+  const [customMedalTitle, setCustomMedalTitle] = useState("");
+  const [isCreatingChallenge, setIsCreatingChallenge] = useState(false);
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
@@ -172,6 +215,39 @@ const RunningClubDetailPage = () => {
     },
   });
 
+  const loadMembers = useCallback(async () => {
+    if (!clubId) return;
+    const { data } = await supabase
+      .from("running_club_members")
+      .select("id, user_id, role, status, profiles:profiles(nome, display_name, avatar_url)")
+      .eq("club_id", clubId)
+      .eq("status", "active");
+
+    if (data) {
+      const mapped: ClubMemberProfile[] = (data as any[]).map((m) => {
+        const p = m.profiles;
+        const name = p?.display_name || p?.nome || "Corredor";
+        return {
+          id: m.id,
+          user_id: m.user_id,
+          role: m.role,
+          status: m.status,
+          name,
+          initials: name.slice(0, 2).toUpperCase(),
+          avatar_url: p?.avatar_url ?? null,
+        };
+      });
+      setMembers(mapped);
+    }
+
+    const { data: medalsData } = await supabase
+      .from("club_member_medals")
+      .select("id, user_id, medal_type, title, awarded_at")
+      .eq("club_id", clubId);
+
+    if (medalsData) setMedals(medalsData as ClubMedal[]);
+  }, [clubId]);
+
   const myRankings = useMemo<RankingEntry[]>(() => {
     if (!activities.length) return [];
     const sevenDaysAgo = new Date();
@@ -188,9 +264,13 @@ const RunningClubDetailPage = () => {
       });
 
     return Array.from(map.entries())
-      .map(([user_id, { distance, runs }]) => ({ user_id, total_distance: distance, runs }))
+      .map(([user_id, { distance, runs }]) => {
+        const memberProfile = members.find((m) => m.user_id === user_id);
+        const postWithName = (activities as any[]).find((a: any) => a.user_id === user_id && a.author_name);
+        return { user_id, total_distance: distance, runs, name: memberProfile?.name || postWithName?.author_name };
+      })
       .sort((a, b) => b.total_distance - a.total_distance);
-  }, [activities]);
+  }, [activities, members]);
 
   const totalDistanceKm = activities.reduce((sum, activity) => sum + (activity.distance_km || 0), 0);
   const totalCalories = totalDistanceKm * 60;
@@ -347,7 +427,8 @@ const RunningClubDetailPage = () => {
 
   useEffect(() => {
     void loadClubAndFeed();
-  }, [loadClubAndFeed]);
+    void loadMembers();
+  }, [loadClubAndFeed, loadMembers]);
 
   useEffect(() => {
     const state = location.state as { newPost?: ClubPost } | null;
@@ -413,6 +494,57 @@ const RunningClubDetailPage = () => {
   }, [clubId]);
 
   const isAdmin = membership?.role === "admin";
+
+  const handleRemoveMember = async (member: ClubMemberProfile) => {
+    if (!isAdmin || !clubId) return;
+    const { error } = await supabase.from("running_club_members").delete().eq("id", member.id);
+    if (error) {
+      toast({ title: "Erro ao remover membro", description: error.message, variant: "destructive" });
+    } else {
+      setMembers((prev) => prev.filter((m) => m.id !== member.id));
+      toast({ title: "Membro removido", description: `${member.name} foi removido do clube.` });
+    }
+  };
+
+  const handleAwardMedal = async () => {
+    if (!isAdmin || !medalDialogMember || !clubId || !user) return;
+    setIsAwardingMedal(true);
+    const title = customMedalTitle.trim() || MEDAL_LABELS[selectedMedalType];
+    const { data, error } = await supabase
+      .from("club_member_medals")
+      .insert({ club_id: clubId, user_id: medalDialogMember.user_id, awarded_by: user.id, medal_type: selectedMedalType, title })
+      .select()
+      .single();
+    setIsAwardingMedal(false);
+    if (error) {
+      toast({ title: "Erro ao conceder medalha", description: error.message, variant: "destructive" });
+    } else {
+      setMedals((prev) => [...prev, data as ClubMedal]);
+      setMedalDialogMember(null);
+      setCustomMedalTitle("");
+      setSelectedMedalType("custom");
+      toast({ title: `${MEDAL_ICONS[selectedMedalType]} Medalha concedida!`, description: `${medalDialogMember.name} recebeu "${title}".` });
+    }
+  };
+
+  const handleCreateChallenge = async (values: { title: string; description: string; target_distance_km: string; start_date: string; end_date: string }) => {
+    if (!club || !isAdmin) return;
+    setIsCreatingChallenge(true);
+    const { data, error } = await supabase
+      .from("running_club_challenges")
+      .insert({ club_id: club.id, title: values.title, description: values.description, target_distance_km: Number(values.target_distance_km), start_date: values.start_date, end_date: values.end_date, active: true })
+      .select()
+      .single();
+    setIsCreatingChallenge(false);
+    if (error) {
+      toast({ title: "Erro ao criar desafio", description: error.message, variant: "destructive" });
+    } else {
+      setChallenges((prev) => [data as RunningChallenge, ...prev]);
+      setCreateChallengeOpen(false);
+      challengeForm.reset();
+      toast({ title: "Desafio criado! 🎯", description: "O novo desafio já está visível para os membros." });
+    }
+  };
 
   const handleGoBack = () => {
     navigate("/aluno/running-club");
@@ -669,16 +801,21 @@ const RunningClubDetailPage = () => {
             </Card>
 
             <Tabs defaultValue="atividades" className="w-full">
-              <TabsList className="w-full h-12 bg-black/40 backdrop-blur-xl border border-white/5 rounded-2xl p-1 shadow-2xl">
-                <TabsTrigger value="atividades" className="flex-1 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg text-[10px] font-black uppercase tracking-widest transition-all">
-                  <MapPin className="mr-2 h-3 w-3" /> Feed
+              <TabsList className={`w-full h-12 bg-black/40 backdrop-blur-xl border border-white/5 rounded-2xl p-1 shadow-2xl grid ${isAdmin ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                <TabsTrigger value="atividades" className="rounded-xl data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg text-[10px] font-black uppercase tracking-widest transition-all">
+                  <MapPin className="mr-1 h-3 w-3" /> Feed
                 </TabsTrigger>
-                <TabsTrigger value="ranking" className="flex-1 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg text-[10px] font-black uppercase tracking-widest transition-all">
-                  <Trophy className="mr-2 h-3 w-3" /> Ranking
+                <TabsTrigger value="ranking" className="rounded-xl data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg text-[10px] font-black uppercase tracking-widest transition-all">
+                  <Trophy className="mr-1 h-3 w-3" /> Ranking
                 </TabsTrigger>
-                <TabsTrigger value="desafios" className="flex-1 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg text-[10px] font-black uppercase tracking-widest transition-all">
-                  <Target className="mr-2 h-3 w-3" /> Desafios
+                <TabsTrigger value="desafios" className="rounded-xl data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg text-[10px] font-black uppercase tracking-widest transition-all">
+                  <Target className="mr-1 h-3 w-3" /> Desafios
                 </TabsTrigger>
+                {isAdmin && (
+                  <TabsTrigger value="membros" className="rounded-xl data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg text-[10px] font-black uppercase tracking-widest transition-all">
+                    <Users className="mr-1 h-3 w-3" /> Membros
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               <TabsContent value="atividades" className="mt-6 space-y-6">
@@ -932,28 +1069,38 @@ const RunningClubDetailPage = () => {
                       </div>
                     ) : (
                       <div className="divide-y divide-white/5">
-                        {myRankings.map((entry, index) => (
-                          <div key={entry.user_id} className="flex items-center justify-between p-4 bg-white/0 hover:bg-white/[0.02] transition-colors">
-                            <div className="flex items-center gap-4">
-                              <span className={`text-xl font-black italic ${index === 0 ? "text-primary shadow-primary/20 drop-shadow-lg" : "text-muted-foreground/30"}`}>
-                                #{index + 1}
-                              </span>
-                              <div className="flex flex-col">
-                                <span className="text-sm font-black uppercase italic tracking-tight text-foreground truncate max-w-[150px]">
-                                  {entry.user_id}
+                        {myRankings.map((entry, index) => {
+                          const entryMedals = medals.filter((m) => m.user_id === entry.user_id);
+                          return (
+                            <div key={entry.user_id} className="flex items-center justify-between p-4 bg-white/0 hover:bg-white/[0.02] transition-colors">
+                              <div className="flex items-center gap-4">
+                                <span className={`text-xl font-black italic ${index === 0 ? "text-primary shadow-primary/20 drop-shadow-lg" : "text-muted-foreground/30"}`}>
+                                  #{index + 1}
                                 </span>
-                                <span className="text-[10px] font-bold text-muted-foreground uppercase opacity-60">
-                                  {entry.runs} CORRIDA{entry.runs > 1 ? "S" : ""}
+                                <div className="flex flex-col">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-sm font-black uppercase italic tracking-tight text-foreground truncate max-w-[130px]">
+                                      {entry.name || entry.user_id.slice(0, 8) + "..."}
+                                    </span>
+                                    {entryMedals.slice(0, 2).map((medal) => (
+                                      <span key={medal.id} title={medal.title} className="text-sm leading-none">
+                                        {MEDAL_ICONS[medal.medal_type]}
+                                      </span>
+                                    ))}
+                                  </div>
+                                  <span className="text-[10px] font-bold text-muted-foreground uppercase opacity-60">
+                                    {entry.runs} CORRIDA{entry.runs > 1 ? "S" : ""}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-end text-right">
+                                <span className="text-lg font-black text-primary tracking-tighter">
+                                  {entry.total_distance.toFixed(1)} <span className="text-[10px] uppercase font-bold tracking-normal italic">KM</span>
                                 </span>
                               </div>
                             </div>
-                            <div className="flex flex-col items-end text-right">
-                              <span className="text-lg font-black text-primary tracking-tighter">
-                                {entry.total_distance.toFixed(1)} <span className="text-[10px] uppercase font-bold tracking-normal italic">KM</span>
-                              </span>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </CardContent>
@@ -963,18 +1110,30 @@ const RunningClubDetailPage = () => {
               <TabsContent value="desafios" className="mt-6 space-y-6">
                 <Card className="border-white/5 bg-black/40 backdrop-blur-2xl shadow-xl overflow-hidden">
                   <CardHeader className="pb-4 bg-white/5 border-b border-white/5">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
-                        <Target className="h-5 w-5" />
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
+                          <Target className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-sm font-black italic uppercase tracking-widest text-foreground">
+                            Missões do Clube
+                          </CardTitle>
+                          <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground opacity-60">
+                            Desafios e conquistas
+                          </CardDescription>
+                        </div>
                       </div>
-                      <div>
-                        <CardTitle className="text-sm font-black italic uppercase tracking-widest text-foreground">
-                          Missões do Clube
-                        </CardTitle>
-                        <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground opacity-60">
-                          Desafios e conquistas
-                        </CardDescription>
-                      </div>
+                      {isAdmin && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 px-3 text-[10px] font-black uppercase tracking-widest border-primary/30 text-primary hover:bg-primary hover:text-white rounded-xl transition-all"
+                          onClick={() => setCreateChallengeOpen(true)}
+                        >
+                          <Plus className="mr-1 h-3 w-3" /> Criar
+                        </Button>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent className="p-4 space-y-4">
@@ -1010,11 +1169,212 @@ const RunningClubDetailPage = () => {
                   </CardContent>
                 </Card>
               </TabsContent>
+
+              {/* ===== MEMBERS TAB (ADMIN ONLY) ===== */}
+              {isAdmin && (
+                <TabsContent value="membros" className="mt-6 space-y-6">
+                  <Card className="border-white/5 bg-black/40 backdrop-blur-2xl shadow-xl overflow-hidden">
+                    <CardHeader className="pb-4 bg-white/5 border-b border-white/5">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
+                          <Users className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-sm font-black italic uppercase tracking-widest text-foreground">Gest&#227;o do Pelot&#227;o</CardTitle>
+                          <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground opacity-60">
+                            {members.length} membro{members.length !== 1 ? "s" : ""} ativo{members.length !== 1 ? "s" : ""}
+                          </CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      {members.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-center">
+                          <p className="text-[11px] font-black italic uppercase tracking-widest text-muted-foreground/50">Nenhum membro ainda</p>
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-white/5">
+                          {members.map((member) => {
+                            const memberMedals = medals.filter((m) => m.user_id === member.user_id);
+                            return (
+                              <div key={member.id} className="flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors">
+                                <div className="flex items-center gap-3">
+                                  <div className="relative">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 border border-primary/20 text-xs font-black text-primary">
+                                      {member.initials}
+                                    </div>
+                                    {member.role === "admin" && (
+                                      <div className="absolute -top-1 -right-1 h-4 w-4 bg-primary rounded-full flex items-center justify-center">
+                                        <ShieldCheck className="h-2.5 w-2.5 text-white" />
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-sm font-black uppercase italic tracking-tight text-foreground">{member.name}</span>
+                                      {memberMedals.slice(0, 3).map((medal) => (
+                                        <span key={medal.id} title={medal.title} className="text-sm">{MEDAL_ICONS[medal.medal_type]}</span>
+                                      ))}
+                                    </div>
+                                    <span className="text-[9px] font-bold uppercase text-muted-foreground opacity-60">{member.role === "admin" ? "Admin" : "Membro"}</span>
+                                  </div>
+                                </div>
+                                {member.user_id !== user?.id && (
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-white/10 rounded-xl">
+                                        <MoreVertical className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="z-50 bg-black/90 backdrop-blur-xl border-white/10 text-foreground">
+                                      <DropdownMenuItem
+                                        className="focus:bg-primary/20 focus:text-white"
+                                        onClick={() => { setMedalDialogMember(member); setSelectedMedalType("custom"); setCustomMedalTitle(""); }}
+                                      >
+                                        <Medal className="mr-2 h-4 w-4" /> Conceder Medalha
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        className="text-destructive focus:bg-destructive/20 focus:text-destructive font-bold"
+                                        onClick={() => handleRemoveMember(member)}
+                                      >
+                                        <UserMinus className="mr-2 h-4 w-4" /> Remover do Clube
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              )}
             </Tabs>
           </section>
         )}
 
       </div>
+
+      {/* ===== CREATE CHALLENGE DIALOG (ADMIN) ===== */}
+      <Dialog open={createChallengeOpen} onOpenChange={setCreateChallengeOpen}>
+        <DialogContent className="border-white/10 bg-black/95 backdrop-blur-3xl sm:rounded-[32px]">
+          <DialogHeader className="mb-2">
+            <DialogTitle className="text-xl font-black italic tracking-tighter text-foreground uppercase">Criar Desafio 🎯</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground font-medium">Crie um desafio semanal ou mensal para motivar o pelotão.</DialogDescription>
+          </DialogHeader>
+          <Form {...challengeForm}>
+            <form onSubmit={challengeForm.handleSubmit(handleCreateChallenge)} className="flex flex-col gap-4">
+              <FormField control={challengeForm.control} name="title" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Título do Desafio</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex: Agosto 100km" {...field} className="h-12 bg-white/5 border-white/10 rounded-2xl text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-primary/50" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={challengeForm.control} name="description" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Descrição</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Detalhe o desafio para os membros..." {...field} className="min-h-[80px] bg-white/5 border-white/10 rounded-2xl text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-primary/50 resize-none p-4" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={challengeForm.control} name="target_distance_km" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Meta de Distância (km)</FormLabel>
+                  <FormControl>
+                    <Input type="number" placeholder="100" {...field} className="h-12 bg-white/5 border-white/10 rounded-2xl text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-primary/50" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={challengeForm.control} name="start_date" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Início</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} className="h-12 bg-white/5 border-white/10 rounded-2xl text-foreground focus-visible:ring-primary/50" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={challengeForm.control} name="end_date" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Fim</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} className="h-12 bg-white/5 border-white/10 rounded-2xl text-foreground focus-visible:ring-primary/50" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t border-white/10 mt-2">
+                <Button type="button" variant="ghost" onClick={() => setCreateChallengeOpen(false)} className="rounded-xl px-6 text-muted-foreground hover:text-white hover:bg-white/10">Cancelar</Button>
+                <Button type="submit" variant="premium" disabled={isCreatingChallenge} className="rounded-xl px-8 font-bold tracking-widest uppercase">
+                  {isCreatingChallenge ? "Criando..." : "Criar Desafio"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== AWARD MEDAL DIALOG (ADMIN) ===== */}
+      <Dialog open={Boolean(medalDialogMember)} onOpenChange={(open) => !open && setMedalDialogMember(null)}>
+        <DialogContent className="border-white/10 bg-black/95 backdrop-blur-3xl sm:rounded-[32px] max-w-sm">
+          <DialogHeader className="mb-2">
+            <DialogTitle className="text-xl font-black italic tracking-tighter text-foreground uppercase">Conceder Medalha 🏅</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground font-medium">
+              Escolha o tipo de destaque para {medalDialogMember?.name}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-2 gap-2">
+              {Object.entries(MEDAL_LABELS).map(([type, label]) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setSelectedMedalType(type)}
+                  className={`flex flex-col items-center gap-1 p-3 rounded-2xl border text-center transition-all ${selectedMedalType === type
+                      ? "border-primary bg-primary/10 shadow-lg shadow-primary/10"
+                      : "border-white/10 bg-white/5 hover:bg-white/10"
+                    }`}
+                >
+                  <span className="text-2xl">{MEDAL_ICONS[type]}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-foreground">{label}</span>
+                </button>
+              ))}
+            </div>
+            {selectedMedalType === "custom" && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Título Personalizado</label>
+                <Input
+                  placeholder="Ex: Melhor Pace do Mês"
+                  value={customMedalTitle}
+                  onChange={(e) => setCustomMedalTitle(e.target.value)}
+                  className="h-12 bg-white/5 border-white/10 rounded-2xl text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-primary/50"
+                />
+              </div>
+            )}
+            <div className="flex justify-end gap-3 pt-2 border-t border-white/10">
+              <Button variant="ghost" onClick={() => setMedalDialogMember(null)} className="rounded-xl text-muted-foreground hover:text-white hover:bg-white/10">Cancelar</Button>
+              <Button
+                variant="premium"
+                disabled={isAwardingMedal || (selectedMedalType === "custom" && !customMedalTitle.trim())}
+                onClick={handleAwardMedal}
+                className="rounded-xl px-6 font-bold tracking-widest uppercase"
+              >
+                {isAwardingMedal ? "Concedendo..." : "Conceder"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Comments Dialog */}
       <Dialog open={Boolean(commentDialogPostId)} onOpenChange={(open) => !open && setCommentDialogPostId(null)}>
