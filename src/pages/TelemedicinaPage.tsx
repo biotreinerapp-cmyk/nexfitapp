@@ -155,13 +155,52 @@ const TelemedicinaPage = () => {
       // ── Deduplication: abort if an active hire already exists for this pair ──
       const { data: existingHire } = await (supabase as any)
         .from("professional_hires")
-        .select("id, status")
+        .select("id, status, paid_amount")
         .eq("professional_id", profissional.id)
         .eq("student_id", user.id)
         .in("status", ["pending", "awaiting_verification", "accepted"])
         .maybeSingle();
 
       if (existingHire) {
+        // ── Self-heal: if the hire is accepted and free, ensure binding+chat exist ──
+        if (existingHire.status === "accepted" && (existingHire.paid_amount ?? 0) === 0) {
+          // Ensure binding exists
+          await (supabase as any)
+            .from("professional_student_bindings")
+            .upsert({
+              professional_id: profissional.id,
+              student_id: user.id,
+              hire_id: existingHire.id,
+              status: "active",
+            }, { onConflict: "professional_id,student_id" });
+
+          // Ensure chat room exists
+          const { data: existingRoom } = await (supabase as any)
+            .from("professional_chat_rooms")
+            .select("id")
+            .eq("professional_id", profissional.id)
+            .eq("student_id", user.id)
+            .maybeSingle();
+
+          if (!existingRoom) {
+            await (supabase as any)
+              .from("professional_chat_rooms")
+              .insert({
+                professional_id: profissional.id,
+                student_id: user.id,
+                last_message_at: new Date().toISOString(),
+              });
+          }
+
+          toast({
+            title: "Conexão ativa!",
+            description: `Você já está vinculado a ${profissional.name}. Acesse o chat para falar com o profissional.`,
+          });
+          setAgendaOpen(false);
+          setSubmitting(false);
+          return;
+        }
+
         const statusMsg: Record<string, string> = {
           pending: "aguardando aprovação do profissional",
           awaiting_verification: "aguardando verificação do pagamento",
