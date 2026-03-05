@@ -150,6 +150,7 @@ const TelemedicinaPage = () => {
     setPaymentMethod(method);
     try {
       const finalAmount = getDiscountedPrice(profissional.base_price);
+      const isFree = finalAmount === 0;
 
       // ── Deduplication: abort if an active hire already exists for this pair ──
       const { data: existingHire } = await (supabase as any)
@@ -176,18 +177,67 @@ const TelemedicinaPage = () => {
       }
       // ───────────────────────────────────────────────────────────────────────
 
-      const { data: hire, error }: any = await (supabase as any).from("professional_hires").insert({
+      // 1. Create the hire record
+      const { data: hire, error: hireError }: any = await (supabase as any).from("professional_hires").insert({
         professional_id: profissional.id,
         student_id: user.id,
         message: "Contratação via Telemedicina",
-        status: "pending",
+        status: isFree ? "accepted" : "pending", // Auto-accept if free
         paid_amount: finalAmount,
-        payment_status: "pending"
+        payment_status: isFree ? "paid" : "pending" // Auto-paid if free
       }).select("id").single();
 
-      if (error) throw error;
+      if (hireError) {
+        if (hireError.code === "23505") { // Unique constraint
+          toast({
+            title: "Solicitação em andamento",
+            description: "Você já tem uma solicitação ativa com este profissional.",
+          });
+          setAgendaOpen(false);
+          return;
+        }
+        throw hireError;
+      }
 
+      // 2. If it's free, setup the binding and chat room immediately
+      if (isFree) {
+        // Create formal binding
+        await (supabase as any)
+          .from("professional_student_bindings")
+          .upsert({
+            professional_id: profissional.id,
+            student_id: user.id,
+            hire_id: hire.id,
+            status: "active",
+          }, { onConflict: "professional_id,student_id" });
 
+        // Create chat room if not exists
+        const { data: existingRoom } = await (supabase as any)
+          .from("professional_chat_rooms")
+          .select("id")
+          .eq("professional_id", profissional.id)
+          .eq("student_id", user.id)
+          .maybeSingle();
+
+        if (!existingRoom) {
+          await (supabase as any)
+            .from("professional_chat_rooms")
+            .insert({
+              professional_id: profissional.id,
+              student_id: user.id,
+              last_message_at: new Date().toISOString(),
+            });
+        }
+
+        toast({
+          title: "Conexão confirmada!",
+          description: `Você agora está vinculado a ${profissional.name}. Acesse o chat para falar com o profissional.`,
+        });
+        setAgendaOpen(false);
+        return;
+      }
+
+      // 3. Handle paid flows
       if (profissional.base_price && profissional.base_price > 0) {
         if (method === "pix") {
           if (!profissional.pix_key) {
@@ -204,7 +254,7 @@ const TelemedicinaPage = () => {
           const qrCode = await QRCode.toDataURL(payload, { width: 300, margin: 1, color: { dark: '#000000FF', light: '#FFFFFFFF' } });
 
           setPixData({
-            paymentId: hire.id, // Using the local hire ID as the reference since we bypass InfinitePay
+            paymentId: hire.id,
             pixPayload: payload,
             pixQrCode: qrCode,
             expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
@@ -227,17 +277,11 @@ const TelemedicinaPage = () => {
           setShowPixDialog(true);
           setAgendaOpen(false);
         }
-      } else {
-        toast({
-          title: "Solicitação enviada!",
-          description: "O profissional foi notificado e a conexão foi criada.",
-        });
-        setAgendaOpen(false);
       }
     } catch (error: any) {
       console.error(`[Telemedicina] Erro ao iniciar contratação (${method}):`, error);
       toast({
-        title: `Erro ao gerar ${method.toUpperCase()}`,
+        title: `Erro ao iniciar contratação`,
         description: error.message,
         variant: "destructive",
       });
@@ -567,7 +611,11 @@ const TelemedicinaPage = () => {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
                     <p className="text-[8px] font-black uppercase tracking-widest text-white/30">Investimento</p>
-                    <p className="text-lg font-black text-primary">R$ {profissionalSelecionado.base_price?.toFixed(2)}</p>
+                    <p className="text-lg font-black text-primary">
+                      {profissionalSelecionado.base_price && profissionalSelecionado.base_price > 0
+                        ? `R$ ${profissionalSelecionado.base_price.toFixed(2)}`
+                        : "GRÁTIS"}
+                    </p>
                   </div>
                   <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4 flex flex-col justify-center">
                     <p className="text-[8px] font-black uppercase tracking-widest text-white/30">Duração</p>
@@ -576,26 +624,38 @@ const TelemedicinaPage = () => {
                 </div>
               </div>
               <DialogFooter className="flex flex-col gap-3 sm:flex-col p-6 pt-0">
-                <div className="grid grid-cols-2 gap-3 w-full">
+                {profissionalSelecionado.base_price && profissionalSelecionado.base_price > 0 ? (
+                  <div className="grid grid-cols-2 gap-3 w-full">
+                    <Button
+                      variant="default"
+                      className="h-12 bg-white/5 border border-white/10 text-white font-bold gap-2"
+                      onClick={() => handleContratar(profissionalSelecionado!, "pix")}
+                      disabled={submitting}
+                    >
+                      {submitting && paymentMethod === "pix" ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
+                      Pagar com PIX
+                    </Button>
+                    <Button
+                      variant="default"
+                      className="h-12 bg-white/5 border border-white/10 text-white font-bold gap-2"
+                      onClick={() => handleContratar(profissionalSelecionado!, "card")}
+                      disabled={submitting}
+                    >
+                      {submitting && paymentMethod === "card" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                      Pagar com Cartão
+                    </Button>
+                  </div>
+                ) : (
                   <Button
-                    variant="default"
-                    className="h-12 bg-white/5 border border-white/10 text-white font-bold gap-2"
+                    variant="premium"
+                    className="h-12 w-full font-bold gap-2"
                     onClick={() => handleContratar(profissionalSelecionado!, "pix")}
                     disabled={submitting}
                   >
-                    {submitting && paymentMethod === "pix" ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
-                    Pagar com PIX
+                    {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                    Confirmar Contratação Gratuita
                   </Button>
-                  <Button
-                    variant="default"
-                    className="h-12 bg-white/5 border border-white/10 text-white font-bold gap-2"
-                    onClick={() => handleContratar(profissionalSelecionado!, "card")}
-                    disabled={submitting}
-                  >
-                    {submitting && paymentMethod === "card" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-                    Pagar com Cartão
-                  </Button>
-                </div>
+                )}
                 <Button variant="ghost" onClick={() => setAgendaOpen(false)} className="text-muted-foreground">
                   Cancelar
                 </Button>

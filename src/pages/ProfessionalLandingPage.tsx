@@ -111,17 +111,70 @@ export default function ProfessionalLandingPage() {
         setSubmitting(true);
         try {
             const finalAmount = getDiscountedPrice(professional.base_price);
-            const { data: hire, error } = await supabase.from("professional_hires").insert({
+            const isFree = finalAmount === 0;
+
+            // 1. Create the hire record
+            const { data: hire, error: hireError } = await (supabase as any).from("professional_hires").insert({
                 professional_id: professionalId,
                 student_id: user.id,
                 message: hireMessage,
-                status: "pending",
+                status: isFree ? "accepted" : "pending",
                 paid_amount: finalAmount,
-                payment_status: "pending"
+                payment_status: isFree ? "paid" : "pending"
             }).select("id").single();
 
-            if (error) throw error;
+            if (hireError) {
+                if (hireError.code === "23505") { // Unique constraint
+                    toast({
+                        title: "Solicitação em andamento",
+                        description: "Você já tem uma solicitação ativa com este profissional.",
+                    });
+                    setShowHireDialog(false);
+                    return;
+                }
+                throw hireError;
+            }
 
+            // 2. If it's free, setup the binding and chat room immediately
+            if (isFree) {
+                // Create formal binding
+                await (supabase as any)
+                    .from("professional_student_bindings")
+                    .upsert({
+                        professional_id: professionalId,
+                        student_id: user.id,
+                        hire_id: hire.id,
+                        status: "active",
+                    }, { onConflict: "professional_id,student_id" });
+
+                // Create chat room if not exists
+                const { data: existingRoom } = await (supabase as any)
+                    .from("professional_chat_rooms")
+                    .select("id")
+                    .eq("professional_id", professionalId)
+                    .eq("student_id", user.id)
+                    .maybeSingle();
+
+                if (!existingRoom) {
+                    await (supabase as any)
+                        .from("professional_chat_rooms")
+                        .insert({
+                            professional_id: professionalId,
+                            student_id: user.id,
+                            last_message_at: new Date().toISOString(),
+                        });
+                }
+
+                toast({
+                    title: "Conexão confirmada!",
+                    description: `Você agora está vinculado a ${professional.name}. Acesse o chat para falar com o profissional.`,
+                });
+                setShowHireDialog(false);
+                setHireMessage("");
+                return;
+            }
+
+            // 3. Handle paid flows
             if (professional.base_price && professional.base_price > 0) {
                 // Generate Direct PIX Payload instead of using gateway
                 if (!professional.pix_key) {
@@ -130,7 +183,6 @@ export default function ProfessionalLandingPage() {
                     return;
                 }
 
-                const finalAmount = getDiscountedPrice(professional.base_price);
                 const payload = buildPixPayload({
                     pixKey: professional.pix_key,
                     receiverName: professional.pix_receiver_name || professional.name,
@@ -148,12 +200,6 @@ export default function ProfessionalLandingPage() {
                 });
                 setShowHireDialog(false);
                 setShowPixDialog(true);
-            } else {
-                toast({
-                    title: "Solicitação enviada!",
-                    description: "O profissional receberá sua mensagem em breve.",
-                });
-                setShowHireDialog(false);
             }
             setHireMessage("");
         } catch (error: any) {
