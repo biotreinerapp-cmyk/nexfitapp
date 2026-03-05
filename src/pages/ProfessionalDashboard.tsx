@@ -267,7 +267,6 @@ export default function ProfessionalDashboard() {
                             <StudentBindingCard
                                 key={binding.id}
                                 binding={binding}
-                                onViewEvolution={() => navigate(`/professional/student/${binding.student_id}`)}
                                 onOpenChat={() => navigate("/professional/chat")}
                             />
                         ))}
@@ -620,12 +619,6 @@ function HireCard({
                 {(hire.status === "pending" || hire.status === "awaiting_verification") && (
                     <div className="flex items-center gap-2 border-t border-white/5 pt-3">
                         <button
-                            onClick={() => window.location.href = `/professional/student/${hire.student_id}`}
-                            className="flex h-9 items-center justify-center rounded-xl bg-white/5 text-xs font-bold text-white hover:bg-white/10 transition-colors px-3 gap-1"
-                        >
-                            <Eye className="h-3.5 w-3.5" /> Ver Perfil
-                        </button>
-                        <button
                             onClick={() => handleUpdateStatus("accepted")}
                             disabled={updating}
                             className="flex flex-1 h-9 items-center justify-center rounded-xl bg-[#56FF02]/10 text-[#56FF02] text-xs font-bold hover:bg-[#56FF02]/20 transition-colors disabled:opacity-50 gap-1"
@@ -646,7 +639,7 @@ function HireCard({
                 {hire.status === "accepted" && (
                     <div className="flex items-center gap-2 border-t border-white/5 pt-3">
                         <button
-                            onClick={() => window.location.href = `/professional/student/${hire.student_id}`}
+                            onClick={() => navigate(`/professional/aluno/${hire.student_id}/evolucao`)}
                             className="flex flex-1 h-9 items-center justify-center rounded-xl bg-primary/10 text-primary text-xs font-bold hover:bg-primary/20 transition-colors gap-1"
                         >
                             <TrendingUp className="h-3.5 w-3.5" /> Ver Evolução
@@ -662,62 +655,50 @@ function HireCard({
 
 function StudentBindingCard({
     binding,
-    onViewEvolution,
     onOpenChat,
 }: {
     binding: StudentBinding;
-    onViewEvolution: () => void;
     onOpenChat: () => void;
 }) {
     const studentName = binding.profiles?.nome || binding.profiles?.display_name || "Aluno";
 
     return (
-        <div className="group relative overflow-hidden rounded-[24px] border border-primary/20 bg-gradient-to-br from-primary/10 to-transparent p-4 backdrop-blur-md transition-all hover:border-primary/30">
-            <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 shrink-0 rounded-2xl bg-white/10 flex items-center justify-center overflow-hidden border border-white/5 shadow-inner">
-                        {binding.profiles?.avatar_url ? (
-                            <img src={binding.profiles.avatar_url} alt="" className="h-full w-full object-cover" />
-                        ) : (
-                            <User className="h-5 w-5 text-zinc-400" />
-                        )}
-                    </div>
+        <button
+            onClick={onOpenChat}
+            className="w-full text-left group relative overflow-hidden rounded-[24px] border border-primary/20 bg-gradient-to-br from-primary/10 to-transparent p-4 backdrop-blur-md transition-all hover:border-primary/30"
+        >
+            <div className="flex items-center gap-3">
+                <div className="h-12 w-12 shrink-0 rounded-2xl bg-white/10 flex items-center justify-center overflow-hidden border border-white/5 shadow-inner">
+                    {binding.profiles?.avatar_url ? (
+                        <img src={binding.profiles.avatar_url} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                        <User className="h-5 w-5 text-zinc-400" />
+                    )}
+                </div>
 
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-white truncate">{studentName}</p>
-                        {binding.profiles?.email && (
-                            <p className="text-[10px] text-zinc-500 truncate">{binding.profiles.email}</p>
+                <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-white truncate">{studentName}</p>
+                    {binding.profiles?.email && (
+                        <p className="text-[10px] text-zinc-500 truncate">{binding.profiles.email}</p>
+                    )}
+                    <div className="flex flex-wrap gap-2 mt-1">
+                        {binding.profiles?.objetivo && (
+                            <span className="rounded-lg bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary uppercase">
+                                {binding.profiles.objetivo}
+                            </span>
                         )}
-                        <div className="flex flex-wrap gap-2 mt-1">
-                            {binding.profiles?.objetivo && (
-                                <span className="rounded-lg bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary uppercase">
-                                    {binding.profiles.objetivo}
-                                </span>
-                            )}
-                            {binding.profiles?.nivel && (
-                                <span className="rounded-lg bg-white/5 px-2 py-0.5 text-[9px] font-bold text-zinc-400 uppercase">
-                                    {binding.profiles.nivel}
-                                </span>
-                            )}
-                        </div>
+                        {binding.profiles?.nivel && (
+                            <span className="rounded-lg bg-white/5 px-2 py-0.5 text-[9px] font-bold text-zinc-400 uppercase">
+                                {binding.profiles.nivel}
+                            </span>
+                        )}
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 border-t border-white/5 pt-3">
-                    <button
-                        onClick={onViewEvolution}
-                        className="flex flex-1 h-9 items-center justify-center rounded-xl bg-primary/10 text-primary text-xs font-bold hover:bg-primary/20 transition-colors gap-1.5"
-                    >
-                        <TrendingUp className="h-3.5 w-3.5" /> Evolução
-                    </button>
-                    <button
-                        onClick={onOpenChat}
-                        className="flex flex-1 h-9 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400 text-xs font-bold hover:bg-purple-500/20 transition-colors gap-1.5"
-                    >
-                        <MessageCircle className="h-3.5 w-3.5" /> Conversar
-                    </button>
+                <div className="shrink-0 flex items-center justify-center h-8 w-8 rounded-xl bg-white/5 text-zinc-400 group-hover:bg-primary/20 group-hover:text-primary transition-colors">
+                    <MessageCircle className="h-4 w-4" />
                 </div>
             </div>
-        </div>
+        </button>
     );
 }

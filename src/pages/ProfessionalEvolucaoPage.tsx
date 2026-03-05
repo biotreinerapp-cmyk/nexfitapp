@@ -50,7 +50,8 @@ export default function ProfessionalEvolucaoPage() {
     }, [user]);
 
     const filteredStudents = students.filter(s =>
-        s.profiles.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
+        s.profiles?.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        s.profiles?.nome?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     return (
@@ -99,8 +100,8 @@ export default function ProfessionalEvolucaoPage() {
                                     <div className="h-16 w-16 rounded-2xl bg-primary/20 flex items-center justify-center overflow-hidden border-2 border-primary/10 group-hover:border-primary/50 transition-all shadow-xl shadow-primary/5">
                                         {hire.profiles?.avatar_url ? (
                                             <img
-                                                src={hire.profiles.avatar_url}
-                                                alt={hire.profiles.display_name || 'Aluno'}
+                                                src={hire.profiles?.avatar_url}
+                                                alt={hire.profiles?.display_name || 'Aluno'}
                                                 className="h-full w-full object-cover"
                                             />
                                         ) : (
