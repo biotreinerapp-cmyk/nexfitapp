@@ -34,6 +34,10 @@ import MarketplaceCartPage from "./pages/MarketplaceCartPage";
 import MarketplaceOrdersPage from "./pages/MarketplaceOrdersPage";
 import MarketplaceOrderDetailPage from "./pages/MarketplaceOrderDetailPage";
 import NutricionistaPage from "./pages/NutricionistaPage";
+import DrBioChatPage from "./pages/DrBioChatPage";
+import PlanoAlimentarPage from "./pages/PlanoAlimentarPage";
+import PlanoAlimentarFormPage from "./pages/PlanoAlimentarFormPage";
+import PlanoAlimentarViewPage from "./pages/PlanoAlimentarViewPage";
 import TelemedicinaPage from "./pages/TelemedicinaPage";
 import LojaDashboardPage from "./pages/LojaDashboard";
 import LojaFinanceiroPage from "./pages/LojaFinanceiroPage";
@@ -62,6 +66,8 @@ import ProfessionalEvolucaoPage from "./pages/ProfessionalEvolucaoPage";
 import ProfessionalStudentEvolutionPage from "./pages/ProfessionalStudentEvolutionPage";
 import ProfessionalTreinosPage from "./pages/ProfessionalTreinosPage";
 import ProfessionalTreinoFormPage from "./pages/ProfessionalTreinoFormPage";
+import ProfessionalDietasPage from "./pages/ProfessionalDietasPage";
+import ProfessionalDietaFormPage from "./pages/ProfessionalDietaFormPage";
 import ProfessionalConsultoriaPage from "./pages/ProfessionalConsultoriaPage";
 import ProfessionalConsultoriaEditorPage from "./pages/ProfessionalConsultoriaEditorPage";
 import ProfessionalEducationPage from "./pages/ProfessionalEducationPage";
@@ -715,6 +721,26 @@ const AppRoutes = () => (
         }
       />
       <Route
+        path="/aluno/dr-bio"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <DrBioChatPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/nutricao"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <PlanoAlimentarPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
         path="/telemedicina"
         element={
           <AlunoRoute>
@@ -1016,6 +1042,38 @@ const AppRoutes = () => (
         element={
           <ProfessionalRoute>
             <ProfessionalTreinoFormPage />
+          </ProfessionalRoute>
+        }
+      />
+      <Route
+        path="/professional/treinos/:treinoId"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalTreinoFormPage />
+          </ProfessionalRoute>
+        }
+      />
+      <Route
+        path="/professional/dietas"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalDietasPage />
+          </ProfessionalRoute>
+        }
+      />
+      <Route
+        path="/professional/dietas/nova"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalDietaFormPage />
+          </ProfessionalRoute>
+        }
+      />
+      <Route
+        path="/professional/dietas/:planId"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalDietaFormPage />
           </ProfessionalRoute>
         }
       />

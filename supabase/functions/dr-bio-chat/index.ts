@@ -82,10 +82,10 @@ serve(async (req) => {
     };
 
     // ===== 3) Acesso às variáveis de ambiente da IA =====
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY não configurada");
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY não configurada no Supabase");
     }
 
     // ===== 4) Monta o resumo do perfil para manter contexto (peso/objetivo) =====
@@ -147,51 +147,82 @@ serve(async (req) => {
       (configSystemContext ? `${configSystemContext.trim()}\n\n` : "") +
       baseSystemPrompt +
       (configInstructionsLayer
-        ? `\n\nInstruções adicionais de integração de API a serem seguidas sempre que houver dados externos disponíveis:\n${configInstructionsLayer}`
+        ? `\n\nInstruções adicionais a serem seguidas:\n${configInstructionsLayer}`
         : "") +
       profileSummary;
 
-    // ===== 5) Chamada ao Lovable AI Gateway com streaming SSE =====
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Converte mensagens para o formato do Gemini
+    const geminiMessages = messages.map(msg => ({
+      role: msg.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: msg.content }]
+    }));
+
+    // Add system instructions
+    const geminiPayload = {
+      system_instruction: {
+        parts: [{ text: systemPrompt }]
+      },
+      contents: geminiMessages,
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 2000,
+      }
+    };
+
+    // ===== 5) Chamada à API Oficial do Gemini com SSE =====
+    const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        stream: true,
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...(messages ?? []),
-        ],
-      }),
+      body: JSON.stringify(geminiPayload),
     });
 
     if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Limite de uso do Dr. Bio excedido. Tente novamente em alguns instantes." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-      if (aiResponse.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Limite de créditos de IA atingido na conta Biotreiner." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-
       const text = await aiResponse.text();
-      console.error("Dr. Bio AI error:", aiResponse.status, text);
-      return new Response(JSON.stringify({ error: "Erro ao conversar com o Dr. Bio." }), {
+      console.error("Dr. Bio Gemini AI error:", aiResponse.status, text);
+      return new Response(JSON.stringify({ error: "Erro ao se conectar ao Google Gemini." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Proxy direto do stream SSE da IA para o cliente
-    return new Response(aiResponse.body, {
+    // Criar um stream transformador para emular o formato OpenAI (esperado pelo frontend)
+    const transformStream = new TransformStream({
+      transform(chunk, controller) {
+        const textChunk = new TextDecoder().decode(chunk);
+
+        // O Gemini retorna linhas 'data: {...}'
+        const lines = textChunk.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ') && line.trim() !== 'data: [DONE]') {
+            try {
+              const dataStr = line.replace('data: ', '').trim();
+              if (!dataStr) continue;
+
+              const data = JSON.parse(dataStr);
+              // Extrai o texto gerado pelo Gemini
+              const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+              if (text) {
+                // Formata pacote como OpenAI
+                const openAiFormat = {
+                  choices: [{ delta: { content: text } }]
+                };
+                controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(openAiFormat)}\n\n`));
+              }
+            } catch (e) {
+              console.error("Erro ao fazer parse de chunk do Gemini:", e);
+            }
+          }
+        }
+      },
+      flush(controller) {
+        controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
+      }
+    });
+
+    return new Response(aiResponse.body?.pipeThrough(transformStream), {
       status: 200,
       headers: {
         ...corsHeaders,

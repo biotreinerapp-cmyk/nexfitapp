@@ -282,7 +282,7 @@ export default function ProfessionalDashboard() {
 
                     {/* Criar Treinos / Receitas */}
                     <button
-                        onClick={() => navigate("/professional/treinos")}
+                        onClick={() => navigate(isNutritionist ? "/professional/dietas" : "/professional/treinos")}
                         className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-primary/20 bg-gradient-to-br from-primary/10 to-primary/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
                     >
                         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-primary shadow-inner">
