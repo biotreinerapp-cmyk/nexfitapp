@@ -532,9 +532,19 @@ export const AdminUsersPage = () => {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent className="bg-[#1a1a1a] border-white/10 text-white">
-                                    <SelectItem value="FREE">Gratuito (FREE)</SelectItem>
-                                    <SelectItem value="ADVANCE">Advance Pro</SelectItem>
-                                    <SelectItem value="ELITE">Elite Black</SelectItem>
+                                    {(editingUser?.roles?.includes("professional") || editingUser?.roles?.includes("store_owner")) ? (
+                                        <>
+                                            <SelectItem value="PREMIUM">Premium</SelectItem>
+                                            <SelectItem value="MASTER">Master</SelectItem>
+                                            <SelectItem value="ELITE">Elite</SelectItem>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <SelectItem value="FREE">Gratuito (FREE)</SelectItem>
+                                            <SelectItem value="ADVANCE">Advance Pro</SelectItem>
+                                            <SelectItem value="ELITE">Elite Black</SelectItem>
+                                        </>
+                                    )}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -568,9 +578,19 @@ export const AdminUsersPage = () => {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent className="bg-[#1a1a1a] border-white/10 text-white">
-                                    <SelectItem value="FREE">Gratuito (FREE)</SelectItem>
-                                    <SelectItem value="ADVANCE">Advance Pro (ADVANCE)</SelectItem>
-                                    <SelectItem value="ELITE">Elite Black (ELITE)</SelectItem>
+                                    {(planUser?.roles?.includes("professional") || planUser?.roles?.includes("store_owner")) ? (
+                                        <>
+                                            <SelectItem value="PREMIUM">Premium</SelectItem>
+                                            <SelectItem value="MASTER">Master</SelectItem>
+                                            <SelectItem value="ELITE">Elite</SelectItem>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <SelectItem value="FREE">Gratuito (FREE)</SelectItem>
+                                            <SelectItem value="ADVANCE">Advance Pro (ADVANCE)</SelectItem>
+                                            <SelectItem value="ELITE">Elite Black (ELITE)</SelectItem>
+                                        </>
+                                    )}
                                 </SelectContent>
                             </Select>
                         </div>
