@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bell } from "lucide-react";
+import { ChevronDown, ChevronUp, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -15,6 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 export function NotificationCenter() {
     const { user } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
+    const [expandedId, setExpandedId] = useState<string | null>(null);
 
     const {
         notifications,
@@ -42,8 +43,8 @@ export function NotificationCenter() {
                 </Button>
             </DialogTrigger>
 
-            <DialogContent className="max-w-md border border-white/10 bg-black/90 backdrop-blur-2xl text-foreground sm:rounded-3xl">
-                <DialogHeader className="pb-4 border-b border-white/5">
+            <DialogContent className="max-w-md border border-white/10 bg-black/90 backdrop-blur-2xl text-foreground sm:rounded-3xl z-[100] max-h-[85vh] flex flex-col">
+                <DialogHeader className="pb-4 border-b border-white/5 shrink-0">
                     <DialogTitle className="text-lg font-black uppercase tracking-tight text-white flex items-center gap-2">
                         <Bell className="h-5 w-5 text-primary" />
                         Central de Notificações
@@ -84,31 +85,46 @@ export function NotificationCenter() {
                                 <ul className="space-y-2">
                                     {notifications.map((n) => {
                                         const unread = !n.read_at;
+                                        const isExpanded = expandedId === n.id;
+
                                         return (
                                             <li
                                                 key={n.id}
-                                                className={`rounded-xl border p-3 transition-colors ${unread ? "border-primary/20 bg-primary/5" : "border-white/5 bg-transparent hover:bg-white/5"}`}
+                                                className={`rounded-xl border p-3 transition-all cursor-pointer ${unread ? "border-primary/20 bg-primary/5" : "border-white/5 bg-transparent hover:bg-white/5"}`}
+                                                onClick={() => setExpandedId(isExpanded ? null : n.id)}
                                             >
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div className="min-w-0 flex-1">
-                                                        <div className="flex items-center gap-2">
-                                                            {unread && <span className="flex h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />}
-                                                            <p className={`truncate text-xs ${unread ? 'font-bold text-white' : 'font-medium text-muted-foreground'}`}>{n.title}</p>
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <div className="flex items-center gap-2">
+                                                                {unread && <span className="flex h-1.5 w-1.5 rounded-full bg-primary shrink-0" aria-hidden />}
+                                                                <p className={`text-xs ${unread ? 'font-bold text-white' : 'font-medium text-muted-foreground'}`}>{n.title}</p>
+                                                            </div>
+                                                            <div className="shrink-0 text-muted-foreground">
+                                                                {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                                            </div>
                                                         </div>
-                                                        {n.body && <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground line-clamp-2">{n.body}</p>}
-                                                        <p className="mt-2 text-[10px] font-medium text-white/20">
+                                                        {n.body && (
+                                                            <p className={`mt-2 text-[11px] leading-relaxed text-muted-foreground whitespace-pre-wrap ${!isExpanded ? 'line-clamp-2' : ''}`}>
+                                                                {n.body}
+                                                            </p>
+                                                        )}
+                                                        <p className="mt-3 text-[10px] font-medium text-white/20">
                                                             {new Date(n.created_at).toLocaleString("pt-BR", { dateStyle: 'short', timeStyle: 'short' })}
                                                         </p>
                                                     </div>
 
-                                                    <div className="flex shrink-0 flex-col gap-1">
+                                                    <div className="flex shrink-0 flex-col gap-1 items-end">
                                                         {unread && (
                                                             <Button
                                                                 type="button"
                                                                 size="sm"
                                                                 variant="ghost"
-                                                                className="h-6 px-2 text-[9px] text-primary hover:bg-primary/10 hover:text-primary"
-                                                                onClick={() => markAsRead.mutate(n.id)}
+                                                                className="h-6 px-2 text-[9px] text-primary hover:bg-primary/10 hover:text-primary z-10 relative"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    markAsRead.mutate(n.id);
+                                                                }}
                                                                 disabled={markAsRead.isPending}
                                                             >
                                                                 Marcar lido

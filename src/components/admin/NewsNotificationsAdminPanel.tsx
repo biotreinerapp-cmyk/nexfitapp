@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Send, Users, Loader2, CheckCircle2 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -21,6 +21,7 @@ type TargetSegment = "ALL" | "FREE" | "ADVANCE" | "ELITE";
 
 export function NewsNotificationsAdminPanel() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [link, setLink] = useState("");
@@ -39,6 +40,21 @@ export function NewsNotificationsAdminPanel() {
       const { count: elite } = await supabase.from("profiles").select("id", { count: "exact", head: true }).eq("subscription_plan", "ELITE");
 
       return { total: total || 0, FREE: free || 0, ADVANCE: advance || 0, ELITE: elite || 0 };
+    }
+  });
+
+  const { data: history, isLoading: historyLoading } = useQuery({
+    queryKey: ["admin-notification-history"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("admin_actions")
+        .select("*")
+        .eq("action", "send_notification_campaign")
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      return data || [];
     }
   });
 
@@ -128,6 +144,9 @@ export function NewsNotificationsAdminPanel() {
       } catch (pushErr) {
         console.warn("[Admin] Push trigger failed:", pushErr);
       }
+
+      // Invalidate history to show new item
+      queryClient.invalidateQueries({ queryKey: ["admin-notification-history"] });
 
       // Reset form
       setTitle("");
@@ -220,24 +239,55 @@ export function NewsNotificationsAdminPanel() {
         </CardContent>
       </Card>
 
-      {/* Preview / History Placeholder */}
-      <Card className="border border-white/10 bg-black/40 backdrop-blur-xl md:col-span-1 opacity-60">
-        <CardHeader>
+      {/* History */}
+      <Card className="border border-white/10 bg-black/40 backdrop-blur-xl md:col-span-1 flex flex-col h-[520px]">
+        <CardHeader className="shrink-0">
           <CardTitle className="flex items-center gap-2 text-white">
             <CheckCircle2 className="h-5 w-5 text-green-500" />
             Últimos Envios
           </CardTitle>
           <CardDescription className="text-zinc-400">
-            Histórico recente de campanhas. (Em breve)
+            Histórico recente de campanhas.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center py-12 text-zinc-500 space-y-3">
-            <div className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-zinc-600" />
+        <CardContent className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+          {historyLoading ? (
+            <div className="flex flex-col items-center justify-center py-12 text-zinc-500 space-y-3">
+              <div className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition">
+                <Loader2 className="h-6 w-6 animate-spin text-zinc-600" />
+              </div>
+              <p className="text-sm">Carregando histórico...</p>
             </div>
-            <p className="text-sm">O histórico de campanhas estará disponível em breve.</p>
-          </div>
+          ) : !history || history.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-zinc-500 space-y-3">
+              <div className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center">
+                <Send className="h-6 w-6 text-zinc-700" />
+              </div>
+              <p className="text-sm">Nenhuma campanha enviada ainda.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {history.map((item) => (
+                <div key={item.id} className="p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 transition-colors">
+                  <div className="flex items-start justify-between mb-2">
+                    <h4 className="text-sm font-bold text-white line-clamp-1">{item.details?.title || "Notificação"}</h4>
+                    <span className="text-[10px] text-zinc-500 font-medium shrink-0 ml-2">
+                      {new Date(item.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                    </span>
+                  </div>
+                  <div className="flex gap-2 items-center flex-wrap">
+                    <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[9px] uppercase tracking-widest px-1.5 py-0 h-5">
+                      {item.details?.segment === "ALL" ? "TODOS" : item.details?.segment || "N/A"}
+                    </Badge>
+                    <span className="text-xs text-zinc-400 flex items-center gap-1">
+                      <Users className="h-3 w-3" />
+                      {item.details?.count || 0} envios
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
