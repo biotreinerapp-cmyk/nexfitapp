@@ -49,6 +49,7 @@ type AdminUser = {
     subscription_plan: string | null;
     created_at: string;
     ativo: boolean;
+    roles: string[] | null;
 };
 
 export const AdminUsersPage = () => {
@@ -329,6 +330,7 @@ export const AdminUsersPage = () => {
                             <TableHeader className="bg-white/5">
                                 <TableRow className="border-white/5 hover:bg-white/5">
                                     <TableHead className="text-muted-foreground">Usuário</TableHead>
+                                    <TableHead className="text-muted-foreground">Tipo</TableHead>
                                     <TableHead className="text-muted-foreground">Plano</TableHead>
                                     <TableHead className="text-muted-foreground">Status</TableHead>
                                     <TableHead className="text-muted-foreground">Data Cadastro</TableHead>
@@ -338,7 +340,7 @@ export const AdminUsersPage = () => {
                             <TableBody>
                                 {isLoading ? (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="h-24 text-center">
+                                        <TableCell colSpan={6} className="h-24 text-center">
                                             <div className="flex items-center justify-center gap-2">
                                                 <Loader2 className="h-4 w-4 animate-spin" /> Carregando usuários...
                                             </div>
@@ -346,7 +348,7 @@ export const AdminUsersPage = () => {
                                     </TableRow>
                                 ) : paginatedUsers.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                                        <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                                             Nenhum usuário encontrado.
                                         </TableCell>
                                     </TableRow>
@@ -362,20 +364,45 @@ export const AdminUsersPage = () => {
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <Badge
-                                                    variant="outline"
-                                                    className={`
-                            border-0 px-2 py-0.5 text-xs font-semibold
-                            ${user.subscription_plan === "ELITE"
-                                                            ? "bg-purple-500/10 text-purple-400"
-                                                            : user.subscription_plan === "ADVANCE"
-                                                                ? "bg-blue-500/10 text-blue-400"
-                                                                : "bg-white/10 text-muted-foreground"
-                                                        }
-                          `}
-                                                >
-                                                    {user.subscription_plan || "FREE"}
-                                                </Badge>
+                                                <div className="flex gap-1 flex-wrap">
+                                                    {user.roles && user.roles.includes("store_owner") && (
+                                                        <Badge variant="outline" className="bg-orange-500/10 text-orange-400 border-orange-500/20 text-[10px] py-0">Lojista</Badge>
+                                                    )}
+                                                    {user.roles && user.roles.includes("professional") && (
+                                                        <Badge variant="outline" className="bg-indigo-500/10 text-indigo-400 border-indigo-500/20 text-[10px] py-0">Profissional</Badge>
+                                                    )}
+                                                    {(!user.roles || (!user.roles.includes("store_owner") && !user.roles.includes("professional") && !user.roles.includes("admin"))) && (
+                                                        <Badge variant="outline" className="bg-stone-500/10 text-stone-400 border-stone-500/20 text-[10px] py-0">Aluno</Badge>
+                                                    )}
+                                                    {user.roles && user.roles.includes("admin") && (
+                                                        <Badge variant="outline" className="bg-red-500/10 text-red-400 border-red-500/20 text-[10px] py-0">Admin</Badge>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                {(() => {
+                                                    const isPro = user.roles?.includes("professional");
+                                                    const isStore = user.roles?.includes("store_owner");
+                                                    let planColor = "bg-white/10 text-muted-foreground";
+                                                    let planName = user.subscription_plan || "FREE";
+
+                                                    if (isPro || isStore) {
+                                                        // Professional/Store plans styling
+                                                        if (planName === "PREMIUM") planColor = "bg-blue-500/10 text-blue-400";
+                                                        if (planName === "MASTER") planColor = "bg-purple-500/10 text-purple-400";
+                                                        if (planName === "ELITE") planColor = "bg-amber-500/10 text-amber-400";
+                                                    } else {
+                                                        // Student plans styling
+                                                        if (planName === "ADVANCE") planColor = "bg-blue-500/10 text-blue-400";
+                                                        if (planName === "ELITE") planColor = "bg-purple-500/10 text-purple-400";
+                                                    }
+
+                                                    return (
+                                                        <Badge variant="outline" className={`border-0 px-2 py-0.5 text-xs font-semibold ${planColor}`}>
+                                                            {planName}
+                                                        </Badge>
+                                                    );
+                                                })()}
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
