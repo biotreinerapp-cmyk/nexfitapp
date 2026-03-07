@@ -20,12 +20,14 @@ const AlunoPlanosLP = () => {
                 .from("app_access_plans")
                 .select("name, price_cents, checkout_link")
                 .eq("user_type", "ALUNO")
-                .in("name", ["Advance Pro", "Elite Black"])
                 .order("price_cents");
             if (error) throw error;
             // Map the format back to the expected array structures
-            return (data as any[])?.map(p => ({
-                plan: p.name.includes('Advance') ? 'ADVANCE' : 'ELITE',
+            return (data as any[])?.filter(p => {
+                const upperName = p.name.toUpperCase();
+                return upperName.includes('ADVANCE') || upperName.includes('ELITE');
+            }).map(p => ({
+                plan: p.name.toUpperCase().includes('ADVANCE') ? 'ADVANCE' : 'ELITE',
                 price_cents: p.price_cents,
                 checkout_link: p.checkout_link
             })) || [];
@@ -205,7 +207,11 @@ const AlunoPlanosLP = () => {
                                     className={`w-full py-7 text-lg uppercase tracking-wider font-black shadow-lg shadow-${plan.accent}/20 hover:shadow-${plan.accent}/40 bg-gradient-to-r from-${plan.accent} to-${plan.accent}/80 hover:brightness-110 transition-all duration-300 transform hover:-translate-y-1`}
                                     onClick={() => {
                                         if (plan.checkoutLink) {
-                                            window.open(plan.checkoutLink, '_blank');
+                                            let finalLink = plan.checkoutLink;
+                                            if (!finalLink.startsWith('http')) {
+                                                finalLink = `https://${finalLink}`;
+                                            }
+                                            window.open(finalLink, '_blank');
                                         } else {
                                             navigate(`/aluno/planos/checkout/${plan.type}`);
                                         }

@@ -45,11 +45,21 @@ const AlunoPlanosCheckout = () => {
         }
 
         // Add user info as query params if needed by Perfect Pay (optional but helpful)
-        const checkoutUrl = new URL(planConfig.checkout_link);
-        if (user?.email) checkoutUrl.searchParams.append("email", user.email);
-        if (user?.user_metadata?.full_name) checkoutUrl.searchParams.append("name", user.user_metadata.full_name);
+        let finalUrlStr = planConfig.checkout_link;
+        if (!finalUrlStr.startsWith('http')) {
+            finalUrlStr = `https://${finalUrlStr}`;
+        }
 
-        window.open(checkoutUrl.toString(), '_blank');
+        try {
+            const checkoutUrl = new URL(finalUrlStr);
+            if (user?.email) checkoutUrl.searchParams.append("email", user.email);
+            if (user?.user_metadata?.full_name) checkoutUrl.searchParams.append("name", user.user_metadata.full_name);
+            finalUrlStr = checkoutUrl.toString();
+        } catch (e) {
+            console.warn("Failed to parse checkout URL as valid URL object, using raw string.", e);
+        }
+
+        window.open(finalUrlStr, '_blank');
 
         toast({
             title: "Redirecionando...",
