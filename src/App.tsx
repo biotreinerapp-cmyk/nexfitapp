@@ -318,7 +318,7 @@ const RequireOnboarding = ({ children }: { children: JSX.Element }) => {
       // Isso agora só acontece se o usuário NÃO tiver navegado no App recentemente ou apagou cache
       const onboardingTimeoutMs = 4000;
 
-      const { data: profile, error } = (await Promise.race([
+      const { data, error } = (await Promise.race([
         supabase
           .from("profiles")
           .select("onboarding_completed, altura_cm, peso_kg, training_level")
