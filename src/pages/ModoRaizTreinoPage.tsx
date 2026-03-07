@@ -394,6 +394,7 @@ export default function ModoRaizTreinoPage() {
             const { data: session, error: sessionError } = await supabase
                 .from("workout_sessions")
                 .insert({
+                    user_id: user?.id,
                     exercise_name: `${routine?.name ?? "Treino Raiz"} — ${day?.name ?? `Dia ${dayIdx + 1}`}`,
                     status: "finalizada",
                     finalizado_em: new Date().toISOString(),
