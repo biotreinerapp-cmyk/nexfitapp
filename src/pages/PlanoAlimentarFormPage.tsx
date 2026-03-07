@@ -35,6 +35,8 @@ type FoodItem = {
     carbs: number;
     fats: number;
     preparation: string;
+    substitutions?: string;
+    observations?: string;
 };
 
 type DietMealBlock = {
@@ -56,6 +58,8 @@ const emptyFoodItem = (): FoodItem => ({
     carbs: 0,
     fats: 0,
     preparation: "",
+    substitutions: "",
+    observations: "",
 });
 
 const emptyMealBlock = (index: number): DietMealBlock => ({
@@ -127,70 +131,71 @@ function FoodItemCard({
             {/* Body */}
             {expanded && (
                 <div className="px-4 pb-4 space-y-4 border-t border-white/5 pt-4">
-                    {/* Name */}
-                    <div>
-                        <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5 block">
-                            Nome do Alimento / Prato *
-                        </Label>
-                        <Input
-                            placeholder="Ex: Frango Grelhado, Arroz Branco..."
-                            value={item.name}
-                            onChange={(e) => onUpdate("name", e.target.value)}
-                            className="bg-black/40 border-emerald-500/20 text-white rounded-xl h-10 focus-visible:ring-emerald-500 placeholder:text-zinc-600"
-                        />
-                    </div>
+                    <div className="space-y-4">
+                        {/* Name */}
+                        <div>
+                            <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5 block">
+                                Nome do Alimento / Prato *
+                            </Label>
+                            <Textarea
+                                placeholder="Ex: Frango Grelhado, Arroz Branco..."
+                                value={item.name}
+                                onChange={(e) => onUpdate("name", e.target.value)}
+                                rows={2}
+                                className="bg-black/40 border-emerald-500/20 text-white rounded-xl focus-visible:ring-emerald-500 placeholder:text-zinc-600 resize-none font-sans"
+                            />
+                        </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                        {/* Quantity */}
                         <div>
                             <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5 block">
                                 <Utensils className="h-3 w-3 inline mr-1 text-emerald-500" />Quantidade
                             </Label>
-                            <Input
+                            <Textarea
                                 placeholder="Ex: 150g, 2 colheres"
                                 value={item.quantity}
                                 onChange={(e) => onUpdate("quantity", e.target.value)}
-                                className="bg-black/40 border-white/10 text-white rounded-xl h-10 focus-visible:ring-emerald-500 placeholder:text-zinc-600 font-bold"
-                            />
-                        </div>
-                        <div>
-                            <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5 block">
-                                <Flame className="h-3 w-3 inline mr-1 text-orange-500" />Calorias (Kcal)
-                            </Label>
-                            <Input
-                                type="number"
-                                value={item.calories || ""}
-                                onChange={(e) => onUpdate("calories", Number(e.target.value))}
-                                className="bg-black/40 border-white/10 text-white rounded-xl h-10 focus-visible:ring-emerald-500 font-bold"
+                                rows={2}
+                                className="bg-black/40 border-white/10 text-white rounded-xl focus-visible:ring-emerald-500 placeholder:text-zinc-600 font-bold resize-none font-sans"
                             />
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-4 gap-2">
                         <div>
-                            <Label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5 block">Proteínas (g)</Label>
+                            <Label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5 block whitespace-nowrap overflow-hidden text-ellipsis">Kcal</Label>
+                            <Input
+                                type="number"
+                                value={item.calories || ""}
+                                onChange={(e) => onUpdate("calories", Number(e.target.value))}
+                                className="bg-black/40 border-[#ffac52]/20 text-white rounded-xl h-9 text-center focus-visible:ring-[#ffac52]/50"
+                            />
+                        </div>
+                        <div>
+                            <Label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5 block whitespace-nowrap overflow-hidden text-ellipsis">Proteínas</Label>
                             <Input
                                 type="number"
                                 value={item.proteins || ""}
                                 onChange={(e) => onUpdate("proteins", Number(e.target.value))}
-                                className="bg-black/40 border-white/10 text-white rounded-xl h-9 text-center focus-visible:ring-emerald-500"
+                                className="bg-black/40 border-[#ff5e5e]/20 text-white rounded-xl h-9 text-center focus-visible:ring-[#ff5e5e]/50"
                             />
                         </div>
                         <div>
-                            <Label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5 block">Carbos (g)</Label>
+                            <Label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5 block whitespace-nowrap overflow-hidden text-ellipsis">Carbos</Label>
                             <Input
                                 type="number"
                                 value={item.carbs || ""}
                                 onChange={(e) => onUpdate("carbs", Number(e.target.value))}
-                                className="bg-black/40 border-white/10 text-white rounded-xl h-9 text-center focus-visible:ring-emerald-500"
+                                className="bg-black/40 border-[#5caefe]/20 text-white rounded-xl h-9 text-center focus-visible:ring-[#5caefe]/50"
                             />
                         </div>
                         <div>
-                            <Label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5 block">Gorduras (g)</Label>
+                            <Label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5 block whitespace-nowrap overflow-hidden text-ellipsis">Gorduras</Label>
                             <Input
                                 type="number"
                                 value={item.fats || ""}
                                 onChange={(e) => onUpdate("fats", Number(e.target.value))}
-                                className="bg-black/40 border-white/10 text-white rounded-xl h-9 text-center focus-visible:ring-emerald-500"
+                                className="bg-black/40 border-[#ecd34a]/20 text-white rounded-xl h-9 text-center focus-visible:ring-[#ecd34a]/50"
                             />
                         </div>
                     </div>
@@ -206,7 +211,36 @@ function FoodItemCard({
                             value={item.preparation || ""}
                             onChange={(e) => onUpdate("preparation", e.target.value)}
                             rows={2}
-                            className="bg-black/40 border-white/10 text-white rounded-xl focus-visible:ring-emerald-500 placeholder:text-zinc-600 resize-none"
+                            className="bg-black/40 border-white/10 text-white rounded-xl focus-visible:ring-emerald-500 placeholder:text-zinc-600 resize-none font-sans"
+                        />
+                    </div>
+
+                    {/* Substitutions */}
+                    <div>
+                        <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5 flex items-center gap-1">
+                            Opções de Substituição
+                        </Label>
+                        <Textarea
+                            placeholder="Ex: Rap 10 - 1 Unidade
+Ovo Cozido - 2 Unidades"
+                            value={item.substitutions || ""}
+                            onChange={(e) => onUpdate("substitutions", e.target.value)}
+                            rows={3}
+                            className="bg-black/40 border-white/10 text-white rounded-xl focus-visible:ring-emerald-500 placeholder:text-zinc-600 resize-none font-sans"
+                        />
+                    </div>
+
+                    {/* Observations */}
+                    <div>
+                        <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5 flex items-center gap-1">
+                            Observações Gerais
+                        </Label>
+                        <Textarea
+                            placeholder="Ex: Usar adoçante se houver necessidade de adoçar o café..."
+                            value={item.observations || ""}
+                            onChange={(e) => onUpdate("observations", e.target.value)}
+                            rows={2}
+                            className="bg-black/40 border-white/10 text-white rounded-xl focus-visible:ring-emerald-500 placeholder:text-zinc-600 resize-none font-sans"
                         />
                     </div>
                 </div>

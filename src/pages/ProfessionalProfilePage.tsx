@@ -173,11 +173,25 @@ export default function ProfessionalProfilePage() {
                     </Button>
                 </header>
 
+                <Card className="border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden">
+                    {/* Cover Photo */}
+                    <div className="h-32 sm:h-48 w-full bg-zinc-900 overflow-hidden relative group">
+                        <ImageUpload
+                            value={formData.cover_image_url}
+                            onChange={(url) => setFormData({ ...formData, cover_image_url: url || "" })}
+                            bucket="professional-images"
+                            pathPrefix={user?.id || "covers"}
+                            aspectRatio="video"
+                            className="w-full h-full object-cover"
+                            label="Alterar Capa"
+                            description=""
+                        />
+                    </div>
 
                     <CardContent className="px-6 pb-6 pt-0">
                         {/* Profile Photo (overlapping cover) */}
                         <div className="relative -mt-16 sm:-mt-20 mb-6 flex justify-center sm:justify-start">
-                             <div className="rounded-full p-1 bg-black">
+                            <div className="rounded-full p-1 bg-black">
                                 <ImageUpload
                                     value={formData.profile_image_url}
                                     onChange={(url) => setFormData({ ...formData, profile_image_url: url || "" })}
@@ -188,7 +202,7 @@ export default function ProfessionalProfilePage() {
                                     label=""
                                     description=""
                                 />
-                             </div>
+                            </div>
                         </div>
 
                         <div className="space-y-4">
@@ -385,8 +399,8 @@ export default function ProfessionalProfilePage() {
                         </>
                     )}
                 </Button>
-            </div >
-        <ProfessionalFloatingNavIsland />
-        </main >
+            </div>
+            <ProfessionalFloatingNavIsland />
+        </main>
     );
 }

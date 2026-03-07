@@ -10,7 +10,9 @@ import {
     Zap,
     Calendar,
     Loader2,
-    Apple
+    Apple,
+    RefreshCw,
+    Info
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -153,9 +155,35 @@ function MealBlockCard({ meal, index }: { meal: any; index: number }) {
                                     {item.preparation && (
                                         <div className="flex items-start gap-2 rounded-xl bg-emerald-500/5 border border-emerald-500/10 px-3 py-2">
                                             <ChefHat className="h-3 w-3 text-emerald-500 shrink-0 mt-0.5" />
-                                            <p className="text-[11px] text-emerald-500/80 italic leading-relaxed">
+                                            <p className="text-[11px] text-emerald-500/80 italic leading-relaxed whitespace-pre-wrap">
                                                 {item.preparation}
                                             </p>
+                                        </div>
+                                    )}
+
+                                    {/* Substitutions */}
+                                    {item.substitutions && (
+                                        <div className="flex items-start gap-2 rounded-xl bg-blue-500/5 border border-blue-500/10 px-3 py-2 mt-2">
+                                            <RefreshCw className="h-3 w-3 text-blue-500 shrink-0 mt-0.5" />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[9px] font-black uppercase tracking-widest text-blue-500 mb-0.5 line-clamp-1">Opções de Substituição</p>
+                                                <p className="text-[11px] text-blue-500/80 leading-relaxed whitespace-pre-wrap font-sans">
+                                                    {item.substitutions}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Observations */}
+                                    {item.observations && (
+                                        <div className="flex items-start gap-2 rounded-xl bg-yellow-500/5 border border-yellow-500/10 px-3 py-2 mt-2">
+                                            <Info className="h-3 w-3 text-yellow-500 shrink-0 mt-0.5" />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[9px] font-black uppercase tracking-widest text-yellow-500 mb-0.5 line-clamp-1">Observações</p>
+                                                <p className="text-[11px] text-yellow-500/80 leading-relaxed whitespace-pre-wrap font-sans">
+                                                    {item.observations}
+                                                </p>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
