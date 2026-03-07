@@ -8,8 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Save, Image as ImageIcon, Plus, Trash2, Lock, Crown } from "lucide-react";
+import { ImageUpload } from "@/components/shared/ImageUpload";
 
 export default function ProfessionalLPEditor() {
     const { user } = useAuth();
@@ -214,36 +216,39 @@ export default function ProfessionalLPEditor() {
 
                 <Card className="border-white/10 bg-white/5">
                     <CardHeader>
-                        <CardTitle className="text-white">Imagens (URLs)</CardTitle>
+                        <CardTitle className="text-white">Imagens da Página</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-6">
                         <div className="space-y-2">
-                            <Label className="text-white">URL da Imagem de Capa (Banner)</Label>
-                            <Input
-                                placeholder="https://exemplo.com/imagem-capa.jpg"
+                            <Label className="text-white mb-2 block">Imagem de Capa (Banner Hero)</Label>
+                            <ImageUpload
                                 value={formData.images.hero || ""}
-                                onChange={e => setFormData({
+                                onChange={(url) => setFormData({
                                     ...formData,
-                                    images: { ...formData.images, hero: e.target.value }
+                                    images: { ...formData.images, hero: url }
                                 })}
-                                className="bg-black/20 border-white/10 text-white"
+                                bucket="professional-images"
+                                pathPrefix={user?.id || "lp-covers"}
+                                aspectRatio="video"
+                                className="w-full"
+                                description="Ideal: 1920x1080px (Horizontal)"
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-white">URL da Imagem de Perfil</Label>
-                            <Input
-                                placeholder="https://exemplo.com/foto-perfil.jpg"
+                            <Label className="text-white mb-2 block">Sua Foto de Perfil (Destaque)</Label>
+                            <ImageUpload
                                 value={formData.images.profile || ""}
-                                onChange={e => setFormData({
+                                onChange={(url) => setFormData({
                                     ...formData,
-                                    images: { ...formData.images, profile: e.target.value }
+                                    images: { ...formData.images, profile: url }
                                 })}
-                                className="bg-black/20 border-white/10 text-white"
+                                bucket="professional-images"
+                                pathPrefix={user?.id || "lp-profiles"}
+                                aspectRatio="square"
+                                className="w-48 h-48 mx-auto sm:mx-0"
+                                description="Ideal: 800x800px (Quadrada/Retrato)"
                             />
                         </div>
-                        <p className="text-[10px] text-white/40 italic">
-                            Dica: Você pode fazer upload de suas imagens no gerenciador de mídia e colar o link aqui.
-                        </p>
                     </CardContent>
                 </Card>
 

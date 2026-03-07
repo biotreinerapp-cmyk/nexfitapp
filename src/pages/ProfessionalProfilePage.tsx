@@ -10,8 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Save, User, Camera, ArrowLeft, Loader2, CreditCard } from "lucide-react";
+import { Sparkles, Save, User, Camera, ArrowLeft, Loader2, CreditCard, ImagePlus } from "lucide-react";
 import { ProfessionalFloatingNavIsland } from "@/components/navigation/ProfessionalFloatingNavIsland";
+import { ImageUpload } from "@/components/shared/ImageUpload";
 import {
     SPECIALTY_CATEGORIES,
     getSpecialtyLabel,
@@ -43,6 +44,8 @@ export default function ProfessionalProfilePage() {
         pix_key: "",
         pix_receiver_name: "",
         pix_bank_name: "",
+        profile_image_url: "",
+        cover_image_url: ""
     });
 
     const [telemedicinaServices, setTelemedicinaServices] = useState<any[]>([]);
@@ -90,6 +93,8 @@ export default function ProfessionalProfilePage() {
                 pix_key: data.pix_key || "",
                 pix_receiver_name: data.pix_receiver_name || "",
                 pix_bank_name: data.pix_bank_name || "",
+                profile_image_url: data.profile_image_url || null,
+                cover_image_url: data.cover_image_url || null,
             });
         } catch (error: any) {
             console.error("Load profile error:", error);
@@ -117,6 +122,8 @@ export default function ProfessionalProfilePage() {
                     pix_key: formData.pix_key ? sanitizePixKey(formData.pix_key) : "",
                     pix_receiver_name: formData.pix_receiver_name,
                     pix_bank_name: formData.pix_bank_name,
+                    profile_image_url: formData.profile_image_url,
+                    cover_image_url: formData.cover_image_url
                 })
                 .eq("id", profile.id);
 
@@ -167,19 +174,32 @@ export default function ProfessionalProfilePage() {
                 </header>
 
 
+                    <CardContent className="px-6 pb-6 pt-0">
+                        {/* Profile Photo (overlapping cover) */}
+                        <div className="relative -mt-16 sm:-mt-20 mb-6 flex justify-center sm:justify-start">
+                             <div className="rounded-full p-1 bg-black">
+                                <ImageUpload
+                                    value={formData.profile_image_url}
+                                    onChange={(url) => setFormData({ ...formData, profile_image_url: url || "" })}
+                                    bucket="professional-images"
+                                    pathPrefix={user?.id || "profiles"}
+                                    aspectRatio="square"
+                                    className="h-32 w-32 sm:h-40 sm:w-40 !rounded-full overflow-hidden border-4 border-black"
+                                    label=""
+                                    description=""
+                                />
+                             </div>
+                        </div>
 
-                <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
-                    <CardHeader>
-                        <CardTitle className="text-white">Informações Básicas</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                            <Label className="text-white">Nome Completo</Label>
-                            <Input
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                className="bg-black/20 border-white/10 text-white"
-                            />
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label className="text-white">Nome Completo</Label>
+                                <Input
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    className="bg-black/20 border-white/10 text-white"
+                                />
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
@@ -365,8 +385,8 @@ export default function ProfessionalProfilePage() {
                         </>
                     )}
                 </Button>
-            </div>
-            <ProfessionalFloatingNavIsland />
-        </main>
+            </div >
+        <ProfessionalFloatingNavIsland />
+        </main >
     );
 }
