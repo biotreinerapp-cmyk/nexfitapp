@@ -741,6 +741,26 @@ const AppRoutes = () => (
         }
       />
       <Route
+        path="/aluno/plano-alimentar/nova"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <PlanoAlimentarFormPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/plano-alimentar/:id"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <PlanoAlimentarViewPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
         path="/telemedicina"
         element={
           <AlunoRoute>

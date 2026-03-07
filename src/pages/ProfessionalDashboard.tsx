@@ -230,27 +230,7 @@ export default function ProfessionalDashboard() {
                 />
             </header>
 
-            {/* ── Pending Hire Requests ─────────────────────────────────────── */}
-            {pendingHires.length > 0 && (
-                <section className="mt-4 mb-6">
-                    <div className="flex items-center justify-between mb-3">
-                        <h2 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-zinc-400">
-                            <Clock className="h-4 w-4 text-yellow-400 shrink-0" />
-                            Aguardando Resposta ({pendingHires.length})
-                        </h2>
-                    </div>
-                    <div className="space-y-3">
-                        {pendingHires.map((hire) => (
-                            <HireCard
-                                key={hire.id}
-                                hire={hire}
-                                professionalId={profile.id}
-                                onUpdate={loadData}
-                            />
-                        ))}
-                    </div>
-                </section>
-            )}
+
 
 
             {/* ── Premium Hub Buttons ───────────────────────────────────────── */}
