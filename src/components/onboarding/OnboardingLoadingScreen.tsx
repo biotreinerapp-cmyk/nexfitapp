@@ -131,9 +131,17 @@ export default function OnboardingLoadingScreen({
                   { label: "Janela de Atividade", val: trainingDaysLabel ?? "Configurado", color: "text-accent" },
                   { label: "Prioridade Muscular", val: focusGroupLabel ?? "Equilibrado", color: "text-blue-400" },
                 ].map((item, i) => (
-                  <div key={i} className="flex items-center justify-between rounded-2xl border border-white/5 bg-white/[0.02] p-4 group">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{item.label}</span>
-                    <span className={cn("text-xs font-black uppercase tracking-tighter", item.color)}>{item.val}</span>
+                  <div key={i} className={cn(
+                    "flex rounded-2xl border border-white/5 bg-white/[0.02] p-4 group",
+                    String(item.val).length > 25 ? "flex-col items-start gap-2" : "items-center justify-between gap-3"
+                  )}>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground shrink-0">{item.label}</span>
+                    <span className={cn("text-[11px] font-black uppercase tracking-wider",
+                      String(item.val).length > 25 ? "leading-relaxed text-left" : "text-right",
+                      item.color)}
+                    >
+                      {item.val}
+                    </span>
                   </div>
                 ))}
               </div>
