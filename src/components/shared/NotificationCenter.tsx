@@ -54,90 +54,91 @@ export function NotificationCenter() {
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-4 py-2">
-                    <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
-                        <div className="flex items-center justify-between border-b border-white/10 bg-white/5 px-4 py-3">
-                            <p className="text-xs font-bold uppercase tracking-wider text-white">Últimas Mensagens</p>
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                className="h-6 px-2 text-[10px] text-muted-foreground hover:text-white hover:bg-white/10"
-                                disabled={unreadCount === 0 || markAllAsRead.isPending}
-                                onClick={() => markAllAsRead.mutate()}
-                            >
-                                Marcar tudo como lido
-                            </Button>
-                        </div>
+                <div className="flex flex-col h-full">
+                    <div className="flex items-center justify-between px-2 py-2">
+                        <p className="text-xs font-bold uppercase tracking-wider text-white/50">Últimas Mensagens</p>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 text-[10px] text-muted-foreground hover:text-white hover:bg-white/10"
+                            disabled={unreadCount === 0 || markAllAsRead.isPending}
+                            onClick={() => markAllAsRead.mutate()}
+                        >
+                            Marcar tudo como lido
+                        </Button>
+                    </div>
 
-                        <div className="max-h-[300px] overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                            {notificationsLoading ? (
-                                <div className="flex flex-col items-center justify-center py-8 gap-2">
-                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                                    <p className="text-[10px] text-muted-foreground">Carregando...</p>
-                                </div>
-                            ) : notifications.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-8 gap-2 opacity-50">
-                                    <Bell className="h-6 w-6 text-muted-foreground" />
-                                    <p className="text-[11px] text-muted-foreground">Nenhuma notificação ainda.</p>
-                                </div>
-                            ) : (
-                                <ul className="space-y-2">
-                                    {notifications.map((n) => {
-                                        const unread = !n.read_at;
-                                        const isExpanded = expandedId === n.id;
+                    <div className="max-h-[350px] overflow-y-auto px-1 pb-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                        {notificationsLoading ? (
+                            <div className="flex flex-col items-center justify-center py-8 gap-2">
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                                <p className="text-[10px] text-muted-foreground">Carregando...</p>
+                            </div>
+                        ) : notifications.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-8 gap-2 opacity-50">
+                                <Bell className="h-6 w-6 text-muted-foreground" />
+                                <p className="text-[11px] text-muted-foreground">Nenhuma notificação ainda.</p>
+                            </div>
+                        ) : (
+                            <ul className="space-y-3">
+                                {notifications.map((n) => {
+                                    const unread = !n.read_at;
+                                    const isExpanded = expandedId === n.id;
 
-                                        return (
-                                            <li
-                                                key={n.id}
-                                                className={`rounded-xl border p-3 transition-all cursor-pointer ${unread ? "border-primary/20 bg-primary/5" : "border-white/5 bg-transparent hover:bg-white/5"}`}
-                                                onClick={() => setExpandedId(isExpanded ? null : n.id)}
-                                            >
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <div className="min-w-0 flex-1">
-                                                        <div className="flex items-center justify-between gap-2">
-                                                            <div className="flex items-center gap-2">
-                                                                {unread && <span className="flex h-1.5 w-1.5 rounded-full bg-primary shrink-0" aria-hidden />}
-                                                                <p className={`text-xs ${unread ? 'font-bold text-white' : 'font-medium text-muted-foreground'}`}>{n.title}</p>
-                                                            </div>
-                                                            <div className="shrink-0 text-muted-foreground">
-                                                                {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                                            </div>
-                                                        </div>
-                                                        {n.body && (
-                                                            <p className={`mt-2 text-[11px] leading-relaxed text-muted-foreground whitespace-pre-wrap ${!isExpanded ? 'line-clamp-2' : ''}`}>
-                                                                {n.body}
-                                                            </p>
-                                                        )}
-                                                        <p className="mt-3 text-[10px] font-medium text-white/20">
-                                                            {new Date(n.created_at).toLocaleString("pt-BR", { dateStyle: 'short', timeStyle: 'short' })}
-                                                        </p>
-                                                    </div>
-
-                                                    <div className="flex shrink-0 flex-col gap-1 items-end">
+                                    return (
+                                        <li
+                                            key={n.id}
+                                            className={`relative overflow-hidden rounded-xl border p-4 transition-all duration-300 cursor-pointer group ${unread ? "border-primary/30 bg-primary/5 shadow-[0_0_15px_rgba(34,197,94,0.05)]" : "border-white/5 bg-white/5 hover:bg-white/10"}`}
+                                            onClick={() => setExpandedId(isExpanded ? null : n.id)}
+                                        >
+                                            <div className="flex flex-col gap-2">
+                                                <div className="flex justify-between items-start gap-3">
+                                                    <div className="flex items-start gap-2 pt-0.5">
                                                         {unread && (
-                                                            <Button
-                                                                type="button"
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                className="h-6 px-2 text-[9px] text-primary hover:bg-primary/10 hover:text-primary z-10 relative"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    markAsRead.mutate(n.id);
-                                                                }}
-                                                                disabled={markAsRead.isPending}
-                                                            >
-                                                                Marcar lido
-                                                            </Button>
+                                                            <span className="mt-1 flex h-1.5 w-1.5 shrink-0 rounded-full bg-primary shadow-[0_0_5px_rgba(34,197,94,0.5)]" aria-hidden />
                                                         )}
+                                                        <p className={`text-sm ${unread ? 'font-bold text-white' : 'font-semibold text-white/80'}`}>{n.title}</p>
+                                                    </div>
+                                                    <div className="flex shrink-0 items-center justify-center h-6 w-6 rounded-full bg-white/5 text-muted-foreground group-hover:bg-white/10 group-hover:text-white transition-colors">
+                                                        {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                                                     </div>
                                                 </div>
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                            )}
-                        </div>
+
+                                                {n.body && (
+                                                    <div className={`mt-1 overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-10 opacity-80'}`}>
+                                                        <p className={`text-xs leading-relaxed text-zinc-400 whitespace-pre-wrap ${!isExpanded ? 'line-clamp-2' : ''}`}>
+                                                            {n.body}
+                                                        </p>
+                                                    </div>
+                                                )}
+
+                                                <div className="mt-3 flex items-center justify-between">
+                                                    <p className="text-[10px] font-medium text-white/30">
+                                                        {new Date(n.created_at).toLocaleString("pt-BR", { dateStyle: 'short', timeStyle: 'short' })}
+                                                    </p>
+                                                    {unread && (
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-6 px-2 text-[10px] font-semibold text-primary/80 hover:bg-primary/20 hover:text-primary z-10 relative"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                markAsRead.mutate(n.id);
+                                                            }}
+                                                            disabled={markAsRead.isPending}
+                                                        >
+                                                            Marcar lido
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        )}
                     </div>
                 </div>
             </DialogContent>

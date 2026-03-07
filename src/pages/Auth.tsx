@@ -58,6 +58,9 @@ const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [isResetMode, setIsResetMode] = useState(false);
   const [isUpdatePasswordMode, setIsUpdatePasswordMode] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] = useState<string | null>(null);
+  const [recoveryOtpCode, setRecoveryOtpCode] = useState("");
+  const [isVerifyingRecovery, setIsVerifyingRecovery] = useState(false);
   // Start routing immediately if user already exists (avoids logo/UI flash for even a single frame)
   const [isRouting, setIsRouting] = useState(() => !!user);
   const [showPassword, setShowPassword] = useState(false);
@@ -239,20 +242,20 @@ const AuthPage = () => {
     if (isResetMode) {
       await withFeedback(
         async () => {
-          const redirectUrl = `${window.location.origin}/auth`;
-          const { error } = await supabase.auth.resetPasswordForEmail(values.email, {
-            redirectTo: redirectUrl,
+          const { data, error } = await supabase.functions.invoke("send-recovery-otp", {
+            body: { email: values.email },
           });
           if (error) throw error;
+          if (data?.error) throw new Error(data.error);
         },
-        { loading: "Enviando link...", success: "E-mail enviado com sucesso", error: undefined }
+        { loading: "Enviando código...", success: "Código enviado ao seu e-mail", error: undefined }
       ).catch((error) => {
-        if (error) toast({ title: "Erro ao enviar link", description: error.message, variant: "destructive" });
+        if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+        throw error; // Prevent moving to next step
       });
 
-      reset({ email: values.email });
-      setIsResetMode(false);
-      setIsLogin(true);
+      setRecoveryEmail(values.email);
+      setRecoveryOtpCode("");
       return;
     }
 
@@ -329,6 +332,41 @@ const AuthPage = () => {
       setOtpEmail(values.email);
       setOtpCode("");
       setResendCooldown(60);
+    }
+  };
+
+  const handleResetPassword = async (values: UpdatePasswordValues) => {
+    if (!recoveryEmail || recoveryOtpCode.length !== 6) {
+      toast({ title: "Atenção", description: "Informe o código de 6 dígitos.", variant: "destructive" });
+      return;
+    }
+
+    setIsVerifyingRecovery(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("reset-password-with-otp", {
+        body: {
+          email: recoveryEmail,
+          otp_code: recoveryOtpCode,
+          new_password: values.password
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({ title: "Sucesso!", description: "Sua senha foi atualizada com sucesso." });
+
+      // Cleanup and redirect to login
+      setRecoveryEmail(null);
+      setRecoveryOtpCode("");
+      resetUpdate({ password: "", confirmPassword: "" });
+      setIsResetMode(false);
+      setIsLogin(true);
+
+    } catch (err: any) {
+      toast({ title: "Erro na recuperação", description: err?.message ?? "Verifique o código e tente novamente.", variant: "destructive" });
+    } finally {
+      setIsVerifyingRecovery(false);
     }
   };
 
@@ -427,6 +465,59 @@ const AuthPage = () => {
                   }}>
                     Cancelar
                   </Button>
+                </form>
+              </section>
+            ) : recoveryEmail ? (
+              <section className="space-y-6 text-center animate-in fade-in zoom-in-95 duration-300">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/20">
+                  <ShieldCheck className="h-8 w-8 text-primary" />
+                </div>
+                <div className="space-y-1">
+                  <h2 className="text-lg font-bold text-white">Código de Recuperação</h2>
+                  <p className="text-xs text-zinc-400 leading-relaxed flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 break-all">
+                    <Mail className="h-3.5 w-3.5 shrink-0 text-primary/60" />
+                    <span className="whitespace-nowrap">Código enviado para</span>
+                    <span className="font-semibold text-white">{recoveryEmail}</span>
+                  </p>
+                </div>
+
+                <form onSubmit={handleSubmitUpdate(handleResetPassword)} className="space-y-4 text-left">
+                  <div className="space-y-4 flex flex-col items-center pb-2">
+                    <p className="text-xs text-zinc-500">Digite o código de 6 dígitos</p>
+                    <InputOTP
+                      maxLength={6}
+                      value={recoveryOtpCode}
+                      onChange={setRecoveryOtpCode}
+                      disabled={isVerifyingRecovery}
+                      containerClassName="justify-center mt-2"
+                    >
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+
+                  {renderInput("rec-new-password", "Nova senha", showPassword ? "text" : "password", registerUpdate("password"), updateErrors.password, () => setShowPassword(!showPassword), showPassword)}
+                  {renderInput("rec-new-password-confirm", "Confirmar senha", showConfirmPassword ? "text" : "password", registerUpdate("confirmPassword"), updateErrors.confirmPassword, () => setShowConfirmPassword(!showConfirmPassword), showConfirmPassword)}
+
+                  <div className="space-y-2 pt-2">
+                    <Button
+                      type="submit"
+                      className="w-full h-12 rounded-xl bg-gradient-to-r from-primary to-green-600 text-black font-black text-sm uppercase tracking-widest"
+                      disabled={recoveryOtpCode.length !== 6 || isVerifyingRecovery}
+                      loading={isVerifyingRecovery}
+                    >
+                      Redefinir Senha
+                    </Button>
+                    <Button variant="ghost" className="w-full text-white/40 text-xs mt-2" onClick={() => { setRecoveryEmail(null); setRecoveryOtpCode(""); setIsLogin(true); setIsResetMode(false); }}>
+                      Voltar ao login
+                    </Button>
+                  </div>
                 </form>
               </section>
             ) : otpEmail ? (
@@ -536,7 +627,13 @@ const AuthPage = () => {
                     className="text-xs text-white/40 hover:text-primary transition-colors font-medium"
                     onClick={() => {
                       setIsResetMode(!isResetMode);
-                      if (!isResetMode) setIsLogin(true);
+                      if (!isResetMode) {
+                        setIsLogin(true);
+                      } else {
+                        // Exiting reset mode
+                        setRecoveryEmail(null);
+                        setRecoveryOtpCode("");
+                      }
                     }}
                   >
                     {isResetMode ? "Voltar para o login" : "Esqueci minha senha"}

@@ -149,6 +149,9 @@ export default function LojaPlanoPage() {
                                 R$ {planPrice.toFixed(2).replace(".", ",")}
                                 <span className="text-sm text-zinc-500 font-medium">/mês</span>
                             </p>
+                            <div className="mt-3 inline-block bg-primary/20 border border-primary/50 text-primary px-4 py-1.5 rounded-full text-sm font-bold shadow-[0_0_15px_rgba(86,255,2,0.2)]">
+                                🔥 Primeiro mês por apenas R$ 11,90
+                            </div>
                         </div>
 
                         <div className="space-y-4 mb-8">
