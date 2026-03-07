@@ -255,13 +255,15 @@ export default function PlanoAlimentarViewPage() {
                         {plan.name}
                     </h1>
                     {/* Exibe botão de edição apenas se for dono do plano ou não for template */}
-                    <button
-                        className="h-9 w-9 rounded-xl flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-all"
-                        onClick={() => navigate(`/aluno/plano-alimentar/${planId}/editar`)}
-                        aria-label="Editar"
-                    >
-                        <Pencil className="h-4 w-4" />
-                    </button>
+                    {!plan.professional_creator_id && (
+                        <button
+                            className="h-9 w-9 rounded-xl flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-all"
+                            onClick={() => navigate(`/aluno/plano-alimentar/${planId}/editar`)}
+                            aria-label="Editar"
+                        >
+                            <Pencil className="h-4 w-4" />
+                        </button>
+                    )}
                 </div>
             </header>
 
@@ -299,12 +301,14 @@ export default function PlanoAlimentarViewPage() {
                     <div className="py-16 text-center">
                         <Utensils className="h-10 w-10 text-zinc-700 mx-auto mb-3" />
                         <p className="text-sm text-zinc-500">Nenhuma refeição cadastrada.</p>
-                        <Button
-                            className="mt-4 rounded-2xl bg-emerald-500 text-black font-black uppercase italic"
-                            onClick={() => navigate(`/aluno/plano-alimentar/${planId}/editar`)}
-                        >
-                            Adicionar refeições
-                        </Button>
+                        {!plan.professional_creator_id && (
+                            <Button
+                                className="mt-4 rounded-2xl bg-emerald-500 text-black font-black uppercase italic"
+                                onClick={() => navigate(`/aluno/plano-alimentar/${planId}/editar`)}
+                            >
+                                Adicionar Refeições
+                            </Button>
+                        )}
                     </div>
                 ) : (
                     <div className="space-y-3">

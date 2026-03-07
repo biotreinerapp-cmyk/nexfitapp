@@ -41,6 +41,7 @@ type ManualRoutine = {
   description: string | null;
   is_active: boolean;
   days: any[];
+  professional_creator_id?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -302,20 +303,24 @@ export default function ModoRaizPage() {
 
                       {/* Actions */}
                       <div className="flex shrink-0 items-center gap-1">
-                        <button
-                          className="h-8 w-8 rounded-xl flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/10 transition-all"
-                          onClick={() => navigate(`/aluno/modo-raiz/${r.id}/editar`)}
-                          aria-label="Editar"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          className="h-8 w-8 rounded-xl flex items-center justify-center text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
-                          onClick={() => setDeleteId(r.id)}
-                          aria-label="Excluir"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        {!r.professional_creator_id && (
+                          <>
+                            <button
+                              className="h-8 w-8 rounded-xl flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/10 transition-all"
+                              onClick={() => navigate(`/aluno/modo-raiz/${r.id}/editar`)}
+                              aria-label="Editar"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              className="h-8 w-8 rounded-xl flex items-center justify-center text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                              onClick={() => setDeleteId(r.id)}
+                              aria-label="Excluir"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </>
+                        )}
                         <button
                           className="h-8 w-8 rounded-xl flex items-center justify-center text-primary hover:bg-primary/10 transition-all"
                           onClick={() => navigate(`/aluno/modo-raiz/${r.id}`)}

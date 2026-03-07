@@ -279,20 +279,24 @@ export default function PlanoAlimentarPage() {
 
                                             {/* Actions */}
                                             <div className="flex shrink-0 items-center gap-1">
-                                                <button
-                                                    className="h-8 w-8 rounded-xl flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/10 transition-all"
-                                                    onClick={() => navigate(`/aluno/plano-alimentar/${p.id}/editar`)}
-                                                    aria-label="Editar"
-                                                >
-                                                    <Pencil className="h-3.5 w-3.5" />
-                                                </button>
-                                                <button
-                                                    className="h-8 w-8 rounded-xl flex items-center justify-center text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
-                                                    onClick={() => setDeleteId(p.id)}
-                                                    aria-label="Excluir"
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </button>
+                                                {!isByPro && (
+                                                    <>
+                                                        <button
+                                                            className="h-8 w-8 rounded-xl flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/10 transition-all"
+                                                            onClick={() => navigate(`/aluno/plano-alimentar/${p.id}/editar`)}
+                                                            aria-label="Editar"
+                                                        >
+                                                            <Pencil className="h-3.5 w-3.5" />
+                                                        </button>
+                                                        <button
+                                                            className="h-8 w-8 rounded-xl flex items-center justify-center text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                                                            onClick={() => setDeleteId(p.id)}
+                                                            aria-label="Excluir"
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </button>
+                                                    </>
+                                                )}
                                                 <button
                                                     className="h-8 w-8 rounded-xl flex items-center justify-center text-emerald-500 hover:bg-emerald-500/10 transition-all"
                                                     onClick={() => navigate(`/aluno/plano-alimentar/${p.id}`)}

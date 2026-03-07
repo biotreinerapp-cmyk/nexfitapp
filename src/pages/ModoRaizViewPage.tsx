@@ -256,13 +256,15 @@ export default function ModoRaizViewPage() {
           <h1 className="flex-1 truncate text-base font-black uppercase tracking-tight text-white italic">
             {routine.name}
           </h1>
-          <button
-            className="h-9 w-9 rounded-xl flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-all"
-            onClick={() => navigate(`/aluno/modo-raiz/${id}/editar`)}
-            aria-label="Editar"
-          >
-            <Pencil className="h-4 w-4" />
-          </button>
+          {!routine.professional_creator_id && (
+            <button
+              className="h-9 w-9 rounded-xl flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-all"
+              onClick={() => navigate(`/aluno/modo-raiz/${id}/editar`)}
+              aria-label="Editar"
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </header>
 
@@ -300,12 +302,14 @@ export default function ModoRaizViewPage() {
           <div className="py-16 text-center">
             <Dumbbell className="h-10 w-10 text-zinc-700 mx-auto mb-3" />
             <p className="text-sm text-zinc-500">Nenhum dia de treino cadastrado.</p>
-            <Button
-              className="mt-4 rounded-2xl bg-primary text-black font-black uppercase italic"
-              onClick={() => navigate(`/aluno/modo-raiz/${id}/editar`)}
-            >
-              Adicionar dias
-            </Button>
+            {!routine.professional_creator_id && (
+              <Button
+                className="mt-4 rounded-2xl bg-primary text-black font-black uppercase italic"
+                onClick={() => navigate(`/aluno/modo-raiz/${id}/editar`)}
+              >
+                Adicionar dias
+              </Button>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
