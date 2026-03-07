@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MaskedInput } from "@/components/ui/masked-input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useProfile } from "@/hooks/useProfile";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BackIconButton } from "@/components/navigation/BackIconButton";
@@ -46,6 +47,7 @@ const AlunoEditarPerfilPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { updateProfileCache, nome: currentCachedName } = useProfile();
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -71,7 +73,7 @@ const AlunoEditarPerfilPage = () => {
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("nome, display_name, data_nascimento, genero, altura_cm, peso_kg, bio, avatar_url, whatsapp")
+        .select("nome, display_name, data_nascimento, genero, altura_cm, peso_kg, bio, avatar_url")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -98,7 +100,7 @@ const AlunoEditarPerfilPage = () => {
           alturaCm: data.altura_cm ?? undefined,
           pesoKg: data.peso_kg ?? undefined,
           bio: data.bio ?? "",
-          whatsapp: data.whatsapp ?? "",
+          whatsapp: (data as any).whatsapp ?? "",
         });
         setAvatarUrl(data.avatar_url ?? null);
       }
@@ -188,6 +190,7 @@ const AlunoEditarPerfilPage = () => {
 
       if (updateError) throw updateError;
 
+      updateProfileCache(currentCachedName, publicUrl);
       toast({ title: "Foto atualizada" });
     } catch (error) {
       console.error(error);
@@ -227,8 +230,7 @@ const AlunoEditarPerfilPage = () => {
             altura_cm: values.alturaCm ?? null,
             peso_kg: values.pesoKg ?? null,
             bio: values.bio || null,
-            whatsapp: values.whatsapp || null,
-          })
+          } as any)
           .eq("id", user.id),
         15000
       );
@@ -243,6 +245,7 @@ const AlunoEditarPerfilPage = () => {
         }
       });
 
+      updateProfileCache(fullName, avatarUrl);
       toast({ title: "Perfil atualizado" });
       navigate(-1);
     } catch (error) {

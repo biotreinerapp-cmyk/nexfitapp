@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { useConnectionStatus } from "@/hooks/useConnectionStatus";
@@ -51,97 +52,24 @@ import { PLAN_LABEL, type SubscriptionPlan } from "@/lib/subscriptionPlans";
 import { useUserNotifications } from "@/hooks/useUserNotifications";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 
-interface AtividadeSessao {
-  id: string;
-  tipo_atividade: string;
-  status: string;
-  iniciado_em: string;
-  finalizado_em: string | null;
-}
-
-interface WorkoutSessao {
-  id: string;
-  status: string;
-  iniciado_em: string;
-  finalizado_em: string | null;
-  exercise_name: string;
-}
-
-interface PerfilAluno {
-  nome: string | null;
-  peso_kg: number | null;
-  altura_cm: number | null;
-  objetivo: string | null;
-  avatar_url: string | null;
-  bio?: string | null;
-  subscription_plan?: SubscriptionPlan | null;
-  plan_expires_at?: string | null;
-}
-
-interface SessaoSemana {
-  id: string;
-  tipo_atividade: string;
-  status: string;
-  iniciado_em: string;
-  finalizado_em: string | null;
-  origem: "cardio" | "musculacao";
-}
+import { useDashboardData } from "@/hooks/useDashboardData";
 
 const diasSemana = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"] as const;
 
-const DASH_CACHE_PREFIX = "biotreiner_dashboard_cache_";
 
-type DashboardCache = {
-  perfil: PerfilAluno | null;
-  consultas: {
-    id: string;
-    data_hora: string;
-    status: string;
-    profissional_nome: string | null;
-    consulta_link: string | null;
-  }[];
-  cached_at: number;
-};
-
-const readDashboardCache = (userId: string): DashboardCache | null => {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(`${DASH_CACHE_PREFIX}${userId}`);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as DashboardCache;
-    if (typeof parsed?.cached_at !== "number") return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-};
-
-const writeDashboardCache = (userId: string, payload: Omit<DashboardCache, "cached_at">) => {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(
-      `${DASH_CACHE_PREFIX}${userId}`,
-      JSON.stringify({ ...payload, cached_at: Date.now() } satisfies DashboardCache),
-    );
-  } catch {
-    // ignore
-  }
-};
 
 const AlunoDashboardPage = () => {
   const { user } = useAuth();
+  const { nome: profileNome, avatarUrl: profileAvatarUrl, pesoKg: profilePeso, alturaCm: profileAltura, bio: profileBio } = useProfile();
   const { toast } = useToast();
   const { plan, loading: planLoading, hasNutritionAccess, hasTelemedAccess, isMaster } = useUserPlan();
   // Fonte única do plano no dashboard (já normalizado pelo hook)
   const planoAtual: SubscriptionPlan = plan;
   const { isOnline } = useConnectionStatus({ silent: true });
+
   const { showInstallBanner, handleInstallClick, handleCloseBanner } = usePwaInstallPrompt();
 
-  const [sessaoAtual, setSessaoAtual] = useState<AtividadeSessao | null>(null);
-  const [perfil, setPerfil] = useState<PerfilAluno | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [sessoesSemana, setSessoesSemana] = useState<SessaoSemana[]>([]);
-  const [consultas, setConsultas] = useState<any[]>([]);
+  const { sessaoAtual, sessoesSemana, consultas } = useDashboardData(user?.id, isOnline);
 
 
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -164,137 +92,10 @@ const AlunoDashboardPage = () => {
   }, [user, pushPermission, subscribeUser]);
 
   useEffect(() => {
-    if (!user) return;
-
-    const cached = readDashboardCache(user.id);
-    if (!isOnline && cached) {
-      setPerfil(cached.perfil);
-      setAvatarUrl(cached.perfil?.avatar_url ?? null);
-      setConsultas(cached.consultas ?? []);
-      return;
+    if (user && pushPermission === "granted") {
+      subscribeUser();
     }
-
-    if (!isOnline) return;
-
-    const fetchDados = async () => {
-      const seteDiasAtras = new Date();
-      seteDiasAtras.setDate(seteDiasAtras.getDate() - 7);
-      const agoraIso = new Date().toISOString();
-
-      const [sessaoResp, perfilResp, semanaCardioResp, semanaMuscuResp, consultasResp] = await Promise.all([
-        (supabase as any)
-          .from("atividade_sessao")
-          .select("id, tipo_atividade, status, iniciado_em, finalizado_em")
-          .eq("user_id", user.id)
-          .eq("status", "em_andamento")
-          .order("iniciado_em", { ascending: false })
-          .limit(1),
-        withSchemaCacheRetry(
-          () =>
-            supabase
-              .from("profiles")
-              .select("nome, peso_kg, altura_cm, objetivo, avatar_url, bio, subscription_plan, plan_expires_at")
-              .eq("id", user.id)
-              .maybeSingle(),
-          { label: "dashboard:profiles" },
-        ),
-        (supabase as any)
-          .from("atividade_sessao")
-          .select("id, tipo_atividade, status, iniciado_em, finalizado_em, confirmado")
-          .eq("user_id", user.id)
-          .eq("status", "finalizada")
-          .eq("confirmado", true)
-          .gte("iniciado_em", seteDiasAtras.toISOString()),
-        (supabase as any)
-          .from("workout_sessions")
-          .select("id, status, iniciado_em, finalizado_em, exercise_name, confirmado")
-          .eq("user_id", user.id)
-          .eq("status", "finalizada")
-          .eq("confirmado", true)
-          .gte("iniciado_em", seteDiasAtras.toISOString()),
-        withSchemaCacheRetry<any>(
-          () =>
-            (supabase as any)
-              .from("telemedicina_agendamentos")
-              .select("id, data_hora, status, profissional_nome, consulta_link")
-              .eq("aluno_id", user.id)
-              .gte("data_hora", agoraIso)
-              .order("data_hora", { ascending: true })
-              .limit(5),
-          { label: "dashboard:consultas" },
-        ),
-      ]);
-
-      const { data: sessaoData, error: sessaoError } = sessaoResp;
-      const { data: perfilData, error: perfilError } = perfilResp;
-      const { data: semanaCardioData, error: semanaCardioError } = semanaCardioResp;
-      const { data: semanaMuscuData, error: semanaMuscuError } = semanaMuscuResp;
-      const { data: consultasData, error: consultasError } = consultasResp;
-
-      if (sessaoError) {
-        toast({ title: "Erro ao carregar atividade", description: getFriendlySupabaseErrorMessage(sessaoError), variant: "destructive" });
-      } else {
-        setSessaoAtual((sessaoData as AtividadeSessao[] | null)?.[0] ?? null);
-      }
-
-      if (perfilError) {
-        toast({ title: "Erro ao carregar perfil", description: getFriendlySupabaseErrorMessage(perfilError), variant: "destructive" });
-      } else if (perfilData) {
-        setPerfil(perfilData as PerfilAluno);
-        setAvatarUrl((perfilData as PerfilAluno).avatar_url ?? null);
-      }
-
-      if (semanaCardioError || semanaMuscuError) {
-        const errorMessage = getFriendlySupabaseErrorMessage(semanaCardioError ?? semanaMuscuError);
-        toast({ title: "Erro ao carregar histórico", description: errorMessage, variant: "destructive" });
-      }
-
-      const cardio = (semanaCardioData as AtividadeSessao[] | null) ?? [];
-      const muscu = (semanaMuscuData as WorkoutSessao[] | null) ?? [];
-
-      const combinadas: SessaoSemana[] = [
-        ...cardio.map((s) => ({
-          id: s.id,
-          tipo_atividade: s.tipo_atividade,
-          status: s.status,
-          iniciado_em: s.iniciado_em,
-          finalizado_em: s.finalizado_em,
-          origem: "cardio" as const,
-        })),
-        ...muscu.map((s) => ({
-          id: s.id,
-          tipo_atividade: "Musculação",
-          status: s.status,
-          iniciado_em: s.iniciado_em,
-          finalizado_em: s.finalizado_em,
-          origem: "musculacao" as const,
-        })),
-      ].sort((a, b) => {
-        const aDate = new Date(a.finalizado_em || a.iniciado_em).getTime();
-        const bDate = new Date(b.finalizado_em || b.iniciado_em).getTime();
-        return bDate - aDate;
-      });
-
-      setSessoesSemana(combinadas);
-
-      if (consultasError) {
-        toast({
-          title: "Erro ao carregar consultas",
-          description: getFriendlySupabaseErrorMessage(consultasError),
-          variant: "destructive",
-        });
-      } else if (consultasData) {
-        setConsultas(consultasData as any);
-      }
-
-      writeDashboardCache(user.id, {
-        perfil: (perfilData as PerfilAluno) ?? null,
-        consultas: (consultasData as any) ?? [],
-      });
-    };
-
-    fetchDados();
-  }, [user, isOnline, toast]);
+  }, [user, pushPermission, subscribeUser]);
 
   const resumoSemanal = useMemo(() => {
     const base = diasSemana.map((dia) => ({ dia, minutos: 0 }));
@@ -318,24 +119,26 @@ const AlunoDashboardPage = () => {
   );
 
   const imc = useMemo(() => {
-    if (!perfil?.peso_kg || !perfil.altura_cm) return null;
-    const alturaM = perfil.altura_cm / 100;
-    return perfil.peso_kg / (alturaM * alturaM);
-  }, [perfil]);
+    if (!profilePeso || !profileAltura) return null;
+    const alturaM = profileAltura / 100;
+    return (profilePeso / (alturaM * alturaM)).toFixed(1);
+  }, [profilePeso, profileAltura]);
 
   const handleAvatarError = () => {
-    setAvatarUrl(null);
+    // Avatar is now managed by useProfile, no need for local state
   };
 
   const daysLeftToExpire = useMemo(() => {
-    const expiresAt = perfil?.plan_expires_at ?? null;
+    // We check the plan object, but if it doesn't have expires_at we can fallback to something else, or omit for now
+    const expiresAt = user?.user_metadata?.plan_expires_at ?? null; // For simplicity, we can fetch from auth metadata if available, or just ignore for FREE plans
     if (!expiresAt) return null;
     const expiresMs = new Date(expiresAt).getTime();
     if (!Number.isFinite(expiresMs)) return null;
-    const diffMs = expiresMs - Date.now();
+    const nowMs = Date.now();
+    const diffMs = expiresMs - nowMs;
     if (diffMs <= 0) return null; // já expirou (downgrade automático)
     return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-  }, [perfil?.plan_expires_at]);
+  }, [user?.user_metadata?.plan_expires_at]);
 
   const shouldShowPlanExpiryBanner =
     !isMaster && plan !== "FREE" && daysLeftToExpire != null && daysLeftToExpire <= 3;
@@ -453,12 +256,10 @@ const AlunoDashboardPage = () => {
       toast({ title: "Erro ao finalizar", description: error.message, variant: "destructive" });
       return;
     }
-
-    setSessaoAtual(null);
   };
 
   // Evita flicker do placeholder "Aluno": só mostra nome quando estiver disponível.
-  const nomeAluno = perfil?.nome ?? null;
+  const nomeAluno = profileNome ?? null;
   const isTelemedSpecialUser = user?.email === "contatomaydsonsv@gmail.com";
 
   const diasAtivosSemana = useMemo(
@@ -655,8 +456,8 @@ const AlunoDashboardPage = () => {
               distance_km: lastSession.distance_km ?? 0,
               duration_minutes: duracaoMinutos ?? 0,
               recorded_at: lastSession.finalizado_em ?? new Date().toISOString(),
-              author_name: perfil?.nome || nomeAluno || "Atleta",
-              author_initials: (perfil?.nome || nomeAluno || "Atleta").slice(0, 2).toUpperCase(),
+              author_name: profileNome || "Atleta",
+              author_initials: (profileNome || "Atleta").slice(0, 2).toUpperCase(),
               caption: captionTextoBase,
               activity_image_url: imageUrl,
             });
@@ -696,9 +497,9 @@ const AlunoDashboardPage = () => {
         pace: lastSession.pace_avg ? `${lastSession.pace_avg} min/km` : null,
         caption: captionTextoBase,
         image_url: imageUrl,
-        author_name: perfil?.nome || nomeAluno || "Atleta",
-        author_initials: (perfil?.nome || nomeAluno || "Atleta").slice(0, 2).toUpperCase(),
-        author_avatar_url: avatarUrl,
+        author_name: profileNome || "Atleta",
+        author_initials: (profileNome || "Atleta").slice(0, 2).toUpperCase(),
+        author_avatar_url: profileAvatarUrl,
       });
 
       if (insertError) {
@@ -892,11 +693,11 @@ const AlunoDashboardPage = () => {
         </div>
         {/* Linha principal: bloco de perfil ocupando a largura */}
         <GreetingCard
-          name={nomeAluno}
-          avatarUrl={avatarUrl}
+          name={profileNome}
+          avatarUrl={profileAvatarUrl}
           onAvatarError={handleAvatarError}
           badgeVariant={planoAtual}
-          subtitle={perfil?.bio ?? null}
+          subtitle={profileBio ?? null}
         />
 
         <Dialog open={showSharePrompt} onOpenChange={setShowSharePrompt}>

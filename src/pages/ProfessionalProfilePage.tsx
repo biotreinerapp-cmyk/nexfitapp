@@ -1,8 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useProfile } from "@/hooks/useProfile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MaskedInput } from "@/components/ui/masked-input";
@@ -49,6 +51,8 @@ export default function ProfessionalProfilePage() {
     });
 
     const [telemedicinaServices, setTelemedicinaServices] = useState<any[]>([]);
+
+    const { updateProfileCache } = useProfile();
 
     useEffect(() => {
         loadProfile();
@@ -128,6 +132,8 @@ export default function ProfessionalProfilePage() {
                 .eq("id", profile.id);
 
             if (error) throw error;
+
+            updateProfileCache(formData.name, formData.profile_image_url);
 
             toast({
                 title: "Perfil atualizado",

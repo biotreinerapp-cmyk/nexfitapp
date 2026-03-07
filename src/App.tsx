@@ -85,7 +85,8 @@ import AlunoPlanosLP from "./pages/AlunoPlanosLP";
 import AlunoPlanosCheckout from "./pages/AlunoPlanosCheckout";
 import AlunoChatPage from "./pages/AlunoChatPage";
 import AlunoConsultasPage from "./pages/AlunoConsultasPage";
-import { UserPreferencesProvider } from "./hooks/useUserPreferences";
+import { ProfileProvider } from "@/hooks/useProfile"; // Added ProfileProvider import
+import { UserPreferencesProvider } from "@/hooks/useUserPreferences"; // Changed path
 import DeviceConnectivityPage from "./pages/DeviceConnectivityPage";
 import { ActivityProvider } from "./hooks/useActivityContext";
 import AlunoTreinoAtivoPage from "./pages/AlunoTreinoAtivo";
@@ -261,9 +262,11 @@ const RequireOnboarding = ({ children }: { children: JSX.Element }) => {
       // 1. Sinal de sessionStorage: se acabamos de vir do fluxo de onboarding, confiamos cegamente.
       const justFinished = sessionStorage.getItem(`nexfit_just_finished_onboarding_${user.id}`) === "true";
 
-      // Se temos cache VÁLIDO e COMPLETO, ou acabamos de finalizar, podemos mostrar a UI enquanto revalida.
+      // PWA ACCELERATION: Se temos cache VÁLIDO e COMPLETO, ou acabamos de finalizar, 
+      // liberamos a UI instantaneamente e encerramos a verificação bloqueante.
       if (cachedSatisfies || justFinished) {
         setChecking(false);
+        return; // SWR completo: cache diz que está ok, não precisamos consultar DB na inicialização
       }
 
       if (isAdmin) {
@@ -293,23 +296,29 @@ const RequireOnboarding = ({ children }: { children: JSX.Element }) => {
         return;
       }
 
-      // OFFLINE-FIRST: se estiver offline, usamos cache local (se existir) e não bloqueamos o app.
       if (!navigator.onLine) {
         if (cached) {
           const needsOnboarding =
-            !cached.onboarding_completed ||
-            cached.altura_cm === null ||
-            cached.peso_kg === null ||
-            !cached.training_level;
-          if (needsOnboarding) navigate("/aluno/onboarding", { replace: true });
+            !cached.onboarding_completed || !cached.altura_cm || !cached.peso_kg || !cached.training_level;
+
+          if (needsOnboarding) {
+            navigate("/aluno/onboarding", { replace: true });
+          } else {
+            setChecking(false);
+          }
+          return;
         }
+        // Se totalmente offline e sem cache, permite acesso base? (Melhor liberar do que travar em tela preta)
+        console.warn("Offline e sem cache de onboarding. Liberando acesso básico.");
         setChecking(false);
         return;
       }
 
+      // 3. Fallback: buscar dados reais no banco de dados
+      // Isso agora só acontece se o usuário NÃO tiver navegado no App recentemente ou apagou cache
       const onboardingTimeoutMs = 4000;
 
-      const { data, error } = (await Promise.race([
+      const { data: profile, error } = (await Promise.race([
         supabase
           .from("profiles")
           .select("onboarding_completed, altura_cm, peso_kg, training_level")
@@ -1254,9 +1263,11 @@ const App = () => {
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <UserPreferencesProvider>
           <ActivityProvider>
-            <SplashManager />
-            <ScrollToTopOnDashboard />
-            <AppRoutes />
+            <ProfileProvider>
+              <SplashManager />
+              <ScrollToTopOnDashboard />
+              <AppRoutes />
+            </ProfileProvider>
           </ActivityProvider>
         </UserPreferencesProvider>
       </BrowserRouter>
