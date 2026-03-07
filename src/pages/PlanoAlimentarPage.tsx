@@ -142,7 +142,7 @@ export default function PlanoAlimentarPage() {
             {/* Header */}
             <header className="sticky top-0 z-30 border-b border-white/5 bg-black/90 backdrop-blur-md">
                 <div className="mx-auto flex max-w-lg items-center gap-3 px-4 py-3">
-                    <BackIconButton to="/aluno/nutricao" />
+                    <BackIconButton to="/aluno/dashboard" />
                     <Apple className="h-5 w-5 text-emerald-500" />
                     <h1 className="flex-1 text-base font-black uppercase tracking-tight text-white italic">Minhas Dietas</h1>
                     <Button

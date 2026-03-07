@@ -731,7 +731,7 @@ const AppRoutes = () => (
         }
       />
       <Route
-        path="/aluno/nutricao"
+        path="/aluno/plano-alimentar"
         element={
           <AlunoRoute>
             <RequireOnboarding>
@@ -741,7 +741,7 @@ const AppRoutes = () => (
         }
       />
       <Route
-        path="/aluno/plano-alimentar/nova"
+        path="/aluno/plano-alimentar/novo"
         element={
           <AlunoRoute>
             <RequireOnboarding>
@@ -751,11 +751,21 @@ const AppRoutes = () => (
         }
       />
       <Route
-        path="/aluno/plano-alimentar/:id"
+        path="/aluno/plano-alimentar/:planId"
         element={
           <AlunoRoute>
             <RequireOnboarding>
               <PlanoAlimentarViewPage />
+            </RequireOnboarding>
+          </AlunoRoute>
+        }
+      />
+      <Route
+        path="/aluno/plano-alimentar/:planId/editar"
+        element={
+          <AlunoRoute>
+            <RequireOnboarding>
+              <PlanoAlimentarFormPage />
             </RequireOnboarding>
           </AlunoRoute>
         }
