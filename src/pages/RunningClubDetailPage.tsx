@@ -955,10 +955,87 @@ const RunningClubDetailPage = () => {
                     </div>
                   )}
 
-                  {!isFeedLoading && !feedError && posts.length === 0 && (
+                  {!isFeedLoading && !feedError && posts.length === 0 && challenges.filter(c => c.active && new Date() >= new Date(c.start_date) && new Date() <= new Date(c.end_date)).length === 0 && races.filter(r => r.active && new Date() >= new Date(r.start_date) && new Date() <= new Date(r.end_date)).length === 0 && (
                     <p className="text-[11px] text-muted-foreground">
                       Ainda não há posts no feed. Compartilhe sua próxima corrida para o clube.
                     </p>
+                  )}
+
+                  {!isFeedLoading && (
+                    <>
+                      {/* Eventos Fixados (Desafios Ativos) */}
+                      {challenges
+                        .filter(challenge => {
+                          const now = new Date();
+                          return challenge.active && now >= new Date(challenge.start_date) && now <= new Date(challenge.end_date);
+                        })
+                        .map((challenge) => (
+                          <article key={`pinned-challenge-${challenge.id}`} className="overflow-hidden rounded-[24px] border border-primary/30 bg-primary/5 backdrop-blur-2xl shadow-xl ring-1 ring-primary/20 relative">
+                            <div className="absolute top-3 right-4 z-20 flex items-center gap-1.5 bg-primary px-2.5 py-1 rounded-full shadow-lg">
+                              <Zap className="h-3 w-3 text-white fill-white animate-pulse" />
+                              <span className="text-[10px] font-black uppercase tracking-widest text-white">Evento Fixado</span>
+                            </div>
+                            <header className="flex items-center gap-3 p-4 bg-primary/10">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-white shadow-lg">
+                                <Target className="h-5 w-5" />
+                              </div>
+                              <div className="flex flex-col leading-tight">
+                                <span className="text-xs font-black uppercase italic tracking-tight text-foreground">Desafio do Clube</span>
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-primary">Objetivo: {challenge.target_distance_km}km</span>
+                              </div>
+                            </header>
+                            <div className="p-4 space-y-3">
+                              <h3 className="text-base font-black italic uppercase tracking-tight text-foreground">{challenge.title}</h3>
+                              <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{challenge.description}</p>
+                              <div className="pt-2">
+                                <Button className="w-full bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest text-[10px] h-10 rounded-xl shadow-lg shadow-primary/20" onClick={() => (document.querySelector('[value="desafios"]') as HTMLElement)?.click()}>
+                                  Ver Detalhes do Desafio
+                                </Button>
+                              </div>
+                            </div>
+                          </article>
+                        ))
+                      }
+
+                      {/* Eventos Fixados (Corridas Ativas) */}
+                      {races
+                        .filter(race => {
+                          const now = new Date();
+                          return race.active && now >= new Date(race.start_date) && now <= new Date(race.end_date);
+                        })
+                        .map((race) => (
+                          <article key={`pinned-race-${race.id}`} className="overflow-hidden rounded-[24px] border border-primary/30 bg-primary/5 backdrop-blur-2xl shadow-xl ring-1 ring-primary/20 relative">
+                            <div className="absolute top-3 right-4 z-20 flex items-center gap-1.5 bg-primary px-2.5 py-1 rounded-full shadow-lg">
+                              <Zap className="h-3 w-3 text-white fill-white animate-pulse" />
+                              <span className="text-[10px] font-black uppercase tracking-widest text-white">Evento Fixado</span>
+                            </div>
+                            <header className="flex items-center gap-3 p-4 bg-primary/10">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-white shadow-lg">
+                                <MapPin className="h-5 w-5" />
+                              </div>
+                              <div className="flex flex-col leading-tight">
+                                <span className="text-xs font-black uppercase italic tracking-tight text-foreground">Corrida Oficial</span>
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-primary">{new Date(race.end_date).toLocaleDateString()}</span>
+                              </div>
+                            </header>
+                            <div className="p-4 space-y-3">
+                              <h3 className="text-base font-black italic uppercase tracking-tight text-foreground">{race.title}</h3>
+                              <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{race.description}</p>
+                              <div className="space-y-2 pt-2">
+                                {race.registration_link && (
+                                  <a href={race.registration_link} target="_blank" rel="noopener noreferrer" className="block w-full py-2.5 px-4 bg-primary text-white hover:bg-primary/90 text-center rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-primary/20">
+                                    Inscrever-se Agora
+                                  </a>
+                                )}
+                                <Button variant="ghost" className="w-full text-muted-foreground hover:text-foreground hover:bg-white/5 text-[9px] font-bold uppercase tracking-widest h-8" onClick={() => (document.querySelector('[value="desafios"]') as HTMLElement)?.click()}>
+                                  Ver Mais Informações
+                                </Button>
+                              </div>
+                            </div>
+                          </article>
+                        ))
+                      }
+                    </>
                   )}
 
                   {!isFeedLoading &&
