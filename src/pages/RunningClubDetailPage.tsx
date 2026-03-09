@@ -88,7 +88,8 @@ interface RunningRace {
   club_id: string;
   title: string;
   description: string | null;
-  event_date: string;
+  start_date: string;
+  end_date: string;
   location: string | null;
   registration_link: string | null;
   price: number | null;
@@ -234,7 +235,8 @@ const RunningClubDetailPage = () => {
     defaultValues: {
       title: "",
       description: "",
-      event_date: "",
+      start_date: "",
+      end_date: "",
       location: "",
       price: "",
       registration_link: "",
@@ -356,7 +358,7 @@ const RunningClubDetailPage = () => {
           .from("running_club_races")
           .select("*")
           .eq("club_id", clubId)
-          .order("event_date", { ascending: false }),
+          .order("start_date", { ascending: false }),
       ]);
 
       setActivities((activitiesData as RunningActivity[]) ?? []);
@@ -568,7 +570,8 @@ const RunningClubDetailPage = () => {
         club_id: clubId,
         title: values.title,
         description: values.description || null,
-        event_date: new Date(values.event_date).toISOString(),
+        start_date: new Date(values.start_date).toISOString(),
+        end_date: new Date(values.end_date).toISOString(),
         location: values.location || null,
         registration_link: values.registration_link || null,
         price: dbPrice,
@@ -591,6 +594,16 @@ const RunningClubDetailPage = () => {
       toast({
         title: "Corrida criada!",
         description: "A corrida foi cadastrada no clube com sucesso.",
+      });
+
+      void supabase.from("club_posts").insert({
+        club_id: clubId,
+        user_id: user.id,
+        caption: `🔥 Nova Corrida Oficial: ${values.title}!\n\nAs inscrições já estão abertas${values.registration_link ? ". Acesse o link para garantir sua vaga!" : ", prepare-se!"}`,
+        link_url: values.registration_link || null,
+        activity_type: "event",
+        duration_minutes: 0,
+        distance_km: 0
       });
     } catch (error) {
       toast({
@@ -628,6 +641,15 @@ const RunningClubDetailPage = () => {
       setCreateChallengeOpen(false);
       challengeForm.reset();
       toast({ title: "Desafio criado! 🎯", description: "O novo desafio já está visível para os membros." });
+
+      void supabase.from("club_posts").insert({
+        club_id: club.id,
+        user_id: user.id,
+        caption: `🎯 Novo Desafio: ${values.title}!\n\nA Meta de ${values.target_distance_km}km começou. Bora pra pista alcançar esse objetivo!`,
+        activity_type: "challenge",
+        duration_minutes: 0,
+        distance_km: 0
+      });
     }
   };
 
@@ -1119,6 +1141,13 @@ const RunningClubDetailPage = () => {
                             <p className="pt-0.5 text-[9px] uppercase tracking-wide text-muted-foreground">
                               {timeLabel}
                             </p>
+                            {post.link_url && (
+                              <div className="mt-3">
+                                <a href={post.link_url} target="_blank" rel="noopener noreferrer" className="block w-full py-2.5 px-4 bg-primary/20 text-primary hover:bg-primary/30 text-center rounded-xl text-xs font-bold uppercase tracking-widest transition-colors mb-2 border border-primary/30">
+                                  Acessar Link do Evento
+                                </a>
+                              </div>
+                            )}
                           </div>
                         </article>
                       );
@@ -1259,7 +1288,8 @@ const RunningClubDetailPage = () => {
                                 </div>
                                 <div className="flex flex-col items-center">
                                   <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Data</span>
-                                  <span className="text-[10px] font-bold text-primary">{new Date(race.event_date).toLocaleDateString()}</span>
+                                  <span className="text-[10px] uppercase font-bold text-muted-foreground"><Calendar className="h-3 w-3 inline mr-1" />Inscrições:</span>
+                                  <span className="text-[10px] font-bold text-primary">{new Date(race.start_date).toLocaleDateString()}</span>
                                 </div>
                                 <div className="flex flex-col items-end">
                                   <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Inscrição</span>
@@ -1913,23 +1943,20 @@ const RunningClubDetailPage = () => {
               />
 
               <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={raceForm.control}
-                  name="event_date"
-                  rules={{ required: "Data é obrigatória" }}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-[10px] font-black uppercase tracking-widest text-white/70">
-                        Data *
-                      </FormLabel>
-                      <FormControl>
-                        <Input type="date" className="h-12 rounded-2xl border-white/10 bg-white/5 text-[11px] sm:text-sm text-white focus:border-primary/50 focus:ring-primary/50" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
+                <FormField control={raceForm.control} name="start_date" rules={{ required: "Obrigatório" }} render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-white/70">Início das Inscrições *</FormLabel>
+                    <FormControl><Input type="date" className="h-12 rounded-2xl border-white/10 bg-white/5 text-[11px] sm:text-sm text-white focus:border-primary/50 focus:ring-primary/50" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={raceForm.control} name="end_date" rules={{ required: "Obrigatório" }} render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-white/70">Data do Evento *</FormLabel>
+                    <FormControl><Input type="date" className="h-12 rounded-2xl border-white/10 bg-white/5 text-[11px] sm:text-sm text-white focus:border-primary/50 focus:ring-primary/50" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
                 <FormField
                   control={raceForm.control}
                   name="price"

@@ -87,9 +87,10 @@ const AlunoDashboardPage = () => {
 
         const clubIds = memberData.map((m: any) => m.club_id);
 
+        const now = new Date().toISOString();
         const [{ data: racesData }, { data: challengesData }] = await Promise.all([
-          supabase.from("running_club_races").select("id").in("club_id", clubIds).eq("active", true).limit(1),
-          supabase.from("running_club_challenges").select("id").in("club_id", clubIds).eq("active", true).limit(1)
+          supabase.from("running_club_races").select("id").in("club_id", clubIds).eq("active", true).lte("start_date", now).gte("end_date", now).limit(1),
+          supabase.from("running_club_challenges").select("id").in("club_id", clubIds).eq("active", true).lte("start_date", now).gte("end_date", now).limit(1)
         ]);
 
         if ((racesData && racesData.length > 0) || (challengesData && challengesData.length > 0)) {
