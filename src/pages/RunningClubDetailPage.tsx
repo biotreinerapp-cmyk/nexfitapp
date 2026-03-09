@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
-import { Users, Trophy, Target, MapPin, Clock, ArrowLeft, Share2, Copy, ShieldCheck, MoreVertical, MessageCircle, Zap, Medal, Plus, UserMinus, Calendar } from "lucide-react";
+import { Users, Trophy, Target, MapPin, Clock, ArrowLeft, Share2, Copy, ShieldCheck, MoreVertical, MessageCircle, Zap, Medal, Plus, UserMinus, Calendar, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -653,6 +653,28 @@ const RunningClubDetailPage = () => {
     }
   };
 
+  const handleDeleteRace = async (raceId: string) => {
+    if (!isAdmin || !user) return;
+    const { error } = await supabase.from("running_club_races").delete().eq("id", raceId);
+    if (error) {
+      toast({ title: "Erro ao excluir corrida", description: error.message, variant: "destructive" });
+    } else {
+      setRaces((prev) => prev.filter((r) => r.id !== raceId));
+      toast({ title: "Corrida removida 🗑\ufe0f" });
+    }
+  };
+
+  const handleDeleteChallenge = async (challengeId: string) => {
+    if (!isAdmin || !user) return;
+    const { error } = await supabase.from("running_club_challenges").delete().eq("id", challengeId);
+    if (error) {
+      toast({ title: "Erro ao excluir desafio", description: error.message, variant: "destructive" });
+    } else {
+      setChallenges((prev) => prev.filter((c) => c.id !== challengeId));
+      toast({ title: "Desafio removido 🗑\ufe0f" });
+    }
+  };
+
   const handleGoBack = () => {
     navigate("/aluno/running-club");
   };
@@ -992,6 +1014,15 @@ const RunningClubDetailPage = () => {
                                   Ver Detalhes do Desafio
                                 </Button>
                               </div>
+                              {isAdmin && (
+                                <button
+                                  onClick={() => handleDeleteChallenge(challenge.id)}
+                                  className="absolute bottom-4 right-4 p-2 text-muted-foreground hover:text-red-500 transition-colors opacity-60 hover:opacity-100"
+                                  title="Excluir Desafio"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              )}
                             </div>
                           </article>
                         ))
@@ -1001,7 +1032,9 @@ const RunningClubDetailPage = () => {
                       {races
                         .filter(race => {
                           const now = new Date();
-                          return race.active && now >= new Date(race.start_date) && now <= new Date(race.end_date);
+                          const sDate = new Date(race.start_date);
+                          const eDate = new Date(race.end_date);
+                          return race.active && now >= sDate && now <= eDate;
                         })
                         .map((race) => (
                           <article key={`pinned-race-${race.id}`} className="overflow-hidden rounded-[24px] border border-primary/30 bg-primary/5 backdrop-blur-2xl shadow-xl ring-1 ring-primary/20 relative">
@@ -1018,7 +1051,7 @@ const RunningClubDetailPage = () => {
                                 <span className="text-[9px] font-bold uppercase tracking-widest text-primary">{new Date(race.end_date).toLocaleDateString()}</span>
                               </div>
                             </header>
-                            <div className="p-4 space-y-3">
+                            <div className="p-4 space-y-3 relative">
                               <h3 className="text-base font-black italic uppercase tracking-tight text-foreground">{race.title}</h3>
                               <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{race.description}</p>
                               <div className="space-y-2 pt-2">
@@ -1031,6 +1064,15 @@ const RunningClubDetailPage = () => {
                                   Ver Mais Informações
                                 </Button>
                               </div>
+                              {isAdmin && (
+                                <button
+                                  onClick={() => handleDeleteRace(race.id)}
+                                  className="absolute bottom-2 right-4 p-2 text-muted-foreground hover:text-red-500 transition-colors opacity-60 hover:opacity-100"
+                                  title="Excluir Corrida"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              )}
                             </div>
                           </article>
                         ))
