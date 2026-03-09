@@ -993,10 +993,6 @@ const RunningClubDetailPage = () => {
                         })
                         .map((challenge) => (
                           <article key={`pinned-challenge-${challenge.id}`} className="overflow-hidden rounded-[24px] border border-primary/30 bg-primary/5 backdrop-blur-2xl shadow-xl ring-1 ring-primary/20 relative">
-                            <div className="absolute top-3 right-4 z-20 flex items-center gap-1.5 bg-primary px-2.5 py-1 rounded-full shadow-lg">
-                              <Zap className="h-3 w-3 text-white fill-white animate-pulse" />
-                              <span className="text-[10px] font-black uppercase tracking-widest text-white">Evento Fixado</span>
-                            </div>
                             <header className="flex items-center gap-3 p-4 bg-primary/10">
                               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-white shadow-lg">
                                 <Target className="h-5 w-5" />
@@ -1014,15 +1010,20 @@ const RunningClubDetailPage = () => {
                                   Ver Detalhes do Desafio
                                 </Button>
                               </div>
+                            </div>
+                            <div className="absolute top-3 right-4 z-20 flex items-center gap-2">
                               {isAdmin && (
                                 <button
                                   onClick={() => handleDeleteChallenge(challenge.id)}
-                                  className="absolute bottom-4 right-4 p-2 text-muted-foreground hover:text-red-500 transition-colors opacity-60 hover:opacity-100"
+                                  className="p-1.5 bg-black/20 text-white/70 hover:text-red-500 rounded-full transition-colors border border-white/10"
                                   title="Excluir Desafio"
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Trash2 className="h-3 w-3" />
                                 </button>
                               )}
+                              <div className="flex h-7 w-7 items-center justify-center bg-primary rounded-full shadow-lg">
+                                <Zap className="h-3.5 w-3.5 text-white fill-white animate-pulse" />
+                              </div>
                             </div>
                           </article>
                         ))
@@ -1038,10 +1039,6 @@ const RunningClubDetailPage = () => {
                         })
                         .map((race) => (
                           <article key={`pinned-race-${race.id}`} className="overflow-hidden rounded-[24px] border border-primary/30 bg-primary/5 backdrop-blur-2xl shadow-xl ring-1 ring-primary/20 relative">
-                            <div className="absolute top-3 right-4 z-20 flex items-center gap-1.5 bg-primary px-2.5 py-1 rounded-full shadow-lg">
-                              <Zap className="h-3 w-3 text-white fill-white animate-pulse" />
-                              <span className="text-[10px] font-black uppercase tracking-widest text-white">Evento Fixado</span>
-                            </div>
                             <header className="flex items-center gap-3 p-4 bg-primary/10">
                               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-white shadow-lg">
                                 <MapPin className="h-5 w-5" />
@@ -1064,15 +1061,20 @@ const RunningClubDetailPage = () => {
                                   Ver Mais Informações
                                 </Button>
                               </div>
+                            </div>
+                            <div className="absolute top-3 right-4 z-20 flex items-center gap-2">
                               {isAdmin && (
                                 <button
                                   onClick={() => handleDeleteRace(race.id)}
-                                  className="absolute bottom-2 right-4 p-2 text-muted-foreground hover:text-red-500 transition-colors opacity-60 hover:opacity-100"
+                                  className="p-1.5 bg-black/20 text-white/70 hover:text-red-500 rounded-full transition-colors border border-white/10"
                                   title="Excluir Corrida"
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Trash2 className="h-3 w-3" />
                                 </button>
                               )}
+                              <div className="flex h-7 w-7 items-center justify-center bg-primary rounded-full shadow-lg">
+                                <Zap className="h-3.5 w-3.5 text-white fill-white animate-pulse" />
+                              </div>
                             </div>
                           </article>
                         ))
