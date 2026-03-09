@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
-import { Users, Trophy, Target, MapPin, Clock, ArrowLeft, Share2, Copy, ShieldCheck, MoreVertical, MessageCircle, Zap, Medal, Plus, UserMinus } from "lucide-react";
+import { Users, Trophy, Target, MapPin, Clock, ArrowLeft, Share2, Copy, ShieldCheck, MoreVertical, MessageCircle, Zap, Medal, Plus, UserMinus, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
