@@ -71,7 +71,37 @@ const AlunoDashboardPage = () => {
   const { showInstallBanner, handleInstallClick, handleCloseBanner } = usePwaInstallPrompt();
 
   const { sessaoAtual, sessoesSemana, consultas } = useDashboardData(user?.id, isOnline);
+  const [hasActiveEvent, setHasActiveEvent] = useState(false);
 
+  useEffect(() => {
+    if (!user) return;
+    const fetchActiveEvents = async () => {
+      try {
+        const { data: memberData } = await supabase
+          .from("running_club_members")
+          .select("club_id")
+          .eq("user_id", user.id)
+          .eq("status", "active");
+
+        if (!memberData || memberData.length === 0) return;
+
+        const clubIds = memberData.map((m: any) => m.club_id);
+
+        const [{ data: racesData }, { data: challengesData }] = await Promise.all([
+          supabase.from("running_club_races").select("id").in("club_id", clubIds).eq("active", true).limit(1),
+          supabase.from("running_club_challenges").select("id").in("club_id", clubIds).eq("active", true).limit(1)
+        ]);
+
+        if ((racesData && racesData.length > 0) || (challengesData && challengesData.length > 0)) {
+          setHasActiveEvent(true);
+        }
+      } catch (err) {
+        console.warn("Could not check active events", err);
+      }
+    };
+
+    fetchActiveEvents();
+  }, [user]);
 
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
@@ -813,7 +843,7 @@ const AlunoDashboardPage = () => {
           {/* Running Club */}
           <button
             onClick={() => navigate("/aluno/running-club")}
-            className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border border-orange-500/20 bg-gradient-to-br from-orange-500/10 to-orange-600/5 p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md"
+            className={`group relative flex flex-col items-start gap-4 overflow-hidden rounded-[24px] border ${hasActiveEvent ? "border-orange-500/50 bg-gradient-to-br from-orange-500/20 to-orange-600/10 shadow-[0_0_15px_rgba(249,115,22,0.3)] animate-[pulse_2s_ease-in-out_infinite]" : "border-orange-500/20 bg-gradient-to-br from-orange-500/10 to-orange-600/5"} p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md`}
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/20 text-orange-400 shadow-inner">
               <Users className="h-6 w-6" />

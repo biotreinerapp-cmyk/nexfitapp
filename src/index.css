@@ -176,6 +176,7 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
     font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
     background-color: hsl(var(--background)) !important;
+    color-scheme: dark;
     overflow: hidden;
     /* Do not restrict wheel/touch scrolling globally */
     overscroll-behavior: auto;
@@ -205,6 +206,29 @@ All colors MUST be HSL.
     textarea {
       font-size: 16px !important;
     }
+  }
+
+  /* Improve native date input rendering */
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"] {
+    color-scheme: dark;
+    /* Ensures popup and placeholder are dark themed natively */
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+    padding: 0.2rem;
+    border-radius: 4px;
+    filter: invert(1);
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator:hover,
+  input[type="time"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
   }
 }
 

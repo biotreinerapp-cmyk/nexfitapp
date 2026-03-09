@@ -1437,6 +1437,59 @@ export type Database = {
           },
         ]
       }
+      running_club_races: {
+        Row: {
+          id: string
+          club_id: string
+          title: string
+          description: string | null
+          event_date: string
+          location: string | null
+          registration_link: string | null
+          price: number | null
+          active: boolean
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          club_id: string
+          title: string
+          description?: string | null
+          event_date: string
+          location?: string | null
+          registration_link?: string | null
+          price?: number | null
+          active?: boolean
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          club_id?: string
+          title?: string
+          description?: string | null
+          event_date?: string
+          location?: string | null
+          registration_link?: string | null
+          price?: number | null
+          active?: boolean
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "running_club_races_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "running_clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       running_clubs: {
         Row: {
           city: string | null
